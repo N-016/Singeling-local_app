@@ -1,2 +1,2 @@
 # Singeling-local_app
-De lokal client voor de SNGLNG app
+De local client voor de SNGLNG app
