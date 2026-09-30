@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Singeling App</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            background: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            -webkit-app-region: drag;
+            overflow: hidden;
+        }
+
+        .card {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(155deg, #24242a 0%, #1a1a1e 55%, #201814 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 22px;
+            overflow: hidden;
+            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55);
+        }
+
+        .glow {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(70px);
+            z-index: 0;
+        }
+
+        .glow-1 {
+            width: 220px;
+            height: 220px;
+            top: -70px;
+            left: -60px;
+            background: rgba(255, 94, 0, 0.22);
+        }
+
+        .glow-2 {
+            width: 180px;
+            height: 180px;
+            bottom: -80px;
+            right: -50px;
+            background: rgba(255, 94, 0, 0.14);
+        }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .logo-mark {
+            width: 88px;
+            height: 88px;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 10px 24px rgba(255, 94, 0, 0.4));
+            animation: breathe 2.4s ease-in-out infinite;
+        }
+
+        h2 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+            letter-spacing: 0.2px;
+            color: #ffffff;
+        }
+
+        .subtitle {
+            font-size: 12.5px;
+            color: #9a9aa3;
+            margin: 0 0 22px 0;
+        }
+
+        .progress-track {
+            width: 160px;
+            height: 4px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+            margin-bottom: 18px;
+        }
+
+        .progress-fill {
+            width: 40%;
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #ff5e00, #ffa14d);
+            animation: slide 1.3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        .version-pill {
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #b7b7bf;
+            font-size: 11px;
+            letter-spacing: 0.4px;
+        }
+
+        .footer {
+            position: absolute;
+            z-index: 1;
+            bottom: 16px;
+            color: #5f5f68;
+            font-size: 10.5px;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 10px 24px rgba(255, 94, 0, 0.4)); }
+            50% { transform: scale(1.06); filter: drop-shadow(0 14px 32px rgba(255, 94, 0, 0.55)); }
+        }
+
+        @keyframes slide {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(350%); }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="glow glow-1"></div>
+        <div class="glow glow-2"></div>
+        <div class="content">
+            <img class="logo-mark" src="assets/logo.png" alt="Singeling">
+            <h2>Singeling App wordt gestart</h2>
+            <div class="subtitle">Even geduld, dit duurt maar heel even&hellip;</div>
+            <div class="progress-track">
+                <div class="progress-fill"></div>
+            </div>
+            <div class="version-pill">v0.4.3</div>
+        </div>
+        <div class="footer">Singeling B.V.</div>
+    </div>
+</body>
+</html>

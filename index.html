@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+  <title>Singeling App</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #1e1e1e;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    #app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #tab-bar {
+      display: flex;
+      background: #000000;
+      height: 38px;
+      align-items: center;
+      border-bottom: 1px solid #3c3c3c;
+      -webkit-app-region: drag; /* Maakt de tabbar sleepbaar voor het venster */
+    }
+
+    #tab-scroll {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    #navigation-buttons {
+      display: flex;
+      align-items: center;
+      flex: 0 0 auto;
+      -webkit-app-region: no-drag;
+    }
+
+    .navigation-button {
+      flex: 0 0 30px;
+      height: 30px;
+      border: 0;
+      color: #aaa;
+      background: #000;
+      font-size: 18px;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+    }
+
+    .navigation-button:hover {
+      color: #fff;
+      background: #292929;
+    }
+
+    .navigation-button:disabled {
+      color: #555;
+      cursor: not-allowed;
+    }
+
+    .navigation-button.enabled {
+      color: #ff5e00;
+    }
+
+    #share-link-btn {
+      color: #ff5e00;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #share-link-btn:hover {
+      color: #ff7a33;
+      background: #292929;
+    }
+
+    .copy-confirmation {
+      position: fixed;
+      padding: 7px 14px;
+      background: #292929;
+      border: 1px solid #ff5e00;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+      z-index: 20;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateX(-4px);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .copy-confirmation.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    #tabs {
+      display: flex;
+      align-items: center;
+      min-width: max-content;
+      overflow: visible;
+      padding-left: 8px;
+    }
+
+    #tab-scroll-buttons {
+      display: flex;
+      align-items: center;
+      flex: 0 0 auto;
+      -webkit-app-region: no-drag;
+    }
+
+    .tab-scroll-button {
+      flex: 0 0 30px;
+      height: 30px;
+      border: 0;
+      color: #aaa;
+      background: #000;
+      font-size: 18px;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+    }
+
+    .tab-scroll-button:hover {
+      color: #fff;
+      background: #292929;
+    }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      background: #4d4d4d;
+      padding: 0 12px;
+      height: 30px;
+      margin-right: 4px;
+      border-radius: 6px 6px 0 0;
+      font-size: 13px;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+      border: 1px solid transparent;
+      max-width: 180px;
+    }
+
+    .tab .tab-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tab.dragging {
+      opacity: 0.4;
+    }
+
+    .tab.active {
+      background: #4d4d4d;
+      border-color: #919191;
+      border-bottom: 2px solid #ff5e00; /* Jouw branding kleur! */
+    }
+
+    .tab.locked .tab-title::before {
+      content: '\1F512 ';
+      font-size: 11px;
+    }
+
+    /* Vastgezette tabs blijven zichtbaar aan de linkerkant, ook als je door
+       de rest van de tabbalk scrolt (zoals gepinde tabs in een browser). De
+       schaduw/kader maakt meteen duidelijk dat dit tabblad "boven" de rest
+       zweeft. */
+    .tab.locked {
+      position: sticky;
+      z-index: 2;
+      background: #57503a;
+      border-color: rgba(255, 255, 255, 0.35);
+      box-shadow: 3px 0 10px rgba(0, 0, 0, 0.55);
+    }
+
+    /* Vult de marge naast de tab op met een effen blokje (i.p.v. een border,
+       die anders lelijk meebuigt met de afgeronde bovenhoek), zodat er geen
+       scrollende tab doorheen te zien is. */
+    .tab.locked::after {
+      content: '';
+      position: absolute;
+      /* position:absolute plaatst t.o.v. de PADDING-box van de sticky ouder,
+         niet de border-box - zonder deze correctie overlapt dit blokje de
+         1px rand van de tab zelf, waardoor die rechts onzichtbaar leek. */
+      top: -1px;
+      right: -5px;
+      width: 4px;
+      height: calc(100% + 2px);
+      background: #000;
+      pointer-events: none;
+    }
+
+    .tab-close {
+      background: transparent;
+      border: none;
+      color: #aaa;
+      font-size: 14px;
+      margin-left: 8px;
+      cursor: pointer;
+      padding: 0 4px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .tab-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    #new-tab-btn {
+      background: transparent;
+      border: none;
+      color: #aaa;
+      font-size: 18px;
+      width: 30px;
+      height: 30px;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    #new-tab-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    #settings-btn {
+      position: relative;
+      flex-shrink: 0;
+      color: #ff5e00;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #settings-btn:hover {
+      color: #ff7a33;
+      background: #292929;
+    }
+
+    .update-badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ff3b30;
+      box-shadow: 0 0 0 1px #000;
+    }
+
+    .settings-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 24;
+      background:
+        radial-gradient(circle at 88% 4%, rgba(255, 126, 51, 0.35), transparent 40%),
+        radial-gradient(circle at 60% 0%, rgba(255, 94, 0, 0.18), transparent 45%),
+        radial-gradient(circle at 12% 92%, rgba(255, 94, 0, 0.1), transparent 50%),
+        linear-gradient(155deg, #24242a 0%, #1a1a1e 60%, #1c1714 100%);
+      -webkit-app-region: no-drag;
+    }
+
+    .settings-backdrop.hidden {
+      display: none;
+    }
+
+    .settings-panel {
+      position: fixed;
+      top: 42px;
+      right: 8px;
+      width: 280px;
+      max-height: calc(100vh - 60px);
+      overflow-y: auto;
+      background: rgba(41, 41, 41, 0.5);
+      backdrop-filter: blur(28px) saturate(160%);
+      -webkit-backdrop-filter: blur(28px) saturate(160%);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+      z-index: 25;
+      padding: 14px 16px;
+      -webkit-app-region: no-drag;
+    }
+
+    .settings-panel.hidden {
+      display: none;
+    }
+
+    .settings-section + .settings-section {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid #3c3c3c;
+    }
+
+    .settings-section h3 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: #d4d4d4;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .settings-hint {
+      margin: 8px 0 0;
+      font-size: 12px;
+      color: #999;
+      line-height: 1.4;
+    }
+
+    .zoom-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .zoom-controls button {
+      min-width: 30px;
+      height: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.07);
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .zoom-controls button:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    #zoom-level {
+      flex: 1;
+      text-align: center;
+      font-size: 13px;
+    }
+
+    #start-tabs-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .start-tab-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 6px 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .start-tab-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .start-tab-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .start-tab-lock {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #ccc;
+      cursor: pointer;
+    }
+
+    .start-tab-lock input {
+      width: 13px;
+      height: 13px;
+      accent-color: #ff5e00;
+      cursor: pointer;
+    }
+
+    .start-tab-remove {
+      flex-shrink: 0;
+      border: none;
+      background: transparent;
+      color: #aaa;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 0 4px;
+      border-radius: 4px;
+    }
+
+    .start-tab-remove:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    #start-tabs-empty.hidden {
+      display: none;
+    }
+
+    .general-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .general-actions button {
+      padding: 8px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.07);
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .general-actions button:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .general-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      font-size: 13px;
+      color: #d4d4d4;
+      cursor: pointer;
+    }
+
+    .general-toggle input {
+      width: 14px;
+      height: 14px;
+      accent-color: #ff5e00;
+      cursor: pointer;
+    }
+
+    #changelog-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(0, 0, 0, 0.78);
+      -webkit-app-region: no-drag;
+    }
+
+    #changelog-overlay.hidden {
+      display: none;
+    }
+
+    .changelog-panel {
+      width: min(560px, 100%);
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      background: #292929;
+      border: 1px solid #5a5a5a;
+      border-radius: 8px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+      overflow: hidden;
+    }
+
+    .changelog-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid #3c3c3c;
+    }
+
+    .changelog-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    #changelog-close {
+      border: none;
+      background: transparent;
+      color: #aaa;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0 4px;
+      border-radius: 4px;
+    }
+
+    #changelog-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .changelog-content {
+      margin: 0;
+      padding: 20px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #d4d4d4;
+    }
+
+    .settings-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .settings-tab-btn {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.07);
+      color: #ccc;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .settings-tab-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .settings-tab-btn.active {
+      background: #c94700;
+      border-color: #ff5e00;
+      color: #fff;
+    }
+
+    #tab-groups-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tab-group-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+
+    .tab-group-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tab-group-name {
+      flex: 1;
+      min-width: 0;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 4px;
+      color: #fff;
+      font-size: 13px;
+      padding: 4px 6px;
+    }
+
+    .tab-group-name:focus {
+      outline: none;
+      border-color: #ff5e00;
+    }
+
+    .tab-group-open {
+      flex-shrink: 0;
+      padding: 4px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .tab-group-open:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .tab-group-delete {
+      flex-shrink: 0;
+      border: none;
+      background: transparent;
+      color: #aaa;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 0 4px;
+      border-radius: 4px;
+    }
+
+    .tab-group-delete:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .tab-group-urls {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .tab-group-urls li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 8px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      font-size: 12px;
+      color: #ccc;
+    }
+
+    .tab-group-url-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tab-group-url-remove {
+      flex-shrink: 0;
+      border: none;
+      background: transparent;
+      color: #aaa;
+      font-size: 13px;
+      cursor: pointer;
+      padding: 0 4px;
+      border-radius: 4px;
+    }
+
+    .tab-group-url-remove:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    #view-container {
+      flex: 1;
+      position: relative;
+      background: #1e1e1e;
+    }
+
+    #beta-notice {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(0, 0, 0, 0.78);
+      -webkit-app-region: no-drag;
+    }
+
+    #beta-notice.hidden {
+      display: none;
+    }
+
+    .notice-panel {
+      width: min(520px, 100%);
+      padding: 28px;
+      background: #292929;
+      border: 1px solid #5a5a5a;
+      border-radius: 8px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+    }
+
+    .notice-panel h1 {
+      margin: 0 0 16px;
+      font-size: 22px;
+    }
+
+    .notice-panel p {
+      margin: 0 0 24px;
+      color: #d4d4d4;
+      line-height: 1.5;
+    }
+
+    .notice-panel p.notice-footnote {
+      margin: 16px 0 0;
+      font-size: 12px;
+      color: #999;
+      line-height: 1.4;
+    }
+
+    .notice-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .notice-actions button {
+      min-width: 150px;
+      padding: 10px 16px;
+      border: 1px solid #777;
+      border-radius: 4px;
+      color: #fff;
+      background: #3d3d3d;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .notice-actions button:hover:not(:disabled) {
+      background: #505050;
+    }
+
+    .notice-actions #accept-beta:enabled {
+      border-color: #ff5e00;
+      background: #c94700;
+    }
+
+    .notice-actions button:disabled {
+      color: #999;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 560px) {
+      .notice-actions {
+        flex-direction: column-reverse;
+      }
+
+      .notice-actions button {
+        width: 100%;
+      }
+    }
+
+    .onboarding-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: -4px 0 20px;
+      color: #d4d4d4;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .onboarding-toggle input {
+      width: 15px;
+      height: 15px;
+      accent-color: #ff5e00;
+      cursor: pointer;
+    }
+
+    #onboarding-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 15;
+      -webkit-app-region: no-drag;
+    }
+
+    #onboarding-overlay.hidden {
+      display: none;
+    }
+
+    /* Tijdens instellingen-stappen moet de rondleiding boven het (dan
+       geopende) instellingenpaneel en de bijbehorende backdrop uitsteken. */
+    #onboarding-overlay.above-settings {
+      z-index: 26;
+    }
+
+    .onboarding-spotlight {
+      position: fixed;
+      border-radius: 8px;
+      border: 2px solid #ff5e00;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
+      pointer-events: none;
+      transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+    }
+
+    .onboarding-tooltip {
+      position: fixed;
+      width: min(320px, calc(100vw - 32px));
+      padding: 18px 20px;
+      background: #292929;
+      border: 1px solid #5a5a5a;
+      border-radius: 8px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+      transition: top 0.25s ease, left 0.25s ease;
+    }
+
+    .onboarding-tooltip::before {
+      content: '';
+      position: absolute;
+      top: -8px;
+      left: 28px;
+      width: 14px;
+      height: 14px;
+      background: #292929;
+      border-left: 1px solid #5a5a5a;
+      border-top: 1px solid #5a5a5a;
+      transform: rotate(45deg);
+    }
+
+    .onboarding-tooltip h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .onboarding-tooltip p {
+      margin: 0 0 16px;
+      color: #d4d4d4;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .onboarding-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    #onboarding-progress {
+      font-size: 12px;
+      color: #999;
+    }
+
+    .onboarding-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .onboarding-buttons button {
+      padding: 6px 14px;
+      border: 1px solid #777;
+      border-radius: 4px;
+      color: #fff;
+      background: #3d3d3d;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .onboarding-buttons button:hover {
+      background: #505050;
+    }
+
+    #onboarding-next {
+      border-color: #ff5e00;
+      background: #c94700;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app-container">
+    <div id="tab-bar">
+      <div id="navigation-buttons">
+        <button class="navigation-button" type="button" title="Ga terug" aria-label="Ga terug" data-action="back">&#8592;</button>
+        <button class="navigation-button" type="button" title="Ga vooruit" aria-label="Ga vooruit" data-action="forward">&#8594;</button>
+        <button class="navigation-button" type="button" title="Pagina vernieuwen" aria-label="Pagina vernieuwen" data-action="reload">&#8635;</button>
+      </div>
+      <button class="navigation-button" type="button" id="share-link-btn" title="Kopieer link om te delen" aria-label="Kopieer link om te delen">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+        </svg>
+      </button>
+      <div id="tab-scroll">
+        <div id="tabs"></div>
+      </div>
+      <div id="tab-scroll-buttons">
+        <button id="scroll-left" class="tab-scroll-button" type="button" title="Scroll tabs naar links">&#9664;</button>
+        <button id="scroll-right" class="tab-scroll-button" type="button" title="Scroll tabs naar rechts">&#9654;</button>
+      </div>
+      <button id="new-tab-btn">+</button>
+      <button id="settings-btn" class="navigation-button" type="button" title="Instellingen" aria-label="Instellingen">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+        </svg>
+        <span id="settings-update-badge" class="update-badge hidden" title="Update beschikbaar"></span>
+      </button>
+    </div>
+    <div id="copy-confirmation" class="copy-confirmation">Gekopieerd naar klembord</div>
+    <div id="view-container">
+      <!-- De echte content zit in WebContentsViews die main.js beheert -->
+    </div>
+  </div>
+
+  <div id="settings-backdrop" class="settings-backdrop hidden"></div>
+  <div id="settings-panel" class="settings-panel hidden">
+    <div class="settings-section">
+      <h3>Algemeen</h3>
+      <div class="general-actions">
+        <button id="show-changelog-btn" type="button">Changelog bekijken</button>
+        <button id="restart-onboarding-btn" type="button">Rondleiding opnieuw volgen</button>
+      </div>
+      <label class="general-toggle">
+        <input type="checkbox" id="open-all-links-new-tab-checkbox">
+        Alle links altijd in een nieuw tabblad openen
+      </label>
+      <p class="settings-hint">Geldt voor alle tabs, ook niet-vastgezette. Externe links (buiten Singeling) blijven gewoon in je standaardbrowser openen.</p>
+    </div>
+
+    <div class="settings-section">
+      <h3>Updates</h3>
+      <div class="general-actions">
+        <button id="check-updates-btn" type="button">Nu zoeken naar updates</button>
+      </div>
+      <p id="check-updates-status" class="settings-hint"></p>
+      <p class="settings-hint">De app controleert ook automatisch elke dag op updates. Vind hij er een, dan zie je een bolletje bij dit instellingen-icoon; herstart de app om te updaten.</p>
+    </div>
+
+    <div class="settings-section">
+      <h3>Zoomen</h3>
+      <div class="zoom-controls">
+        <button id="zoom-out-btn" type="button" aria-label="Uitzoomen">&minus;</button>
+        <span id="zoom-level">100%</span>
+        <button id="zoom-in-btn" type="button" aria-label="Inzoomen">&plus;</button>
+        <button id="zoom-reset-btn" type="button">Reset</button>
+      </div>
+      <p class="settings-hint">Of houd Ctrl ingedrukt en scroll op een pagina.</p>
+    </div>
+    <div class="settings-section">
+      <div class="settings-tabs">
+        <button class="settings-tab-btn active" type="button" data-section="start">Starttabs</button>
+        <button class="settings-tab-btn" type="button" data-section="groups">Tabgroepen</button>
+      </div>
+
+      <div id="settings-section-start" class="settings-section-body">
+        <ul id="start-tabs-list"></ul>
+        <p id="start-tabs-empty" class="settings-hint">Nog geen tabs. Rechtsklik op een tab en kies "Openen bij opstarten".</p>
+      </div>
+
+      <div id="settings-section-groups" class="settings-section-body hidden">
+        <ul id="tab-groups-list"></ul>
+        <p id="tab-groups-empty" class="settings-hint">Nog geen tabgroepen. Rechtsklik op een tab en kies "Toevoegen aan tabgroup".</p>
+      </div>
+    </div>
+  </div>
+
+  <section id="beta-notice" role="dialog" aria-modal="true" aria-labelledby="beta-title">
+    <div class="notice-panel">
+      <h1 id="beta-title">Welkom bij Singeling App</h1>
+      <p>Gebruik de app alleen binnen Singeling!.</p>
+      <label class="onboarding-toggle">
+        <input type="checkbox" id="show-onboarding-checkbox" checked>
+        Laat de functies van deze app zien
+      </label>
+      <div class="notice-actions">
+        <button id="accept-beta" type="button">Start</button>
+      </div>
+      <p class="notice-footnote">Kom je een bug tegen? Meld dit bij Nick.</p>
+    </div>
+  </section>
+
+  <section id="changelog-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="changelog-title">
+    <div class="changelog-panel">
+      <div class="changelog-header">
+        <h2 id="changelog-title">Changelog</h2>
+        <button id="changelog-close" type="button" aria-label="Sluiten">&times;</button>
+      </div>
+      <pre id="changelog-content" class="changelog-content"></pre>
+    </div>
+  </section>
+
+  <section id="onboarding-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+    <div id="onboarding-spotlight" class="onboarding-spotlight"></div>
+    <div id="onboarding-tooltip" class="onboarding-tooltip">
+      <h2 id="onboarding-title"></h2>
+      <p id="onboarding-text"></p>
+      <div class="onboarding-footer">
+        <span id="onboarding-progress"></span>
+        <div class="onboarding-buttons">
+          <button id="onboarding-skip" type="button">Overslaan</button>
+          <button id="onboarding-next" type="button">Volgende</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const tabBar = document.getElementById('tab-bar');
+    const newTabBtn = document.getElementById('new-tab-btn');
+    const tabsContainer = document.getElementById('tabs');
+    const tabScroll = document.getElementById('tab-scroll');
+    const lockedTabIds = new Set();
+    const tabUrls = new Map();
+    let activeTabId = null;
+
+    // Bepaalt vóór welke tab de gesleepte tab moet komen, op basis van muispositie
+    function getDragAfterElement(container, x) {
+      const candidates = [...container.querySelectorAll('.tab:not(.dragging)')];
+      return candidates.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = x - box.left - box.width / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset, element: child };
+        }
+        return closest;
+      }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+    }
+
+    tabsContainer.addEventListener('dragover', (event) => {
+      const dragging = tabsContainer.querySelector('.tab.dragging');
+      if (!dragging) return;
+
+      event.preventDefault();
+      const afterElement = getDragAfterElement(tabsContainer, event.clientX);
+      if (afterElement == null) {
+        tabsContainer.appendChild(dragging);
+      } else {
+        tabsContainer.insertBefore(dragging, afterElement);
+      }
+    });
+
+    document.querySelectorAll('[data-action]').forEach(button => {
+      button.addEventListener('click', () => {
+        window.electronAPI.navigateActiveTab(button.dataset.action);
+      });
+    });
+
+    document.getElementById('scroll-left').addEventListener('click', () => {
+      tabScroll.scrollBy({ left: -240, behavior: 'smooth' });
+    });
+    document.getElementById('scroll-right').addEventListener('click', () => {
+      tabScroll.scrollBy({ left: 240, behavior: 'smooth' });
+    });
+
+    const shareLinkBtn = document.getElementById('share-link-btn');
+    const copyConfirmation = document.getElementById('copy-confirmation');
+    let copyConfirmationTimeout = null;
+
+    shareLinkBtn.addEventListener('click', () => {
+      const url = tabUrls.get(activeTabId);
+      if (!url) return;
+
+      window.electronAPI.copyToClipboard(url);
+
+      // Blijf binnen de 38px hoge tabbalk: de tabinhoud eronder is een aparte
+      // native laag die altijd over de pagina heen tekent, dus een tooltip
+      // ONDER de knop zou onzichtbaar zijn. Plaats 'm daarom ernaast.
+      const btnRect = shareLinkBtn.getBoundingClientRect();
+      copyConfirmation.style.top = `${btnRect.top + (btnRect.height - copyConfirmation.offsetHeight) / 2}px`;
+      copyConfirmation.style.left = `${btnRect.right + 8}px`;
+      copyConfirmation.classList.add('visible');
+
+      clearTimeout(copyConfirmationTimeout);
+      copyConfirmationTimeout = setTimeout(() => {
+        copyConfirmation.classList.remove('visible');
+      }, 1500);
+    });
+
+    const betaNotice = document.getElementById('beta-notice');
+    const acceptBeta = document.getElementById('accept-beta');
+
+    window.electronAPI.on('navigation-state-changed', ({ canGoBack, canGoForward }) => {
+      const backButton = document.querySelector('[data-action="back"]');
+      const forwardButton = document.querySelector('[data-action="forward"]');
+      const refreshButton = document.querySelector('[data-action="reload"]');
+
+      backButton.disabled = !canGoBack;
+      forwardButton.disabled = !canGoForward;
+      backButton.classList.toggle('enabled', canGoBack);
+      forwardButton.classList.toggle('enabled', canGoForward);
+      refreshButton.disabled = false;
+      refreshButton.classList.add('enabled');
+    });
+
+    const showOnboardingCheckbox = document.getElementById('show-onboarding-checkbox');
+    // Onthoud de keuze van de gebruiker over de rondleiding-checkbox tussen
+    // sessies. Het welkomstscherm is meteen zichtbaar bij het laden van de
+    // pagina, dus dit moet zo vroeg mogelijk opgehaald worden.
+    window.electronAPI.getSettings().then((settings) => {
+      if (settings) showOnboardingCheckbox.checked = settings.showOnboarding !== false;
+    });
+    const onboardingOverlay = document.getElementById('onboarding-overlay');
+    const onboardingSpotlight = document.getElementById('onboarding-spotlight');
+    const onboardingTooltip = document.getElementById('onboarding-tooltip');
+    const onboardingTitle = document.getElementById('onboarding-title');
+    const onboardingText = document.getElementById('onboarding-text');
+    const onboardingProgress = document.getElementById('onboarding-progress');
+    const onboardingSkip = document.getElementById('onboarding-skip');
+    const onboardingNext = document.getElementById('onboarding-next');
+
+    const onboardingSteps = [
+      {
+        target: '#navigation-buttons',
+        title: 'Navigeren en verversen',
+        text: 'Met deze pijltjes ga je terug of vooruit, net als in een browser. De ververs-knop (en de F5-toets) laden altijd gewoon de huidige pagina opnieuw.'
+      },
+      {
+        target: '#share-link-btn',
+        title: 'Link delen',
+        text: 'Klik hier om de link van de huidige pagina te kopiëren, zodat je deze makkelijk kunt delen met collega\'s binnen het bedrijf.'
+      },
+      {
+        target: '#tab-scroll',
+        title: 'Tabs vastzetten',
+        text: 'Rechtsklik op een tab om hem vast te zetten. Bij een vastgezette tab (met slotje) openen links altijd in een nieuw tabblad. Externe links (buiten Singeling) openen automatisch in je standaardbrowser.'
+      },
+      {
+        target: '.general-actions',
+        title: 'Instellingen: algemeen',
+        text: 'Via het moersleutel-icoon kom je hier. Bekijk de changelog met alle wijzigingen, of start deze rondleiding op elk moment opnieuw.',
+        requiresSettingsOpen: true
+      },
+      {
+        target: '.zoom-controls',
+        title: 'Zoomen',
+        text: 'Pas het zoomniveau aan met deze knoppen, of houd Ctrl ingedrukt en scroll op een pagina.',
+        requiresSettingsOpen: true
+      },
+      {
+        target: '#settings-section-start',
+        title: 'Starttabs',
+        text: 'Rechtsklik op een tab en kies "Openen bij opstarten" om hem hier toe te voegen. Je kunt starttabs verwijderen of los vergrendelen.',
+        requiresSettingsOpen: true,
+        settingsSection: 'start'
+      },
+      {
+        target: '#settings-section-groups',
+        title: 'Tabgroepen',
+        text: 'Rechtsklik op een tab en kies "Toevoegen aan tabgroup" om een groep te maken. Hier hernoem je de groep, verwijder je tabs eruit, of open je de hele groep in één keer.',
+        requiresSettingsOpen: true,
+        settingsSection: 'groups'
+      }
+    ];
+    let onboardingStepIndex = 0;
+    let wantsOnboarding = true;
+    let onboardingStarted = false;
+    let settingsOpenedByOnboarding = false;
+
+    async function positionOnboardingStep() {
+      const step = onboardingSteps[onboardingStepIndex];
+
+      if (step.requiresSettingsOpen) {
+        onboardingOverlay.classList.add('above-settings');
+        if (settingsPanel.classList.contains('hidden')) {
+          await openSettingsPanel();
+          settingsOpenedByOnboarding = true;
+        }
+        if (step.settingsSection) setSettingsSection(step.settingsSection);
+      } else {
+        onboardingOverlay.classList.remove('above-settings');
+        if (settingsOpenedByOnboarding) {
+          closeSettingsPanel();
+          settingsOpenedByOnboarding = false;
+        }
+      }
+
+      // Wacht een frame zodat het instellingenpaneel (indien net geopend of
+      // gewisseld) zijn layout heeft bijgewerkt voordat we de positie meten.
+      await new Promise(resolve => requestAnimationFrame(resolve));
+
+      const target = document.querySelector(step.target);
+      if (!target) return;
+
+      const rect = target.getBoundingClientRect();
+      const padding = 6;
+
+      onboardingSpotlight.style.top = `${rect.top - padding}px`;
+      onboardingSpotlight.style.left = `${rect.left - padding}px`;
+      onboardingSpotlight.style.width = `${rect.width + padding * 2}px`;
+      onboardingSpotlight.style.height = `${rect.height + padding * 2}px`;
+
+      onboardingTitle.textContent = step.title;
+      onboardingText.textContent = step.text;
+      onboardingProgress.textContent = `${onboardingStepIndex + 1} / ${onboardingSteps.length}`;
+      onboardingNext.textContent = onboardingStepIndex === onboardingSteps.length - 1 ? 'Klaar' : 'Volgende';
+
+      const tooltipTop = rect.bottom + padding + 14;
+      let tooltipLeft = rect.left;
+      const maxLeft = window.innerWidth - onboardingTooltip.offsetWidth - 16;
+      tooltipLeft = Math.max(16, Math.min(tooltipLeft, maxLeft));
+
+      onboardingTooltip.style.top = `${tooltipTop}px`;
+      onboardingTooltip.style.left = `${tooltipLeft}px`;
+    }
+
+    function startOnboarding() {
+      onboardingStarted = true;
+      onboardingStepIndex = 0;
+      window.electronAPI.notifyOnboardingStarted();
+      onboardingOverlay.classList.remove('hidden');
+      positionOnboardingStep();
+    }
+
+    function stopOnboarding() {
+      onboardingOverlay.classList.add('hidden');
+      onboardingOverlay.classList.remove('above-settings');
+      window.electronAPI.notifyOnboardingEnded();
+      if (settingsOpenedByOnboarding) {
+        closeSettingsPanel();
+        settingsOpenedByOnboarding = false;
+      }
+    }
+
+    onboardingNext.addEventListener('click', async (event) => {
+      // Zonder dit vangt de document-brede "klik-buiten-sluit-instellingen"
+      // listener deze klik ook op (de rondleiding-knoppen staan buiten de DOM
+      // van het instellingenpaneel), waardoor het paneel per ongeluk sluit.
+      event.stopPropagation();
+      if (onboardingStepIndex >= onboardingSteps.length - 1) {
+        stopOnboarding();
+        return;
+      }
+      onboardingStepIndex += 1;
+      await positionOnboardingStep();
+    });
+
+    onboardingSkip.addEventListener('click', (event) => {
+      event.stopPropagation();
+      stopOnboarding();
+    });
+
+    window.addEventListener('resize', () => {
+      if (!onboardingOverlay.classList.contains('hidden')) {
+        positionOnboardingStep();
+      }
+    });
+
+    // Start de rondleiding pas zodra de eerste tab echt bestaat (na accepteren van de melding)
+    window.electronAPI.on('tab-created', () => {
+      if (wantsOnboarding && !onboardingStarted) {
+        // Wacht op de volgende frame zodat de tab daadwerkelijk is gerenderd
+        // (deze listener draait vóór de listener die de tab-DOM opbouwt).
+        requestAnimationFrame(startOnboarding);
+      }
+    });
+
+    acceptBeta.addEventListener('click', () => {
+      wantsOnboarding = showOnboardingCheckbox.checked;
+      window.electronAPI.setShowOnboarding(wantsOnboarding);
+      betaNotice.classList.add('hidden');
+      window.electronAPI.acceptAppNotice();
+    });
+
+    // tabId -> DOM element, zodat we tabs kunnen terugvinden
+    const tabElements = new Map();
+
+    // Vastgezette tabs plakken (via CSS position:sticky) aan de linkerkant van
+    // de tabbalk. Sticky heeft per tab een vaste "left"-offset nodig; die is
+    // de opgetelde breedte van de vastgezette tabs die ervoor staan (losse
+    // tabs tellen niet mee, die scrollen er gewoon onderdoor).
+    function updateLockedTabPositions() {
+      const children = [...tabsContainer.children];
+      const lockedInOrder = children.filter(tab => tab.classList.contains('locked'));
+      let cumulativeLeft = 0;
+
+      children.forEach(tab => {
+        if (!tab.classList.contains('locked')) {
+          tab.style.left = '';
+          tab.style.borderRadius = '';
+          return;
+        }
+
+        tab.style.left = `${cumulativeLeft}px`;
+        cumulativeLeft += tab.offsetWidth + 4; // 4px = margin-right van .tab
+
+        // Bij meerdere vastgezette tabs op een rij moeten alleen de buitenste
+        // hoeken van die groep afgerond zijn (net als bij vastgezette tabs in
+        // een browser); de tabs ertussenin krijgen rechte hoeken.
+        if (lockedInOrder.length <= 1) {
+          tab.style.borderRadius = '';
+        } else if (tab === lockedInOrder[0]) {
+          tab.style.borderRadius = '6px 0 0 0';
+        } else if (tab === lockedInOrder[lockedInOrder.length - 1]) {
+          tab.style.borderRadius = '0 6px 0 0';
+        } else {
+          tab.style.borderRadius = '0';
+        }
+      });
+    }
+
+    // Bij het (ont)vastzetten hoort een tab meteen naast de andere vastgezette
+    // tabs te gaan staan (vastzetten: aan het eind van die groep; losmaken:
+    // vooraan bij de losse tabs) - dat is in beide gevallen dezelfde plek: net
+    // na de laatste ándere vastgezette tab.
+    function moveTabNextToLockedGroup(tab) {
+      const others = [...tabsContainer.children].filter(t => t !== tab && t.classList.contains('locked'));
+      if (others.length > 0) {
+        others[others.length - 1].after(tab);
+      } else {
+        tabsContainer.insertBefore(tab, tabsContainer.firstChild);
+      }
+    }
+
+    function setActiveTabUI(tabId) {
+      document.querySelectorAll('.tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tabId === tabId);
+      });
+    }
+
+    function formatTabTitle(url) {
+      try {
+        const parsed = new URL(url);
+        const segments = parsed.pathname.split('/').filter(Boolean);
+
+        // Als je op de homepage bent, toon dan de hostname
+        if (segments.length === 0) {
+          return parsed.hostname;
+        }
+
+        // Specifieke regel voor pakbonnen: /pakbonnen/411043 -> "pakbon 411043"
+        if (segments[0] === 'pakbonnen' && segments[1]) {
+          return `pakbon ${segments[1]}`;
+        }
+
+        // Algemene fallback voor andere pagina's (bijv. /klanten/123 -> "Klanten 123")
+        let mainSection = segments[0];
+        mainSection = mainSection.charAt(0).toUpperCase() + mainSection.slice(1);
+
+        if (segments[1]) {
+          return `${mainSection} ${segments[1]}`;
+        }
+
+        return mainSection;
+      } catch {
+        return url;
+      }
+    }
+
+    // main.js heeft een nieuwe tab (WebContentsView) aangemaakt
+    window.electronAPI.on('tab-created', ({ tabId, url }) => {
+      const tab = document.createElement('div');
+      tab.className = 'tab';
+      tab.dataset.tabId = tabId;
+      tab.draggable = true;
+      tab.innerHTML = `
+        <span class="tab-title">${formatTabTitle(url)}</span>
+        <button class="tab-close">&times;</button>
+      `;
+
+      // Tab verslepen om de volgorde te wijzigen
+      tab.addEventListener('dragstart', (event) => {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', tabId);
+        tab.classList.add('dragging');
+      });
+
+      tab.addEventListener('dragend', () => {
+        tab.classList.remove('dragging');
+        updateLockedTabPositions();
+      });
+
+      tab.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        window.electronAPI.showTabContextMenu(tabId, event.clientX, event.clientY);
+      });
+
+      // Klik op de tab zelf -> wissel naar deze tab
+      tab.addEventListener('click', () => {
+        window.electronAPI.switchTab(tabId);
+      });
+
+      // ** NIEUW: Sluit tab bij indrukken middelste muisknop (wiel) **
+      tab.addEventListener('mousedown', (e) => {
+        if (e.button === 1) { // 1 = middelste muisknop
+          e.preventDefault();
+          window.electronAPI.closeTab(tabId);
+        }
+      });
+
+      // Klik op het kruisje -> sluit deze tab
+      tab.querySelector('.tab-close').addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.electronAPI.closeTab(tabId);
+      });
+
+      tabsContainer.appendChild(tab);
+      tabElements.set(tabId, tab);
+      tabUrls.set(tabId, url);
+      updateLockedTabPositions();
+
+      // Schuif de tabbalk altijd mee naar de nieuwste (laatst aangemaakte) tab
+      tabScroll.scrollTo({ left: tabScroll.scrollWidth, behavior: 'smooth' });
+    });
+
+    // main.js heeft van actieve tab gewisseld
+    window.electronAPI.on('tab-switched', (tabId) => {
+      activeTabId = tabId;
+      setActiveTabUI(tabId);
+    });
+
+    // Titel van een tab is bijgewerkt (bv. na het laden van de pagina)
+    window.electronAPI.on('update-tab-url', ({ tabId, url }) => {
+      const tab = tabElements.get(tabId);
+      if (tab) {
+        tab.querySelector('.tab-title').textContent = formatTabTitle(url);
+        updateLockedTabPositions();
+      }
+      tabUrls.set(tabId, url);
+    });
+
+    // main.js heeft een tab definitief verwijderd (bv. na close-tab)
+    window.electronAPI.on('tab-closed', (tabId) => {
+      const tab = tabElements.get(tabId);
+      if (tab) {
+        tab.remove();
+        tabElements.delete(tabId);
+      }
+      lockedTabIds.delete(tabId);
+      tabUrls.delete(tabId);
+      updateLockedTabPositions();
+    });
+
+    window.electronAPI.on('tab-lock-changed', ({ tabId, locked }) => {
+      const tab = tabElements.get(tabId);
+      if (!tab) return;
+      locked ? lockedTabIds.add(tabId) : lockedTabIds.delete(tabId);
+      tab.classList.toggle('locked', locked);
+      moveTabNextToLockedGroup(tab);
+      updateLockedTabPositions();
+    });
+
+    // Gebruiker klikt op "+" -> vraag main.js om een nieuwe tab
+    newTabBtn.addEventListener('click', () => {
+      window.electronAPI.requestNewTab();
+    });
+
+    // Instellingenmenu: zoomen en tabs die bij opstarten geopend worden
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsPanel = document.getElementById('settings-panel');
+    const settingsBackdrop = document.getElementById('settings-backdrop');
+    const zoomLevelLabel = document.getElementById('zoom-level');
+    const zoomInBtn = document.getElementById('zoom-in-btn');
+    const zoomOutBtn = document.getElementById('zoom-out-btn');
+    const zoomResetBtn = document.getElementById('zoom-reset-btn');
+    const startTabsList = document.getElementById('start-tabs-list');
+    const startTabsEmpty = document.getElementById('start-tabs-empty');
+    const tabGroupsList = document.getElementById('tab-groups-list');
+    const tabGroupsEmpty = document.getElementById('tab-groups-empty');
+    const settingsSectionStart = document.getElementById('settings-section-start');
+    const settingsSectionGroups = document.getElementById('settings-section-groups');
+    const settingsTabButtons = document.querySelectorAll('.settings-tab-btn');
+
+    function updateZoomLabel(factor) {
+      zoomLevelLabel.textContent = `${Math.round(factor * 100)}%`;
+    }
+
+    function renderStartTabs(startTabs) {
+      startTabsList.innerHTML = '';
+      startTabsEmpty.classList.toggle('hidden', startTabs.length > 0);
+
+      startTabs.forEach((tab, index) => {
+        const item = document.createElement('li');
+        item.className = 'start-tab-item';
+
+        const row = document.createElement('div');
+        row.className = 'start-tab-row';
+
+        const label = document.createElement('span');
+        label.className = 'start-tab-label';
+        label.textContent = formatTabTitle(tab.url);
+        label.title = tab.url;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'start-tab-remove';
+        removeBtn.type = 'button';
+        removeBtn.title = 'Verwijderen';
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', () => window.electronAPI.removeStartTab(index));
+
+        row.appendChild(label);
+        row.appendChild(removeBtn);
+
+        const lockLabel = document.createElement('label');
+        lockLabel.className = 'start-tab-lock';
+        const lockCheckbox = document.createElement('input');
+        lockCheckbox.type = 'checkbox';
+        lockCheckbox.checked = !!tab.locked;
+        lockCheckbox.addEventListener('change', () => {
+          window.electronAPI.setStartTabLocked(index, lockCheckbox.checked);
+        });
+        lockLabel.appendChild(lockCheckbox);
+        lockLabel.appendChild(document.createTextNode('Vergrendeld bij start'));
+
+        item.appendChild(row);
+        item.appendChild(lockLabel);
+        startTabsList.appendChild(item);
+      });
+    }
+
+    function setSettingsSection(section) {
+      const showGroups = section === 'groups';
+      settingsSectionStart.classList.toggle('hidden', showGroups);
+      settingsSectionGroups.classList.toggle('hidden', !showGroups);
+      settingsTabButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.section === section);
+      });
+    }
+
+    settingsTabButtons.forEach(btn => {
+      btn.addEventListener('click', () => setSettingsSection(btn.dataset.section));
+    });
+
+    function renderTabGroups(tabGroups) {
+      tabGroupsList.innerHTML = '';
+      tabGroupsEmpty.classList.toggle('hidden', tabGroups.length > 0);
+
+      tabGroups.forEach(group => {
+        const item = document.createElement('li');
+        item.className = 'tab-group-item';
+        item.dataset.groupId = group.id;
+
+        const header = document.createElement('div');
+        header.className = 'tab-group-header';
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.className = 'tab-group-name';
+        nameInput.value = group.name;
+        nameInput.addEventListener('change', () => {
+          window.electronAPI.renameTabGroup(group.id, nameInput.value);
+        });
+
+        const openBtn = document.createElement('button');
+        openBtn.type = 'button';
+        openBtn.className = 'tab-group-open';
+        openBtn.textContent = 'Openen';
+        openBtn.title = 'Open alle tabs uit deze groep';
+        openBtn.addEventListener('click', () => window.electronAPI.openTabGroup(group.id));
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'tab-group-delete';
+        deleteBtn.title = 'Groep verwijderen';
+        deleteBtn.textContent = '×';
+        deleteBtn.addEventListener('click', () => window.electronAPI.removeTabGroup(group.id));
+
+        header.appendChild(nameInput);
+        header.appendChild(openBtn);
+        header.appendChild(deleteBtn);
+
+        const urlList = document.createElement('ul');
+        urlList.className = 'tab-group-urls';
+        group.urls.forEach((url, urlIndex) => {
+          const urlItem = document.createElement('li');
+
+          const urlLabel = document.createElement('span');
+          urlLabel.className = 'tab-group-url-label';
+          urlLabel.textContent = formatTabTitle(url);
+          urlLabel.title = url;
+
+          const urlRemoveBtn = document.createElement('button');
+          urlRemoveBtn.type = 'button';
+          urlRemoveBtn.className = 'tab-group-url-remove';
+          urlRemoveBtn.title = 'Verwijderen uit groep';
+          urlRemoveBtn.textContent = '×';
+          urlRemoveBtn.addEventListener('click', () => window.electronAPI.removeTabGroupUrl(group.id, urlIndex));
+
+          urlItem.appendChild(urlLabel);
+          urlItem.appendChild(urlRemoveBtn);
+          urlList.appendChild(urlItem);
+        });
+
+        item.appendChild(header);
+        item.appendChild(urlList);
+        tabGroupsList.appendChild(item);
+      });
+    }
+
+    async function openSettingsPanel() {
+      const settings = await window.electronAPI.getSettings();
+      if (settings) {
+        updateZoomLabel(settings.zoomFactor);
+        renderStartTabs(settings.startTabs);
+        renderTabGroups(settings.tabGroups);
+        openAllLinksNewTabCheckbox.checked = !!settings.openAllLinksInNewTab;
+      }
+      settingsBackdrop.classList.remove('hidden');
+      settingsPanel.classList.remove('hidden');
+      window.electronAPI.notifySettingsPanelOpened();
+    }
+
+    function closeSettingsPanel() {
+      settingsBackdrop.classList.add('hidden');
+      settingsPanel.classList.add('hidden');
+      window.electronAPI.notifySettingsPanelClosed();
+    }
+
+    // De tabinhoud is een aparte native laag die altijd over deze pagina heen
+    // tekent, dus moet main.js 'm tijdelijk wegklikken zolang dit paneel open staat.
+    settingsBtn.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      if (settingsPanel.classList.contains('hidden')) {
+        await openSettingsPanel();
+      } else {
+        closeSettingsPanel();
+      }
+    });
+
+    document.addEventListener('click', (event) => {
+      if (settingsPanel.classList.contains('hidden')) return;
+      if (settingsPanel.contains(event.target) || event.target === settingsBtn) return;
+      if (onboardingOverlay.contains(event.target)) return;
+      closeSettingsPanel();
+    });
+
+    // Algemeen: changelog en rondleiding zijn losse acties, geen tabs
+    const showChangelogBtn = document.getElementById('show-changelog-btn');
+    const restartOnboardingBtn = document.getElementById('restart-onboarding-btn');
+    const changelogOverlay = document.getElementById('changelog-overlay');
+    const changelogTitleEl = document.getElementById('changelog-title');
+    const changelogContent = document.getElementById('changelog-content');
+    const changelogCloseBtn = document.getElementById('changelog-close');
+    const openAllLinksNewTabCheckbox = document.getElementById('open-all-links-new-tab-checkbox');
+
+    openAllLinksNewTabCheckbox.addEventListener('change', () => {
+      window.electronAPI.setOpenAllLinksInNewTab(openAllLinksNewTabCheckbox.checked);
+    });
+
+    const checkUpdatesBtn = document.getElementById('check-updates-btn');
+    const checkUpdatesStatus = document.getElementById('check-updates-status');
+    const settingsUpdateBadge = document.getElementById('settings-update-badge');
+
+    window.electronAPI.on('update-badge-changed', (available) => {
+      settingsUpdateBadge.classList.toggle('hidden', !available);
+    });
+
+    checkUpdatesBtn.addEventListener('click', async () => {
+      checkUpdatesBtn.disabled = true;
+      checkUpdatesStatus.textContent = 'Bezig met controleren...';
+      try {
+        const result = await window.electronAPI.checkForUpdatesNow();
+        if (result.status === 'available') {
+          checkUpdatesStatus.textContent = `Update gevonden: v${result.version}. Herstart de app om te updaten.`;
+        } else if (result.status === 'not-available') {
+          checkUpdatesStatus.textContent = 'Je gebruikt de nieuwste versie.';
+        } else if (result.status === 'not-packaged') {
+          checkUpdatesStatus.textContent = 'Updatecontrole is alleen beschikbaar in de geïnstalleerde versie.';
+        } else {
+          checkUpdatesStatus.textContent = 'Controleren mislukt. Probeer het later opnieuw.';
+        }
+      } finally {
+        checkUpdatesBtn.disabled = false;
+      }
+    });
+
+    function showChangelogOverlay(title, text) {
+      changelogTitleEl.textContent = title;
+      changelogContent.textContent = text;
+      changelogOverlay.classList.remove('hidden');
+    }
+
+    function hideChangelogOverlay() {
+      changelogOverlay.classList.add('hidden');
+      window.electronAPI.notifyChangelogNoticeClosed();
+    }
+
+    showChangelogBtn.addEventListener('click', async () => {
+      showChangelogOverlay('Changelog', await window.electronAPI.getChangelog());
+    });
+
+    changelogCloseBtn.addEventListener('click', hideChangelogOverlay);
+
+    changelogOverlay.addEventListener('click', (event) => {
+      if (event.target === changelogOverlay) hideChangelogOverlay();
+    });
+
+    // Automatisch getoond na een update: alleen de laatste changelog-entry,
+    // niet de hele geschiedenis (dat blijft voor de "Changelog bekijken"-knop).
+    window.electronAPI.on('show-changelog-notice', (latestEntry) => {
+      showChangelogOverlay('Wat is er nieuw?', latestEntry);
+    });
+
+    restartOnboardingBtn.addEventListener('click', () => {
+      // Eerst de rondleiding starten (houdt de tabinhoud verborgen), dan pas
+      // het instellingenpaneel sluiten, anders flitst de tabinhoud even op.
+      startOnboarding();
+      closeSettingsPanel();
+    });
+
+    zoomInBtn.addEventListener('click', () => window.electronAPI.zoomIn());
+    zoomOutBtn.addEventListener('click', () => window.electronAPI.zoomOut());
+    zoomResetBtn.addEventListener('click', () => window.electronAPI.zoomReset());
+
+    window.electronAPI.on('zoom-changed', (factor) => updateZoomLabel(factor));
+    window.electronAPI.on('start-tabs-changed', (startTabs) => renderStartTabs(startTabs));
+    window.electronAPI.on('tab-groups-changed', (tabGroups) => renderTabGroups(tabGroups));
+
+    // Rechtsklik-menu wil na "+ Nieuwe tabgroup" meteen het instellingenpaneel
+    // openen op het Tabgroepen-onderdeel, met de naam van de nieuwe groep klaar
+    // om direct over te typen.
+    window.electronAPI.on('open-settings-panel', async ({ section, focusGroupId } = {}) => {
+      await openSettingsPanel();
+      if (section) setSettingsSection(section);
+      if (focusGroupId) {
+        requestAnimationFrame(() => {
+          const input = document.querySelector(`.tab-group-item[data-group-id="${focusGroupId}"] .tab-group-name`);
+          if (input) {
+            input.focus();
+            input.select();
+          }
+        });
+      }
+    });
+  </script>
+
+</body>
+</html>

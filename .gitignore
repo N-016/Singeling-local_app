@@ -1,0 +1,13 @@
+# Dependencies (herinstalleerbaar via npm install)
+node_modules/
+
+# Build-output (herbouwbaar via npm run build)
+dist/
+dist-*/
+
+# Persoonlijke/lokale instellingen, niet gedeeld tussen machines
+.claude/settings.local.json
+
+# Overig
+supabase/.temp/
+*.log
