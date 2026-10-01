@@ -534,6 +534,11 @@ function closeIfStillBlank(view, tabId) {
 // vertegenwoordigen) evengoed leeg en vastzittend achterlaten.
 function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = {}) {
   let isInitialLoad = true;
+  // Bijgewerkt via ELECTRON_FOCUS_EDITABLE in de console-message-handler
+  // hieronder (focusin/focusout-listener die in de pagina geïnjecteerd
+  // wordt). Zo weten we bij Ctrl+B of de focus in een tekstveld staat, zonder
+  // dat we hier synchroon de DOM van de pagina kunnen opvragen.
+  let isFocusOnEditableField = false;
 
   // F5/Ctrl+R moeten de tabinhoud verversen (zoals de vernieuwen-knop), niet
   // het standaard Chromium-gedrag volgen dat de hele view hard herlaadt.
@@ -556,10 +561,12 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     } else if (input.key === '0') {
       event.preventDefault();
       setZoomFactor(DEFAULT_ZOOM);
-    } else if (appSettings.blockCtrlB && input.key.toLowerCase() === 'b') {
+    } else if (appSettings.blockCtrlB && input.key.toLowerCase() === 'b' && !isFocusOnEditableField) {
       // De website vangt Ctrl+B zelf af om de zijbalk in/uit te klappen, wat
       // vetgedrukt typen in tekstvelden onmogelijk maakt. Dit onderdrukt de
-      // toetscombinatie al vóórdat de pagina 'm te zien krijgt.
+      // toetscombinatie al vóórdat de pagina 'm te zien krijgt - maar alleen
+      // als de focus niet in een tekstveld staat, anders kan daar ook geen
+      // Ctrl+B meer voor vetgedrukt gebruikt worden.
       event.preventDefault();
     }
   });
@@ -751,6 +758,19 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           console.log('ELECTRON_URL_UPDATE:' + window.location.href);
         });
 
+        // Houdt bij of de focus in een tekstveld staat, zodat Ctrl+B daar
+        // nog steeds gewoon voor vetgedrukt kan werken, ook als de instelling
+        // "Ctrl+B blokkeren" aanstaat (zie ELECTRON_FOCUS_EDITABLE hieronder).
+        const isEditableTarget = (el) => !!el && (
+          el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'
+        );
+        document.addEventListener('focusin', (event) => {
+          console.log('ELECTRON_FOCUS_EDITABLE:' + isEditableTarget(event.target));
+        });
+        document.addEventListener('focusout', () => {
+          console.log('ELECTRON_FOCUS_EDITABLE:false');
+        });
+
         // Eén gecombineerde click-listener (in plaats van twee losse), zodat de
         // terugknop-check altijd EERST loopt. Anders kan een "Terug"/"Vorige"
         // die als <a href> (in plaats van <button>) is gebouwd, al door de
@@ -864,6 +884,11 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     if (message.startsWith('ELECTRON_URL_UPDATE:')) {
       const newUrl = message.replace('ELECTRON_URL_UPDATE:', '');
       mainWindow.webContents.send('update-tab-url', { tabId, url: newUrl });
+      return;
+    }
+
+    if (message.startsWith('ELECTRON_FOCUS_EDITABLE:')) {
+      isFocusOnEditableField = message.endsWith('true');
     }
   });
 }
