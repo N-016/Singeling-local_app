@@ -744,7 +744,15 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             // gewoon normaal in dezelfde tab gebeuren, anders krijg je bij elke
             // interne tabwissel binnen bv. een order óók een nieuw tabblad.
             const isRealNavigation = nextUrl.pathname !== window.location.pathname;
-            if (isRealNavigation && (window.__electronTabLocked || window.__electronForceNewTab)) {
+            // Navigatie naar een oudercontext van het huidige pad (bv. een
+            // breadcrumb "Verkooporders" vanuit /sales-orders/123 terug naar
+            // /sales-orders) is terugnavigatie, geen "nieuwe" bestemming -
+            // forceer daar dus ook geen nieuw tabblad voor.
+            const destPath = nextUrl.pathname.endsWith('/') ? nextUrl.pathname.slice(0, -1) : nextUrl.pathname;
+            const currentPath = window.location.pathname;
+            const isBreadcrumbBack = destPath !== currentPath && currentPath.startsWith(destPath) &&
+              (currentPath[destPath.length] === '/' || destPath === '');
+            if (isRealNavigation && !isBreadcrumbBack && (window.__electronTabLocked || window.__electronForceNewTab)) {
               console.log('ELECTRON_LOCKED_NAVIGATE:' + nextUrl.href);
               return;
             }
@@ -806,15 +814,6 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             clickable.getAttribute('data-testid')
           ].some(isBackLabel);
 
-          if (isBackButton) {
-            // Terugknoppen zijn een uitzondering op "alle links in nieuwe tab":
-            // die moeten gewoon terugnavigeren, niet iets nieuws openen.
-            console.log('ELECTRON_BACK_BUTTON');
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            return;
-          }
-
           // Alleen als het DICHTSTBIJZIJNDE interactieve element zelf de link
           // is behandelen we dit als een linkklik. Een onafhankelijke zoektocht
           // naar 'a[href]' verderop in de boom (los van clickable) ving ook
@@ -822,7 +821,42 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           // (bv. een "bewerken"-potloodje in een klikbare kaart) - dan werd de
           // klik gekaapt en de link geopend/genavigeerd in plaats van de knop
           // zijn eigen actie te laten gebeuren.
-          if (clickable.tagName !== 'A' || !clickable.hasAttribute('href')) return;
+          const isLink = clickable.tagName === 'A' && clickable.hasAttribute('href');
+
+          // Breadcrumb-achtige links (bv. "Verkooporders" bovenaan een order)
+          // wijzen naar een oudercontext van de huidige URL (/sales-orders/123
+          // -> /sales-orders) zonder dat hun tekst "Terug"/"Vorige" is. Zonder
+          // deze check werden ze als gewone link behandeld en dus - zoals alle
+          // links - in een nieuw tabblad geopend, i.p.v. terug te gaan naar de
+          // tab waar de order uit geopend is.
+          let isBreadcrumbBack = false;
+          if (isLink) {
+            try {
+              const destination = new URL(clickable.href, window.location.href);
+              const currentPath = window.location.pathname;
+              const destPath = destination.pathname.endsWith('/')
+                ? destination.pathname.slice(0, -1)
+                : destination.pathname;
+              isBreadcrumbBack = destination.origin === window.location.origin &&
+                destPath !== currentPath &&
+                currentPath.startsWith(destPath) &&
+                (currentPath[destPath.length] === '/' || destPath === '');
+            } catch {
+              isBreadcrumbBack = false;
+            }
+          }
+
+          if (isBackButton || isBreadcrumbBack) {
+            // Terugknoppen (en breadcrumb-achtige "terug naar de lijst"-links)
+            // zijn een uitzondering op "alle links in nieuwe tab": die moeten
+            // gewoon terugnavigeren, niet iets nieuws openen.
+            console.log('ELECTRON_BACK_BUTTON');
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return;
+          }
+
+          if (!isLink) return;
           const link = clickable;
           if (link.target === '_blank' || link.hasAttribute('download')) return;
 
