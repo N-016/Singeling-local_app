@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   notifyOnboardingEnded: () => ipcRenderer.send('onboarding-ended'),
   notifySettingsPanelOpened: () => ipcRenderer.send('settings-panel-opened'),
   notifySettingsPanelClosed: () => ipcRenderer.send('settings-panel-closed'),
+  notifyUpdateBannerOpened: () => ipcRenderer.send('update-banner-opened'),
+  notifyUpdateBannerClosed: () => ipcRenderer.send('update-banner-closed'),
   copyToClipboard: (text) => ipcRenderer.send('copy-to-clipboard', text),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   setOpenAllLinksInNewTab: (value) => ipcRenderer.send('set-open-all-links-in-new-tab', value),

@@ -20,6 +20,7 @@ app.on('second-instance', () => {
 const START_URL = 'https://snglng.lovable.app/qrm-connect';
 const APP_HOSTNAME = new URL(START_URL).hostname;
 const TABBAR_HEIGHT = 38;
+const UPDATE_BANNER_HEIGHT = 40;
 const DEFAULT_ZOOM = 1;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
@@ -39,6 +40,7 @@ let updateProgressWindow = null;
 let onboardingActive = false;
 let settingsPanelOpen = false;
 let changelogNoticeOpen = false;
+let updateBannerOpen = false;
 let updateAvailableInfo = null;
 // true = deze updatecontrole mag de "wil je downloaden?"-dialoog tonen (bij
 // opstarten of een handmatige "nu controleren"-klik); false = stille
@@ -407,7 +409,12 @@ function requestUpdateCheck() {
 
 function getViewBounds() {
   const bounds = mainWindow.getContentBounds();
-  return { x: 0, y: TABBAR_HEIGHT, width: bounds.width, height: bounds.height - TABBAR_HEIGHT };
+  // De tabinhoud is een native laag die altijd over de HTML-chrome heen
+  // tekent - dus een in-pagina elementje zoals de update-melding zou anders
+  // meteen onzichtbaar onder de actieve tab verdwijnen. Door de view hier
+  // naar beneden te schuiven blijft er ruimte voor die balk vrij.
+  const topOffset = TABBAR_HEIGHT + (updateBannerOpen ? UPDATE_BANNER_HEIGHT : 0);
+  return { x: 0, y: topOffset, width: bounds.width, height: bounds.height - topOffset };
 }
 
 function applyActiveTabBounds() {
@@ -1406,6 +1413,16 @@ ipcMain.on('settings-panel-opened', (event) => {
 ipcMain.on('settings-panel-closed', (event) => {
   if (event.sender !== mainWindow.webContents) return;
   settingsPanelOpen = false;
+  applyActiveTabBounds();
+});
+ipcMain.on('update-banner-opened', (event) => {
+  if (event.sender !== mainWindow.webContents) return;
+  updateBannerOpen = true;
+  applyActiveTabBounds();
+});
+ipcMain.on('update-banner-closed', (event) => {
+  if (event.sender !== mainWindow.webContents) return;
+  updateBannerOpen = false;
   applyActiveTabBounds();
 });
 ipcMain.on('copy-to-clipboard', (event, text) => {

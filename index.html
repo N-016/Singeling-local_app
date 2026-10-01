@@ -105,6 +105,68 @@
       transform: translateX(0);
     }
 
+    /* Een volledige balk ONDER de tabbalk (i.p.v. een zwevend hoekje) - de
+       tabinhoud is een native laag die altijd over de HTML-chrome heen
+       tekent, dus een los zwevend elementje zou daar gewoon onder
+       verdwijnen. main.js schuift de actieve view naar beneden zolang deze
+       balk open is (zie update-banner-opened/closed). */
+    .update-banner {
+      position: fixed;
+      top: 38px;
+      left: 0;
+      right: 0;
+      height: 40px;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 14px;
+      background: #292929;
+      border-bottom: 1px solid #ff5e00;
+      color: #fff;
+      font-size: 13px;
+    }
+
+    .update-banner.hidden {
+      display: none;
+    }
+
+    .update-banner-text {
+      flex: 1;
+      line-height: 1.4;
+    }
+
+    .update-banner button {
+      flex-shrink: 0;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    #update-banner-settings-btn {
+      padding: 6px 12px;
+      background: #c94700;
+      color: #fff;
+      font-size: 12px;
+    }
+
+    #update-banner-settings-btn:hover {
+      background: #ff5e00;
+    }
+
+    #update-banner-dismiss-btn {
+      width: 22px;
+      height: 22px;
+      background: transparent;
+      color: #999;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    #update-banner-dismiss-btn:hover {
+      color: #fff;
+    }
+
     #tabs {
       display: flex;
       align-items: center;
@@ -901,6 +963,11 @@
       </button>
     </div>
     <div id="copy-confirmation" class="copy-confirmation">Gekopieerd naar klembord</div>
+    <div id="update-banner" class="update-banner hidden" role="status">
+      <span class="update-banner-text">Er is een update beschikbaar. Herstart de app om te installeren.</span>
+      <button id="update-banner-settings-btn" type="button">Bekijk</button>
+      <button id="update-banner-dismiss-btn" type="button" aria-label="Sluiten">&times;</button>
+    </div>
     <div id="view-container">
       <!-- De echte content zit in WebContentsViews die main.js beheert -->
     </div>
@@ -930,9 +997,11 @@
       <h3>Updates</h3>
       <div class="general-actions">
         <button id="check-updates-btn" type="button">Nu zoeken naar updates</button>
+        <!-- TIJDELIJK: alleen om de update-melding te kunnen voorbekijken zonder een echte update. Verwijderen voor release. -->
+        <button id="debug-preview-update-banner-btn" type="button">(debug) Toon update-melding</button>
       </div>
       <p id="check-updates-status" class="settings-hint"></p>
-      <p class="settings-hint">De app controleert ook automatisch elke dag op updates. Vind hij er een, dan zie je een bolletje bij dit instellingen-icoon; herstart de app om te updaten.</p>
+      <p class="settings-hint">De app controleert ook automatisch elke dag op updates. Vind hij er een, dan zie je een melding in beeld plus een bolletje bij dit instellingen-icoon; herstart de app om te updaten.</p>
     </div>
 
     <div class="settings-section">
@@ -1122,6 +1191,11 @@
         target: '#tab-scroll',
         title: 'Tabs vastzetten',
         text: 'Rechtsklik op een tab om hem vast te zetten. Bij een vastgezette tab (met slotje) openen links altijd in een nieuw tabblad. Externe links (buiten Singeling) openen automatisch in je standaardbrowser.'
+      },
+      {
+        target: '#tab-scroll',
+        title: 'Tab loskoppelen',
+        text: 'Sleep een tab ver genoeg onder de tabbalk uit en laat los: hij wordt dan een eigen los venster, dat je net als elk ander Windows-venster naar bijvoorbeeld een tweede scherm kunt verslepen.'
       },
       {
         target: '.general-actions',
@@ -1656,9 +1730,46 @@
     const checkUpdatesBtn = document.getElementById('check-updates-btn');
     const checkUpdatesStatus = document.getElementById('check-updates-status');
     const settingsUpdateBadge = document.getElementById('settings-update-badge');
+    const updateBanner = document.getElementById('update-banner');
+    const updateBannerSettingsBtn = document.getElementById('update-banner-settings-btn');
+    const updateBannerDismissBtn = document.getElementById('update-banner-dismiss-btn');
+
+    // main.js moet weten of de balk open is, want de actieve tabinhoud (een
+    // native laag die altijd over de HTML-chrome heen tekent) moet er dan
+    // voor naar beneden geschoven worden - anders verdwijnt de balk gewoon
+    // onzichtbaar onder de pagina.
+    function showUpdateBanner() {
+      updateBanner.classList.remove('hidden');
+      window.electronAPI.notifyUpdateBannerOpened();
+    }
+
+    function hideUpdateBanner() {
+      updateBanner.classList.add('hidden');
+      window.electronAPI.notifyUpdateBannerClosed();
+    }
 
     window.electronAPI.on('update-badge-changed', (available) => {
       settingsUpdateBadge.classList.toggle('hidden', !available);
+      // Het bolletje alleen is makkelijk te missen - laat bij een gevonden
+      // update ook een duidelijk zichtbare melding zien. Een eerder gesloten
+      // melding verschijnt wel opnieuw zodra er weer een nieuwe updatecontrole
+      // 'm bevestigt (niet bij elke druppel van hetzelfde signaal).
+      if (available) showUpdateBanner();
+      else hideUpdateBanner();
+    });
+
+    updateBannerDismissBtn.addEventListener('click', hideUpdateBanner);
+
+    updateBannerSettingsBtn.addEventListener('click', async () => {
+      hideUpdateBanner();
+      if (settingsPanel.classList.contains('hidden')) await openSettingsPanel();
+    });
+
+    // TIJDELIJK: alleen om de update-melding te kunnen voorbekijken zonder
+    // een echte update. Verwijderen voor release.
+    document.getElementById('debug-preview-update-banner-btn').addEventListener('click', () => {
+      settingsUpdateBadge.classList.remove('hidden');
+      showUpdateBanner();
     });
 
     checkUpdatesBtn.addEventListener('click', async () => {
