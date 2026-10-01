@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, Menu, dialog, clipboard, shell } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, Menu, dialog, clipboard, shell, screen } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
@@ -20,6 +20,7 @@ app.on('second-instance', () => {
 const START_URL = 'https://snglng.lovable.app/qrm-connect';
 const APP_HOSTNAME = new URL(START_URL).hostname;
 const TABBAR_HEIGHT = 38;
+const UPDATE_BANNER_HEIGHT = 40;
 const DEFAULT_ZOOM = 1;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
@@ -30,6 +31,7 @@ let tabs = new Map();      // tabId -> WebContentsView
 let parentTabs = new Map(); // tabId -> tab waaruit deze tab is geopend
 let previousTabs = new Map(); // tabId -> laatst actieve tab vóór deze tab
 let lockedTabs = new Set();
+const detachedWindows = new Map(); // tabId -> { window, view } - losgetrokken tabs in hun eigen venster
 let activeTabId = null;
 let tabCounter = 0;
 const internalNavigations = new Set();
@@ -38,6 +40,7 @@ let updateProgressWindow = null;
 let onboardingActive = false;
 let settingsPanelOpen = false;
 let changelogNoticeOpen = false;
+let updateBannerOpen = false;
 let updateAvailableInfo = null;
 // true = deze updatecontrole mag de "wil je downloaden?"-dialoog tonen (bij
 // opstarten of een handmatige "nu controleren"-klik); false = stille
@@ -54,7 +57,8 @@ let appSettings = {
   tabGroups: [], // [{ id, name, urls: [] }]
   lastSeenChangelogVersion: null,
   openAllLinksInNewTab: false,
-  showOnboarding: true
+  showOnboarding: true,
+  blockCtrlB: false
 };
 
 function getSettingsPath() {
@@ -71,7 +75,8 @@ function loadSettings() {
       tabGroups: Array.isArray(parsed.tabGroups) ? parsed.tabGroups : [],
       lastSeenChangelogVersion: typeof parsed.lastSeenChangelogVersion === 'string' ? parsed.lastSeenChangelogVersion : null,
       openAllLinksInNewTab: typeof parsed.openAllLinksInNewTab === 'boolean' ? parsed.openAllLinksInNewTab : false,
-      showOnboarding: typeof parsed.showOnboarding === 'boolean' ? parsed.showOnboarding : true
+      showOnboarding: typeof parsed.showOnboarding === 'boolean' ? parsed.showOnboarding : true,
+      blockCtrlB: typeof parsed.blockCtrlB === 'boolean' ? parsed.blockCtrlB : false
     };
   } catch {
     // Nog geen instellingenbestand of het is ongeldig; standaardwaarden blijven staan.
@@ -93,6 +98,9 @@ function clampZoom(factor) {
 function setZoomFactor(factor) {
   appSettings.zoomFactor = clampZoom(factor);
   for (const view of tabs.values()) {
+    view.webContents.zoomFactor = appSettings.zoomFactor;
+  }
+  for (const { view } of detachedWindows.values()) {
     view.webContents.zoomFactor = appSettings.zoomFactor;
   }
   saveSettings();
@@ -256,7 +264,7 @@ function setupAutoUpdater() {
     resolveUpdateCheck(true);
     updateAvailableInfo = updateInfo;
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-badge-changed', true);
+      mainWindow.webContents.send('update-badge-changed', { available: true, version: updateInfo.version });
     }
 
     // Achtergrondcontrole (dagelijks, of een stille handmatige check): geen
@@ -297,7 +305,7 @@ function setupAutoUpdater() {
     logUpdater('Geen update beschikbaar');
     updateAvailableInfo = null;
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-badge-changed', false);
+      mainWindow.webContents.send('update-badge-changed', { available: false, version: null });
     }
     resolveUpdateCheck(false);
   });
@@ -401,7 +409,12 @@ function requestUpdateCheck() {
 
 function getViewBounds() {
   const bounds = mainWindow.getContentBounds();
-  return { x: 0, y: TABBAR_HEIGHT, width: bounds.width, height: bounds.height - TABBAR_HEIGHT };
+  // De tabinhoud is een native laag die altijd over de HTML-chrome heen
+  // tekent - dus een in-pagina elementje zoals de update-melding zou anders
+  // meteen onzichtbaar onder de actieve tab verdwijnen. Door de view hier
+  // naar beneden te schuiven blijft er ruimte voor die balk vrij.
+  const topOffset = TABBAR_HEIGHT + (updateBannerOpen ? UPDATE_BANNER_HEIGHT : 0);
+  return { x: 0, y: topOffset, width: bounds.width, height: bounds.height - topOffset };
 }
 
 function applyActiveTabBounds() {
@@ -528,6 +541,11 @@ function closeIfStillBlank(view, tabId) {
 // vertegenwoordigen) evengoed leeg en vastzittend achterlaten.
 function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = {}) {
   let isInitialLoad = true;
+  // Bijgewerkt via ELECTRON_FOCUS_EDITABLE in de console-message-handler
+  // hieronder (focusin/focusout-listener die in de pagina geïnjecteerd
+  // wordt). Zo weten we bij Ctrl+B of de focus in een tekstveld staat, zonder
+  // dat we hier synchroon de DOM van de pagina kunnen opvragen.
+  let isFocusOnEditableField = false;
 
   // F5/Ctrl+R moeten de tabinhoud verversen (zoals de vernieuwen-knop), niet
   // het standaard Chromium-gedrag volgen dat de hele view hard herlaadt.
@@ -550,6 +568,13 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     } else if (input.key === '0') {
       event.preventDefault();
       setZoomFactor(DEFAULT_ZOOM);
+    } else if (appSettings.blockCtrlB && input.key.toLowerCase() === 'b' && !isFocusOnEditableField) {
+      // De website vangt Ctrl+B zelf af om de zijbalk in/uit te klappen, wat
+      // vetgedrukt typen in tekstvelden onmogelijk maakt. Dit onderdrukt de
+      // toetscombinatie al vóórdat de pagina 'm te zien krijgt - maar alleen
+      // als de focus niet in een tekstveld staat, anders kan daar ook geen
+      // Ctrl+B meer voor vetgedrukt gebruikt worden.
+      event.preventDefault();
     }
   });
 
@@ -726,7 +751,15 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             // gewoon normaal in dezelfde tab gebeuren, anders krijg je bij elke
             // interne tabwissel binnen bv. een order óók een nieuw tabblad.
             const isRealNavigation = nextUrl.pathname !== window.location.pathname;
-            if (isRealNavigation && (window.__electronTabLocked || window.__electronForceNewTab)) {
+            // Navigatie naar een oudercontext van het huidige pad (bv. een
+            // breadcrumb "Verkooporders" vanuit /sales-orders/123 terug naar
+            // /sales-orders) is terugnavigatie, geen "nieuwe" bestemming -
+            // forceer daar dus ook geen nieuw tabblad voor.
+            const destPath = nextUrl.pathname.endsWith('/') ? nextUrl.pathname.slice(0, -1) : nextUrl.pathname;
+            const currentPath = window.location.pathname;
+            const isBreadcrumbBack = destPath !== currentPath && currentPath.startsWith(destPath) &&
+              (currentPath[destPath.length] === '/' || destPath === '');
+            if (isRealNavigation && !isBreadcrumbBack && (window.__electronTabLocked || window.__electronForceNewTab)) {
               console.log('ELECTRON_LOCKED_NAVIGATE:' + nextUrl.href);
               return;
             }
@@ -738,6 +771,42 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
 
         window.addEventListener('popstate', () => {
           console.log('ELECTRON_URL_UPDATE:' + window.location.href);
+        });
+
+        // Elke link/knop opent bij ons standaard een NIEUW tabblad (nieuwe
+        // WebContentsView, dus een eigen lege paginageschiedenis). Een
+        // terugknop die de native history.back()/history.go(-1) gebruikt
+        // (i.p.v. een link of pushState naar een vaste URL) heeft in zo'n
+        // verse tab dus NIETS om naar terug te gaan - history.length is dan
+        // 1, en history.back() is een stille no-op. Dit was de daadwerkelijke
+        // oorzaak achter meerdere eerdere "terugknop doet niks"-meldingen.
+        // Omleiden naar onze eigen ELECTRON_BACK_BUTTON-afhandeling (die al
+        // eerst echte in-pagina geschiedenis probeert, en anders teruggaat
+        // naar de tab waar dit tabblad uit geopend is) lost dit voor elke
+        // knop op, ongeacht het label.
+        history.back = function() {
+          console.log('ELECTRON_BACK_BUTTON');
+        };
+        const originalGo = history.go.bind(history);
+        history.go = function(delta) {
+          if (delta === undefined || delta < 0) {
+            console.log('ELECTRON_BACK_BUTTON');
+            return;
+          }
+          return originalGo(delta);
+        };
+
+        // Houdt bij of de focus in een tekstveld staat, zodat Ctrl+B daar
+        // nog steeds gewoon voor vetgedrukt kan werken, ook als de instelling
+        // "Ctrl+B blokkeren" aanstaat (zie ELECTRON_FOCUS_EDITABLE hieronder).
+        const isEditableTarget = (el) => !!el && (
+          el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'
+        );
+        document.addEventListener('focusin', (event) => {
+          console.log('ELECTRON_FOCUS_EDITABLE:' + isEditableTarget(event.target));
+        });
+        document.addEventListener('focusout', () => {
+          console.log('ELECTRON_FOCUS_EDITABLE:false');
         });
 
         // Eén gecombineerde click-listener (in plaats van twee losse), zodat de
@@ -775,15 +844,6 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             clickable.getAttribute('data-testid')
           ].some(isBackLabel);
 
-          if (isBackButton) {
-            // Terugknoppen zijn een uitzondering op "alle links in nieuwe tab":
-            // die moeten gewoon terugnavigeren, niet iets nieuws openen.
-            console.log('ELECTRON_BACK_BUTTON');
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            return;
-          }
-
           // Alleen als het DICHTSTBIJZIJNDE interactieve element zelf de link
           // is behandelen we dit als een linkklik. Een onafhankelijke zoektocht
           // naar 'a[href]' verderop in de boom (los van clickable) ving ook
@@ -791,7 +851,42 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           // (bv. een "bewerken"-potloodje in een klikbare kaart) - dan werd de
           // klik gekaapt en de link geopend/genavigeerd in plaats van de knop
           // zijn eigen actie te laten gebeuren.
-          if (clickable.tagName !== 'A' || !clickable.hasAttribute('href')) return;
+          const isLink = clickable.tagName === 'A' && clickable.hasAttribute('href');
+
+          // Breadcrumb-achtige links (bv. "Verkooporders" bovenaan een order)
+          // wijzen naar een oudercontext van de huidige URL (/sales-orders/123
+          // -> /sales-orders) zonder dat hun tekst "Terug"/"Vorige" is. Zonder
+          // deze check werden ze als gewone link behandeld en dus - zoals alle
+          // links - in een nieuw tabblad geopend, i.p.v. terug te gaan naar de
+          // tab waar de order uit geopend is.
+          let isBreadcrumbBack = false;
+          if (isLink) {
+            try {
+              const destination = new URL(clickable.href, window.location.href);
+              const currentPath = window.location.pathname;
+              const destPath = destination.pathname.endsWith('/')
+                ? destination.pathname.slice(0, -1)
+                : destination.pathname;
+              isBreadcrumbBack = destination.origin === window.location.origin &&
+                destPath !== currentPath &&
+                currentPath.startsWith(destPath) &&
+                (currentPath[destPath.length] === '/' || destPath === '');
+            } catch {
+              isBreadcrumbBack = false;
+            }
+          }
+
+          if (isBackButton || isBreadcrumbBack) {
+            // Terugknoppen (en breadcrumb-achtige "terug naar de lijst"-links)
+            // zijn een uitzondering op "alle links in nieuwe tab": die moeten
+            // gewoon terugnavigeren, niet iets nieuws openen.
+            console.log('ELECTRON_BACK_BUTTON');
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return;
+          }
+
+          if (!isLink) return;
           const link = clickable;
           if (link.target === '_blank' || link.hasAttribute('download')) return;
 
@@ -829,19 +924,22 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     }
 
     if (message === 'ELECTRON_BACK_BUTTON') {
-      const view = tabs.get(tabId);
-      if (!view) return;
-
+      // Gebruikt bewust de 'view' uit de sluiting van attachNavigationHandlers
+      // (niet tabs.get(tabId)): die laatste is leeg voor een losgetrokken tab
+      // (zie detachTab), waardoor in-pagina "terug" binnen zo'n los venster
+      // anders zou stoppen met werken.
       if (view.webContents.navigationHistory.canGoBack()) {
         internalNavigations.add(tabId);
         view.webContents.navigationHistory.goBack();
         return;
       }
 
-      // Eerst de tab waar dit tabblad daadwerkelijk uit geopend is (parentTabs);
-      // pas als dat er niet is, terugvallen op de laatst bekeken tab. Anders
-      // spring de terugknop naar wat toevallig het laatst actief was, in
-      // plaats van terug naar waar de pagina vandaan kwam.
+      // Alleen relevant als deze tab nog in de tabbalk zit: eerst de tab
+      // waar dit tabblad daadwerkelijk uit geopend is (parentTabs); pas als
+      // dat er niet is, terugvallen op de laatst bekeken tab. Anders springt
+      // de terugknop naar wat toevallig het laatst actief was, in plaats van
+      // terug naar waar de pagina vandaan kwam. Een losgetrokken venster
+      // heeft geen andere tabs om naar terug te vallen.
       const previousTabId = parentTabs.get(tabId) || previousTabs.get(tabId);
       if (previousTabId && tabs.has(previousTabId)) switchTab(previousTabId, { recordHistory: false });
       return;
@@ -850,6 +948,11 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     if (message.startsWith('ELECTRON_URL_UPDATE:')) {
       const newUrl = message.replace('ELECTRON_URL_UPDATE:', '');
       mainWindow.webContents.send('update-tab-url', { tabId, url: newUrl });
+      return;
+    }
+
+    if (message.startsWith('ELECTRON_FOCUS_EDITABLE:')) {
+      isFocusOnEditableField = message.endsWith('true');
     }
   });
 }
@@ -979,9 +1082,114 @@ function closeOtherTabs(tabId) {
   if (tabs.has(tabId)) switchTab(tabId);
 }
 
+// Een tab uit de tabbalk slepen en loslaten buiten de balk maakt er een eigen
+// los Windows-venster van (dat je daarna net als elk ander venster naar een
+// tweede scherm kunt verslepen). De tab verdwijnt daarbij volledig uit de
+// tabbalk-administratie, alsof hij gesloten is - alleen blijft de webContents
+// zelf in leven, nu in het nieuwe venster.
+//
+// Bewuste beperking: links die normaal een NIEUWE tab zouden openen (bv. een
+// vergrendelde tab, of de "alles in nieuwe tab"-instelling) komen vanuit een
+// losgetrokken venster gewoon weer in het hoofdvenster terecht - createTab()
+// is nog steeds overal aan mainWindow gekoppeld. Alleen gewone in-place
+// navigatie binnen het losgetrokken venster blijft daarin plaatsvinden.
+function detachTab(tabId, screenX, screenY) {
+  const view = tabs.get(tabId);
+  if (!view) return;
+
+  const fallbackTabId = parentTabs.get(tabId) || previousTabs.get(tabId);
+  const wasActive = activeTabId === tabId;
+
+  try {
+    mainWindow.contentView.removeChildView(view);
+  } catch {
+    // Al losgekoppeld; niets meer te doen.
+  }
+  tabs.delete(tabId);
+  parentTabs.delete(tabId);
+  previousTabs.delete(tabId);
+  for (const [id, previousTabId] of previousTabs) {
+    if (previousTabId === tabId) previousTabs.delete(id);
+  }
+  lockedTabs.delete(tabId);
+  mainWindow.webContents.send('tab-closed', tabId);
+
+  if (wasActive) {
+    if (fallbackTabId && tabs.has(fallbackTabId)) {
+      switchTab(fallbackTabId);
+    } else {
+      const remaining = [...tabs.keys()];
+      if (remaining.length > 0) {
+        switchTab(remaining[remaining.length - 1]);
+      } else {
+        activeTabId = null;
+        createTab(START_URL);
+      }
+    }
+  }
+
+  createDetachedWindow(view, tabId, screenX, screenY);
+}
+
+function createDetachedWindow(view, tabId, screenX, screenY) {
+  // Op het scherm plaatsen waar de muis zich bevindt (kan dus al het tweede
+  // scherm zijn als de gebruiker daar naartoe gesleept heeft), losjes
+  // gecentreerd rond het loslaatpunt.
+  const width = 1000;
+  const height = 700;
+  const display = screen.getDisplayNearestPoint({ x: screenX, y: screenY });
+  const x = Math.round(Math.min(
+    Math.max(screenX - width / 2, display.workArea.x),
+    display.workArea.x + display.workArea.width - width
+  ));
+  const y = Math.round(Math.min(
+    Math.max(screenY - 20, display.workArea.y),
+    display.workArea.y + display.workArea.height - height
+  ));
+
+  const detachedWindow = new BrowserWindow({
+    width,
+    height,
+    x,
+    y,
+    title: 'Singeling App',
+    icon: path.join(__dirname, 'assets/icon.ico'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true
+    }
+  });
+
+  detachedWindow.contentView.addChildView(view);
+  view.setBounds({ x: 0, y: 0, width, height });
+
+  detachedWindow.on('resize', () => {
+    const bounds = detachedWindow.getContentBounds();
+    view.setBounds({ x: 0, y: 0, width: bounds.width, height: bounds.height });
+  });
+
+  detachedWindows.set(tabId, { window: detachedWindow, view });
+
+  detachedWindow.on('closed', () => {
+    detachedWindows.delete(tabId);
+    try {
+      if (view.webContents && !view.webContents.isDestroyed()) {
+        view.webContents.close();
+      }
+    } catch {
+      // Al vervallen.
+    }
+  });
+}
+
 // IPC vanuit index.html (tabbar UI)
 ipcMain.on('switch-tab', (event, tabId) => switchTab(tabId));
 ipcMain.on('close-tab', (event, tabId) => closeTab(tabId));
+ipcMain.on('detach-tab', (event, { tabId, screenX, screenY }) => {
+  if (event.sender !== mainWindow.webContents || !tabs.has(tabId)) return;
+  detachTab(tabId, screenX, screenY);
+});
 ipcMain.on('request-new-tab', (event, url) => createTab(url || START_URL));
 ipcMain.on('navigate-active-tab', (event, action) => {
   if (event.sender !== mainWindow.webContents || !activeTabId) return;
@@ -1119,8 +1327,15 @@ ipcMain.handle('get-settings', (event) => {
     startTabs: appSettings.startTabs,
     tabGroups: appSettings.tabGroups,
     openAllLinksInNewTab: appSettings.openAllLinksInNewTab,
-    showOnboarding: appSettings.showOnboarding
+    showOnboarding: appSettings.showOnboarding,
+    blockCtrlB: appSettings.blockCtrlB,
+    updateVersion: updateAvailableInfo ? updateAvailableInfo.version : null
   };
+});
+ipcMain.on('set-block-ctrl-b', (event, value) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.blockCtrlB = !!value;
+  saveSettings();
 });
 ipcMain.on('set-show-onboarding', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
@@ -1201,6 +1416,16 @@ ipcMain.on('settings-panel-closed', (event) => {
   settingsPanelOpen = false;
   applyActiveTabBounds();
 });
+ipcMain.on('update-banner-opened', (event) => {
+  if (event.sender !== mainWindow.webContents) return;
+  updateBannerOpen = true;
+  applyActiveTabBounds();
+});
+ipcMain.on('update-banner-closed', (event) => {
+  if (event.sender !== mainWindow.webContents) return;
+  updateBannerOpen = false;
+  applyActiveTabBounds();
+});
 ipcMain.on('copy-to-clipboard', (event, text) => {
   if (event.sender !== mainWindow.webContents) return;
   clipboard.writeText(text);
@@ -1249,6 +1474,13 @@ function createWindow() {
 
   mainWindow.on('page-title-updated', (event) => event.preventDefault());
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
+
+  // Alle tab-aanmaak (createTab) is aan mainWindow gekoppeld, dus zonder
+  // mainWindow raakt de app sowieso onbruikbaar. Sluit dan ook meteen
+  // eventuele losgetrokken vensters mee i.p.v. ze als wees te laten hangen.
+  mainWindow.on('closed', () => {
+    app.quit();
+  });
 
   // Kopiëren/plakken via het rechtermuisknop-menu voor invoervelden in de
   // tabbalk/instellingen zelf (bv. een tabgroep hernoemen). Rechtsklikken op

@@ -105,6 +105,68 @@
       transform: translateX(0);
     }
 
+    /* Een volledige balk ONDER de tabbalk (i.p.v. een zwevend hoekje) - de
+       tabinhoud is een native laag die altijd over de HTML-chrome heen
+       tekent, dus een los zwevend elementje zou daar gewoon onder
+       verdwijnen. main.js schuift de actieve view naar beneden zolang deze
+       balk open is (zie update-banner-opened/closed). */
+    .update-banner {
+      position: fixed;
+      top: 38px;
+      left: 0;
+      right: 0;
+      height: 40px;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 14px;
+      background: #292929;
+      border-bottom: 1px solid #ff5e00;
+      color: #fff;
+      font-size: 13px;
+    }
+
+    .update-banner.hidden {
+      display: none;
+    }
+
+    .update-banner-text {
+      flex: 1;
+      line-height: 1.4;
+    }
+
+    .update-banner button {
+      flex-shrink: 0;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    #update-banner-settings-btn {
+      padding: 6px 12px;
+      background: #c94700;
+      color: #fff;
+      font-size: 12px;
+    }
+
+    #update-banner-settings-btn:hover {
+      background: #ff5e00;
+    }
+
+    #update-banner-dismiss-btn {
+      width: 22px;
+      height: 22px;
+      background: transparent;
+      color: #999;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    #update-banner-dismiss-btn:hover {
+      color: #fff;
+    }
+
     #tabs {
       display: flex;
       align-items: center;
@@ -435,6 +497,17 @@
 
     .general-actions button:hover {
       background: rgba(255, 255, 255, 0.14);
+    }
+
+    /* Trekt de aandacht naar een gevonden update, ook als je de melding
+       eerder al had weggeklikt. */
+    .general-actions button.attention {
+      border-color: #ff5e00;
+      background: #c94700;
+    }
+
+    .general-actions button.attention:hover {
+      background: #ff5e00;
     }
 
     .general-toggle {
@@ -901,6 +974,11 @@
       </button>
     </div>
     <div id="copy-confirmation" class="copy-confirmation">Gekopieerd naar klembord</div>
+    <div id="update-banner" class="update-banner hidden" role="status">
+      <span class="update-banner-text">Er is een update beschikbaar. Herstart de app om te installeren.</span>
+      <button id="update-banner-settings-btn" type="button">Bekijk</button>
+      <button id="update-banner-dismiss-btn" type="button" aria-label="Sluiten">&times;</button>
+    </div>
     <div id="view-container">
       <!-- De echte content zit in WebContentsViews die main.js beheert -->
     </div>
@@ -919,6 +997,11 @@
         Alle links altijd in een nieuw tabblad openen
       </label>
       <p class="settings-hint">Geldt voor alle tabs, ook niet-vastgezette. Externe links (buiten Singeling) blijven gewoon in je standaardbrowser openen.</p>
+      <label class="general-toggle">
+        <input type="checkbox" id="block-ctrl-b-checkbox">
+        Ctrl+B blokkeren
+      </label>
+      <p class="settings-hint">Voorkomt dat Ctrl+B (bedoeld om vetgedrukt te typen) de zijbalk van de pagina in-/uitklapt.</p>
     </div>
 
     <div class="settings-section">
@@ -927,7 +1010,7 @@
         <button id="check-updates-btn" type="button">Nu zoeken naar updates</button>
       </div>
       <p id="check-updates-status" class="settings-hint"></p>
-      <p class="settings-hint">De app controleert ook automatisch elke dag op updates. Vind hij er een, dan zie je een bolletje bij dit instellingen-icoon; herstart de app om te updaten.</p>
+      <p class="settings-hint">De app controleert ook automatisch elke dag op updates. Vind hij er een, dan zie je een melding in beeld plus een bolletje bij dit instellingen-icoon; herstart de app om te updaten.</p>
     </div>
 
     <div class="settings-section">
@@ -1117,6 +1200,11 @@
         target: '#tab-scroll',
         title: 'Tabs vastzetten',
         text: 'Rechtsklik op een tab om hem vast te zetten. Bij een vastgezette tab (met slotje) openen links altijd in een nieuw tabblad. Externe links (buiten Singeling) openen automatisch in je standaardbrowser.'
+      },
+      {
+        target: '#tab-scroll',
+        title: 'Tab loskoppelen',
+        text: 'Sleep een tab ver genoeg onder de tabbalk uit en laat los: hij wordt dan een eigen los venster, dat je net als elk ander Windows-venster naar bijvoorbeeld een tweede scherm kunt verslepen.'
       },
       {
         target: '.general-actions',
@@ -1358,8 +1446,19 @@
         tab.classList.add('dragging');
       });
 
-      tab.addEventListener('dragend', () => {
+      tab.addEventListener('dragend', (event) => {
         tab.classList.remove('dragging');
+
+        // Ver genoeg onder de tabbalk losgelaten (niet gewoon een beetje
+        // overschieten tijdens het herordenen) -> tab wordt een eigen los
+        // venster, dat je daarna net als elk ander Windows-venster naar een
+        // tweede scherm kunt slepen.
+        const TEAR_OFF_THRESHOLD = 70;
+        if (event.clientY > TEAR_OFF_THRESHOLD) {
+          window.electronAPI.detachTab(tabId, { screenX: event.screenX, screenY: event.screenY });
+          return;
+        }
+
         updateLockedTabPositions();
       });
 
@@ -1588,6 +1687,8 @@
         renderStartTabs(settings.startTabs);
         renderTabGroups(settings.tabGroups);
         openAllLinksNewTabCheckbox.checked = !!settings.openAllLinksInNewTab;
+        blockCtrlBCheckbox.checked = !!settings.blockCtrlB;
+        applyUpdateStatusUI(!!settings.updateVersion, settings.updateVersion);
       }
       settingsBackdrop.classList.remove('hidden');
       settingsPanel.classList.remove('hidden');
@@ -1626,17 +1727,66 @@
     const changelogContent = document.getElementById('changelog-content');
     const changelogCloseBtn = document.getElementById('changelog-close');
     const openAllLinksNewTabCheckbox = document.getElementById('open-all-links-new-tab-checkbox');
+    const blockCtrlBCheckbox = document.getElementById('block-ctrl-b-checkbox');
 
     openAllLinksNewTabCheckbox.addEventListener('change', () => {
       window.electronAPI.setOpenAllLinksInNewTab(openAllLinksNewTabCheckbox.checked);
     });
 
+    blockCtrlBCheckbox.addEventListener('change', () => {
+      window.electronAPI.setBlockCtrlB(blockCtrlBCheckbox.checked);
+    });
+
     const checkUpdatesBtn = document.getElementById('check-updates-btn');
     const checkUpdatesStatus = document.getElementById('check-updates-status');
     const settingsUpdateBadge = document.getElementById('settings-update-badge');
+    const updateBanner = document.getElementById('update-banner');
+    const updateBannerSettingsBtn = document.getElementById('update-banner-settings-btn');
+    const updateBannerDismissBtn = document.getElementById('update-banner-dismiss-btn');
 
-    window.electronAPI.on('update-badge-changed', (available) => {
+    // main.js moet weten of de balk open is, want de actieve tabinhoud (een
+    // native laag die altijd over de HTML-chrome heen tekent) moet er dan
+    // voor naar beneden geschoven worden - anders verdwijnt de balk gewoon
+    // onzichtbaar onder de pagina.
+    function showUpdateBanner() {
+      updateBanner.classList.remove('hidden');
+      window.electronAPI.notifyUpdateBannerOpened();
+    }
+
+    function hideUpdateBanner() {
+      updateBanner.classList.add('hidden');
+      window.electronAPI.notifyUpdateBannerClosed();
+    }
+
+    // Weerspiegelt de bekende update-status in het instellingenpaneel zelf
+    // (los van het bolletje/de balk, die blijven werken via hun eigen
+    // show/hide-logica hieronder) - zodat je na het klikken op "Bekijk" in
+    // de instellingen meteen ziet wat er aan de hand is, ook als je de
+    // instellingen al open had staan toen de achtergrondcontrole 'm vond.
+    function applyUpdateStatusUI(available, version) {
+      checkUpdatesBtn.classList.toggle('attention', !!available);
+      checkUpdatesBtn.textContent = available ? 'Update beschikbaar' : 'Nu zoeken naar updates';
+      if (available) {
+        checkUpdatesStatus.textContent = `Update gevonden: v${version}. Herstart de app om te updaten.`;
+      }
+    }
+
+    window.electronAPI.on('update-badge-changed', ({ available, version }) => {
       settingsUpdateBadge.classList.toggle('hidden', !available);
+      applyUpdateStatusUI(available, version);
+      // Het bolletje alleen is makkelijk te missen - laat bij een gevonden
+      // update ook een duidelijk zichtbare melding zien. Een eerder gesloten
+      // melding verschijnt wel opnieuw zodra er weer een nieuwe updatecontrole
+      // 'm bevestigt (niet bij elke druppel van hetzelfde signaal).
+      if (available) showUpdateBanner();
+      else hideUpdateBanner();
+    });
+
+    updateBannerDismissBtn.addEventListener('click', hideUpdateBanner);
+
+    updateBannerSettingsBtn.addEventListener('click', async () => {
+      hideUpdateBanner();
+      if (settingsPanel.classList.contains('hidden')) await openSettingsPanel();
     });
 
     checkUpdatesBtn.addEventListener('click', async () => {

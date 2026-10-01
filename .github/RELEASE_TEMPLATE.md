@@ -16,9 +16,10 @@ Vul de changelog in voor deze release.
 
 ## Controle vóór publiceren
 
-- [ ] Versienummer verhoogd in `package.json` en `package-lock.json`
-- [ ] Versie bijgewerkt in `splash.html` en `index.html`
+- [ ] Werk zit op `development` en is daar getest
+- [ ] Versienummer verhoogd in `package.json` (en `package-lock.json` volgt automatisch)
 - [ ] `CHANGELOG.md` bijgewerkt
-- [ ] Installer gebouwd
-- [ ] `latest.yml` en `.blockmap` toegevoegd
+- [ ] `development` gemerged naar `main`, getagd met de versie (bv. `v1.0.2`)
+- [ ] Installer gebouwd (`npm run build`)
+- [ ] `latest.yml` en `.blockmap` toegevoegd aan de GitHub Release
 - [ ] Release is geen draft en geen pre-release
