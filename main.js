@@ -766,6 +766,29 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           console.log('ELECTRON_URL_UPDATE:' + window.location.href);
         });
 
+        // Elke link/knop opent bij ons standaard een NIEUW tabblad (nieuwe
+        // WebContentsView, dus een eigen lege paginageschiedenis). Een
+        // terugknop die de native history.back()/history.go(-1) gebruikt
+        // (i.p.v. een link of pushState naar een vaste URL) heeft in zo'n
+        // verse tab dus NIETS om naar terug te gaan - history.length is dan
+        // 1, en history.back() is een stille no-op. Dit was de daadwerkelijke
+        // oorzaak achter meerdere eerdere "terugknop doet niks"-meldingen.
+        // Omleiden naar onze eigen ELECTRON_BACK_BUTTON-afhandeling (die al
+        // eerst echte in-pagina geschiedenis probeert, en anders teruggaat
+        // naar de tab waar dit tabblad uit geopend is) lost dit voor elke
+        // knop op, ongeacht het label.
+        history.back = function() {
+          console.log('ELECTRON_BACK_BUTTON');
+        };
+        const originalGo = history.go.bind(history);
+        history.go = function(delta) {
+          if (delta === undefined || delta < 0) {
+            console.log('ELECTRON_BACK_BUTTON');
+            return;
+          }
+          return originalGo(delta);
+        };
+
         // Houdt bij of de focus in een tekstveld staat, zodat Ctrl+B daar
         // nog steeds gewoon voor vetgedrukt kan werken, ook als de instelling
         // "Ctrl+B blokkeren" aanstaat (zie ELECTRON_FOCUS_EDITABLE hieronder).
