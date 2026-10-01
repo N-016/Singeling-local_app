@@ -499,6 +499,17 @@
       background: rgba(255, 255, 255, 0.14);
     }
 
+    /* Trekt de aandacht naar een gevonden update, ook als je de melding
+       eerder al had weggeklikt. */
+    .general-actions button.attention {
+      border-color: #ff5e00;
+      background: #c94700;
+    }
+
+    .general-actions button.attention:hover {
+      background: #ff5e00;
+    }
+
     .general-toggle {
       display: flex;
       align-items: center;
@@ -1679,6 +1690,7 @@
         renderTabGroups(settings.tabGroups);
         openAllLinksNewTabCheckbox.checked = !!settings.openAllLinksInNewTab;
         blockCtrlBCheckbox.checked = !!settings.blockCtrlB;
+        applyUpdateStatusUI(!!settings.updateVersion, settings.updateVersion);
       }
       settingsBackdrop.classList.remove('hidden');
       settingsPanel.classList.remove('hidden');
@@ -1748,8 +1760,21 @@
       window.electronAPI.notifyUpdateBannerClosed();
     }
 
-    window.electronAPI.on('update-badge-changed', (available) => {
+    // Weerspiegelt de bekende update-status in het instellingenpaneel zelf
+    // (los van het bolletje/de balk, die blijven werken via hun eigen
+    // show/hide-logica hieronder) - zodat je na het klikken op "Bekijk" in
+    // de instellingen meteen ziet wat er aan de hand is, ook als je de
+    // instellingen al open had staan toen de achtergrondcontrole 'm vond.
+    function applyUpdateStatusUI(available, version) {
+      checkUpdatesBtn.classList.toggle('attention', !!available);
+      if (available) {
+        checkUpdatesStatus.textContent = `Update gevonden: v${version}. Herstart de app om te updaten.`;
+      }
+    }
+
+    window.electronAPI.on('update-badge-changed', ({ available, version }) => {
       settingsUpdateBadge.classList.toggle('hidden', !available);
+      applyUpdateStatusUI(available, version);
       // Het bolletje alleen is makkelijk te missen - laat bij een gevonden
       // update ook een duidelijk zichtbare melding zien. Een eerder gesloten
       // melding verschijnt wel opnieuw zodra er weer een nieuwe updatecontrole
@@ -1769,6 +1794,7 @@
     // een echte update. Verwijderen voor release.
     document.getElementById('debug-preview-update-banner-btn').addEventListener('click', () => {
       settingsUpdateBadge.classList.remove('hidden');
+      applyUpdateStatusUI(true, '1.1.0-debug');
       showUpdateBanner();
     });
 

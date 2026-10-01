@@ -264,7 +264,7 @@ function setupAutoUpdater() {
     resolveUpdateCheck(true);
     updateAvailableInfo = updateInfo;
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-badge-changed', true);
+      mainWindow.webContents.send('update-badge-changed', { available: true, version: updateInfo.version });
     }
 
     // Achtergrondcontrole (dagelijks, of een stille handmatige check): geen
@@ -305,7 +305,7 @@ function setupAutoUpdater() {
     logUpdater('Geen update beschikbaar');
     updateAvailableInfo = null;
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-badge-changed', false);
+      mainWindow.webContents.send('update-badge-changed', { available: false, version: null });
     }
     resolveUpdateCheck(false);
   });
@@ -1328,7 +1328,8 @@ ipcMain.handle('get-settings', (event) => {
     tabGroups: appSettings.tabGroups,
     openAllLinksInNewTab: appSettings.openAllLinksInNewTab,
     showOnboarding: appSettings.showOnboarding,
-    blockCtrlB: appSettings.blockCtrlB
+    blockCtrlB: appSettings.blockCtrlB,
+    updateVersion: updateAvailableInfo ? updateAvailableInfo.version : null
   };
 });
 ipcMain.on('set-block-ctrl-b', (event, value) => {

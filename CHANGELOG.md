@@ -140,3 +140,14 @@ Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden.
 ### Gewijzigd
 - Welkomstscherm: geen "Ga je akkoord?"-vraag en "Nee, afsluiten"-knop meer, alleen nog een "Start"-knop. De bugmelding ("Meld dit bij Nick") staat nu als klein voetnootje onderaan i.p.v. een prominente regel. Checkbox-tekst vereenvoudigd naar "Laat de functies van deze app zien".
 - De "Controleren op updates..."-melding bij het opstarten is verwijderd; de controle blijft gewoon op de achtergrond lopen (een gevonden update toont nog steeds zijn eigen dialoog).
+
+## [1.1.0] - 2026-10-01
+
+### Toegevoegd
+- Een tab ver genoeg onder de tabbalk uit slepen maakt er een eigen los Windows-venster van, dat je daarna net als elk ander venster naar een tweede scherm kunt verplaatsen. Ook toegevoegd aan de rondleiding.
+- Instelling "Ctrl+B blokkeren" (Instellingen → Algemeen): voorkomt dat de pagina's eigen Ctrl+B-sneltoets de zijbalk in-/uitklapt. Staat de focus in een tekstveld, dan werkt Ctrl+B daar gewoon nog voor vetgedrukt.
+- Duidelijk zichtbare melding (balk onder de tabbalk) zodra er een update gevonden is, naast het bolletje bij het instellingen-icoon. De "Nu zoeken naar updates"-knop kleurt oranje en toont meteen de gevonden versie zodra je de instellingen opent.
+
+### Opgelost
+- Terugknoppen/breadcrumbs (zoals "Verkooporders" bovenaan een order) die niet "Terug"/"Vorige" heten werden niet herkend en openden onterecht een nieuw tabblad i.p.v. terug te gaan naar de lijst.
+- De eigenlijke oorzaak van meerdere terugknop-problemen: zo'n knop navigeert vaak via de native `history.back()`, niet via een link. Omdat elke link bij ons een gloednieuwe tab met een lege paginageschiedenis opent, deed `history.back()` daar altijd al niets. Dit wordt nu herkend en omgeleid naar onze eigen terugnavigatie (eerst in-pagina geschiedenis, anders terug naar de brontab).
