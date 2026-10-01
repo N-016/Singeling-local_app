@@ -146,7 +146,7 @@ Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden.
 ### Toegevoegd
 - Een tab ver genoeg onder de tabbalk uit slepen maakt er een eigen los Windows-venster van, dat je daarna net als elk ander venster naar een tweede scherm kunt verplaatsen. Ook toegevoegd aan de rondleiding.
 - Instelling "Ctrl+B blokkeren" (Instellingen → Algemeen): voorkomt dat de pagina's eigen Ctrl+B-sneltoets de zijbalk in-/uitklapt. Staat de focus in een tekstveld, dan werkt Ctrl+B daar gewoon nog voor vetgedrukt.
-- Duidelijk zichtbare melding (balk onder de tabbalk) zodra er een update gevonden is, naast het bolletje bij het instellingen-icoon. De "Nu zoeken naar updates"-knop kleurt oranje en toont meteen de gevonden versie zodra je de instellingen opent.
+- Duidelijk zichtbare melding (balk onder de tabbalk) zodra er een update gevonden is, naast het bolletje bij het instellingen-icoon. De knop in Instellingen wordt oranje en toont "Update beschikbaar" i.p.v. "Nu zoeken naar updates", en de gevonden versie staat er meteen bij zodra je de instellingen opent.
 
 ### Opgelost
 - Terugknoppen/breadcrumbs (zoals "Verkooporders" bovenaan een order) die niet "Terug"/"Vorige" heten werden niet herkend en openden onterecht een nieuw tabblad i.p.v. terug te gaan naar de lijst.

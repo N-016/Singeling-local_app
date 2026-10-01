@@ -1008,8 +1008,6 @@
       <h3>Updates</h3>
       <div class="general-actions">
         <button id="check-updates-btn" type="button">Nu zoeken naar updates</button>
-        <!-- TIJDELIJK: alleen om de update-melding te kunnen voorbekijken zonder een echte update. Verwijderen voor release. -->
-        <button id="debug-preview-update-banner-btn" type="button">(debug) Toon update-melding</button>
       </div>
       <p id="check-updates-status" class="settings-hint"></p>
       <p class="settings-hint">De app controleert ook automatisch elke dag op updates. Vind hij er een, dan zie je een melding in beeld plus een bolletje bij dit instellingen-icoon; herstart de app om te updaten.</p>
@@ -1767,6 +1765,7 @@
     // instellingen al open had staan toen de achtergrondcontrole 'm vond.
     function applyUpdateStatusUI(available, version) {
       checkUpdatesBtn.classList.toggle('attention', !!available);
+      checkUpdatesBtn.textContent = available ? 'Update beschikbaar' : 'Nu zoeken naar updates';
       if (available) {
         checkUpdatesStatus.textContent = `Update gevonden: v${version}. Herstart de app om te updaten.`;
       }
@@ -1788,14 +1787,6 @@
     updateBannerSettingsBtn.addEventListener('click', async () => {
       hideUpdateBanner();
       if (settingsPanel.classList.contains('hidden')) await openSettingsPanel();
-    });
-
-    // TIJDELIJK: alleen om de update-melding te kunnen voorbekijken zonder
-    // een echte update. Verwijderen voor release.
-    document.getElementById('debug-preview-update-banner-btn').addEventListener('click', () => {
-      settingsUpdateBadge.classList.remove('hidden');
-      applyUpdateStatusUI(true, '1.1.0-debug');
-      showUpdateBanner();
     });
 
     checkUpdatesBtn.addEventListener('click', async () => {
