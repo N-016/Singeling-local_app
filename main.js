@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, Menu, dialog, clipboard, shell } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, Menu, dialog, clipboard, shell, screen } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
@@ -30,6 +30,7 @@ let tabs = new Map();      // tabId -> WebContentsView
 let parentTabs = new Map(); // tabId -> tab waaruit deze tab is geopend
 let previousTabs = new Map(); // tabId -> laatst actieve tab vóór deze tab
 let lockedTabs = new Set();
+const detachedWindows = new Map(); // tabId -> { window, view } - losgetrokken tabs in hun eigen venster
 let activeTabId = null;
 let tabCounter = 0;
 const internalNavigations = new Set();
@@ -54,7 +55,8 @@ let appSettings = {
   tabGroups: [], // [{ id, name, urls: [] }]
   lastSeenChangelogVersion: null,
   openAllLinksInNewTab: false,
-  showOnboarding: true
+  showOnboarding: true,
+  blockCtrlB: false
 };
 
 function getSettingsPath() {
@@ -71,7 +73,8 @@ function loadSettings() {
       tabGroups: Array.isArray(parsed.tabGroups) ? parsed.tabGroups : [],
       lastSeenChangelogVersion: typeof parsed.lastSeenChangelogVersion === 'string' ? parsed.lastSeenChangelogVersion : null,
       openAllLinksInNewTab: typeof parsed.openAllLinksInNewTab === 'boolean' ? parsed.openAllLinksInNewTab : false,
-      showOnboarding: typeof parsed.showOnboarding === 'boolean' ? parsed.showOnboarding : true
+      showOnboarding: typeof parsed.showOnboarding === 'boolean' ? parsed.showOnboarding : true,
+      blockCtrlB: typeof parsed.blockCtrlB === 'boolean' ? parsed.blockCtrlB : false
     };
   } catch {
     // Nog geen instellingenbestand of het is ongeldig; standaardwaarden blijven staan.
@@ -93,6 +96,9 @@ function clampZoom(factor) {
 function setZoomFactor(factor) {
   appSettings.zoomFactor = clampZoom(factor);
   for (const view of tabs.values()) {
+    view.webContents.zoomFactor = appSettings.zoomFactor;
+  }
+  for (const { view } of detachedWindows.values()) {
     view.webContents.zoomFactor = appSettings.zoomFactor;
   }
   saveSettings();
@@ -550,6 +556,11 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     } else if (input.key === '0') {
       event.preventDefault();
       setZoomFactor(DEFAULT_ZOOM);
+    } else if (appSettings.blockCtrlB && input.key.toLowerCase() === 'b') {
+      // De website vangt Ctrl+B zelf af om de zijbalk in/uit te klappen, wat
+      // vetgedrukt typen in tekstvelden onmogelijk maakt. Dit onderdrukt de
+      // toetscombinatie al vóórdat de pagina 'm te zien krijgt.
+      event.preventDefault();
     }
   });
 
@@ -829,19 +840,22 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     }
 
     if (message === 'ELECTRON_BACK_BUTTON') {
-      const view = tabs.get(tabId);
-      if (!view) return;
-
+      // Gebruikt bewust de 'view' uit de sluiting van attachNavigationHandlers
+      // (niet tabs.get(tabId)): die laatste is leeg voor een losgetrokken tab
+      // (zie detachTab), waardoor in-pagina "terug" binnen zo'n los venster
+      // anders zou stoppen met werken.
       if (view.webContents.navigationHistory.canGoBack()) {
         internalNavigations.add(tabId);
         view.webContents.navigationHistory.goBack();
         return;
       }
 
-      // Eerst de tab waar dit tabblad daadwerkelijk uit geopend is (parentTabs);
-      // pas als dat er niet is, terugvallen op de laatst bekeken tab. Anders
-      // spring de terugknop naar wat toevallig het laatst actief was, in
-      // plaats van terug naar waar de pagina vandaan kwam.
+      // Alleen relevant als deze tab nog in de tabbalk zit: eerst de tab
+      // waar dit tabblad daadwerkelijk uit geopend is (parentTabs); pas als
+      // dat er niet is, terugvallen op de laatst bekeken tab. Anders springt
+      // de terugknop naar wat toevallig het laatst actief was, in plaats van
+      // terug naar waar de pagina vandaan kwam. Een losgetrokken venster
+      // heeft geen andere tabs om naar terug te vallen.
       const previousTabId = parentTabs.get(tabId) || previousTabs.get(tabId);
       if (previousTabId && tabs.has(previousTabId)) switchTab(previousTabId, { recordHistory: false });
       return;
@@ -979,9 +993,114 @@ function closeOtherTabs(tabId) {
   if (tabs.has(tabId)) switchTab(tabId);
 }
 
+// Een tab uit de tabbalk slepen en loslaten buiten de balk maakt er een eigen
+// los Windows-venster van (dat je daarna net als elk ander venster naar een
+// tweede scherm kunt verslepen). De tab verdwijnt daarbij volledig uit de
+// tabbalk-administratie, alsof hij gesloten is - alleen blijft de webContents
+// zelf in leven, nu in het nieuwe venster.
+//
+// Bewuste beperking: links die normaal een NIEUWE tab zouden openen (bv. een
+// vergrendelde tab, of de "alles in nieuwe tab"-instelling) komen vanuit een
+// losgetrokken venster gewoon weer in het hoofdvenster terecht - createTab()
+// is nog steeds overal aan mainWindow gekoppeld. Alleen gewone in-place
+// navigatie binnen het losgetrokken venster blijft daarin plaatsvinden.
+function detachTab(tabId, screenX, screenY) {
+  const view = tabs.get(tabId);
+  if (!view) return;
+
+  const fallbackTabId = parentTabs.get(tabId) || previousTabs.get(tabId);
+  const wasActive = activeTabId === tabId;
+
+  try {
+    mainWindow.contentView.removeChildView(view);
+  } catch {
+    // Al losgekoppeld; niets meer te doen.
+  }
+  tabs.delete(tabId);
+  parentTabs.delete(tabId);
+  previousTabs.delete(tabId);
+  for (const [id, previousTabId] of previousTabs) {
+    if (previousTabId === tabId) previousTabs.delete(id);
+  }
+  lockedTabs.delete(tabId);
+  mainWindow.webContents.send('tab-closed', tabId);
+
+  if (wasActive) {
+    if (fallbackTabId && tabs.has(fallbackTabId)) {
+      switchTab(fallbackTabId);
+    } else {
+      const remaining = [...tabs.keys()];
+      if (remaining.length > 0) {
+        switchTab(remaining[remaining.length - 1]);
+      } else {
+        activeTabId = null;
+        createTab(START_URL);
+      }
+    }
+  }
+
+  createDetachedWindow(view, tabId, screenX, screenY);
+}
+
+function createDetachedWindow(view, tabId, screenX, screenY) {
+  // Op het scherm plaatsen waar de muis zich bevindt (kan dus al het tweede
+  // scherm zijn als de gebruiker daar naartoe gesleept heeft), losjes
+  // gecentreerd rond het loslaatpunt.
+  const width = 1000;
+  const height = 700;
+  const display = screen.getDisplayNearestPoint({ x: screenX, y: screenY });
+  const x = Math.round(Math.min(
+    Math.max(screenX - width / 2, display.workArea.x),
+    display.workArea.x + display.workArea.width - width
+  ));
+  const y = Math.round(Math.min(
+    Math.max(screenY - 20, display.workArea.y),
+    display.workArea.y + display.workArea.height - height
+  ));
+
+  const detachedWindow = new BrowserWindow({
+    width,
+    height,
+    x,
+    y,
+    title: 'Singeling App',
+    icon: path.join(__dirname, 'assets/icon.ico'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true
+    }
+  });
+
+  detachedWindow.contentView.addChildView(view);
+  view.setBounds({ x: 0, y: 0, width, height });
+
+  detachedWindow.on('resize', () => {
+    const bounds = detachedWindow.getContentBounds();
+    view.setBounds({ x: 0, y: 0, width: bounds.width, height: bounds.height });
+  });
+
+  detachedWindows.set(tabId, { window: detachedWindow, view });
+
+  detachedWindow.on('closed', () => {
+    detachedWindows.delete(tabId);
+    try {
+      if (view.webContents && !view.webContents.isDestroyed()) {
+        view.webContents.close();
+      }
+    } catch {
+      // Al vervallen.
+    }
+  });
+}
+
 // IPC vanuit index.html (tabbar UI)
 ipcMain.on('switch-tab', (event, tabId) => switchTab(tabId));
 ipcMain.on('close-tab', (event, tabId) => closeTab(tabId));
+ipcMain.on('detach-tab', (event, { tabId, screenX, screenY }) => {
+  if (event.sender !== mainWindow.webContents || !tabs.has(tabId)) return;
+  detachTab(tabId, screenX, screenY);
+});
 ipcMain.on('request-new-tab', (event, url) => createTab(url || START_URL));
 ipcMain.on('navigate-active-tab', (event, action) => {
   if (event.sender !== mainWindow.webContents || !activeTabId) return;
@@ -1119,8 +1238,14 @@ ipcMain.handle('get-settings', (event) => {
     startTabs: appSettings.startTabs,
     tabGroups: appSettings.tabGroups,
     openAllLinksInNewTab: appSettings.openAllLinksInNewTab,
-    showOnboarding: appSettings.showOnboarding
+    showOnboarding: appSettings.showOnboarding,
+    blockCtrlB: appSettings.blockCtrlB
   };
+});
+ipcMain.on('set-block-ctrl-b', (event, value) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.blockCtrlB = !!value;
+  saveSettings();
 });
 ipcMain.on('set-show-onboarding', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
@@ -1249,6 +1374,13 @@ function createWindow() {
 
   mainWindow.on('page-title-updated', (event) => event.preventDefault());
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
+
+  // Alle tab-aanmaak (createTab) is aan mainWindow gekoppeld, dus zonder
+  // mainWindow raakt de app sowieso onbruikbaar. Sluit dan ook meteen
+  // eventuele losgetrokken vensters mee i.p.v. ze als wees te laten hangen.
+  mainWindow.on('closed', () => {
+    app.quit();
+  });
 
   // Kopiëren/plakken via het rechtermuisknop-menu voor invoervelden in de
   // tabbalk/instellingen zelf (bv. een tabgroep hernoemen). Rechtsklikken op

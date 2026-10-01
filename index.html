@@ -919,6 +919,11 @@
         Alle links altijd in een nieuw tabblad openen
       </label>
       <p class="settings-hint">Geldt voor alle tabs, ook niet-vastgezette. Externe links (buiten Singeling) blijven gewoon in je standaardbrowser openen.</p>
+      <label class="general-toggle">
+        <input type="checkbox" id="block-ctrl-b-checkbox">
+        Ctrl+B blokkeren
+      </label>
+      <p class="settings-hint">Voorkomt dat Ctrl+B (bedoeld om vetgedrukt te typen) de zijbalk van de pagina in-/uitklapt.</p>
     </div>
 
     <div class="settings-section">
@@ -1358,8 +1363,19 @@
         tab.classList.add('dragging');
       });
 
-      tab.addEventListener('dragend', () => {
+      tab.addEventListener('dragend', (event) => {
         tab.classList.remove('dragging');
+
+        // Ver genoeg onder de tabbalk losgelaten (niet gewoon een beetje
+        // overschieten tijdens het herordenen) -> tab wordt een eigen los
+        // venster, dat je daarna net als elk ander Windows-venster naar een
+        // tweede scherm kunt slepen.
+        const TEAR_OFF_THRESHOLD = 70;
+        if (event.clientY > TEAR_OFF_THRESHOLD) {
+          window.electronAPI.detachTab(tabId, { screenX: event.screenX, screenY: event.screenY });
+          return;
+        }
+
         updateLockedTabPositions();
       });
 
@@ -1588,6 +1604,7 @@
         renderStartTabs(settings.startTabs);
         renderTabGroups(settings.tabGroups);
         openAllLinksNewTabCheckbox.checked = !!settings.openAllLinksInNewTab;
+        blockCtrlBCheckbox.checked = !!settings.blockCtrlB;
       }
       settingsBackdrop.classList.remove('hidden');
       settingsPanel.classList.remove('hidden');
@@ -1626,9 +1643,14 @@
     const changelogContent = document.getElementById('changelog-content');
     const changelogCloseBtn = document.getElementById('changelog-close');
     const openAllLinksNewTabCheckbox = document.getElementById('open-all-links-new-tab-checkbox');
+    const blockCtrlBCheckbox = document.getElementById('block-ctrl-b-checkbox');
 
     openAllLinksNewTabCheckbox.addEventListener('change', () => {
       window.electronAPI.setOpenAllLinksInNewTab(openAllLinksNewTabCheckbox.checked);
+    });
+
+    blockCtrlBCheckbox.addEventListener('change', () => {
+      window.electronAPI.setBlockCtrlB(blockCtrlBCheckbox.checked);
     });
 
     const checkUpdatesBtn = document.getElementById('check-updates-btn');
