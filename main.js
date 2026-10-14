@@ -839,7 +839,15 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
               !nextUrl.pathname.startsWith('/auth') &&
               Date.now() - (window.__electronRowClickAt || 0) < 1000;
             if (fromRowClick) window.__electronRowClickAt = 0;
-            if (isRealNavigation && !isBreadcrumbBack && (fromRowClick || window.__electronTabLocked || window.__electronForceNewTab)) {
+            // "Factuur maken"/"Pakbon maken" zitten in een pop-up en navigeren
+            // pas NA het aanmaken op de server naar de nieuwe factuur/pakbon.
+            // Die moeten - anders dan "Opslaan"/"Aanmaken" in andere
+            // formulieren - wel in een eigen tabblad openen, zodat de order
+            // blijft staan. Ruimer tijdvenster omdat het aanmaken even duurt.
+            const fromNewTabAction = type === 'pushState' &&
+              Date.now() - (window.__electronNewTabActionAt || 0) < 15000;
+            if (fromNewTabAction && isRealNavigation) window.__electronNewTabActionAt = 0;
+            if (isRealNavigation && !isBreadcrumbBack && (fromRowClick || fromNewTabAction || window.__electronTabLocked || window.__electronForceNewTab)) {
               console.log('ELECTRON_LOCKED_NAVIGATE:' + nextUrl.href);
               return;
             }
@@ -931,6 +939,12 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           const clickable = event.target.closest(
             'a[href], button, [role="button"], input[type="button"], input[type="submit"]'
           );
+          // Zie fromNewTabAction in de pushState-override hierboven. Elke
+          // andere klik (bv. "Annuleren") wist het weer.
+          const newTabActions = ['factuurmaken', 'pakbonmaken', 'facturenaanmaken'];
+          const actionLabel = clickable ? clickable.textContent.toLowerCase().replace(/[^a-z]/g, '') : '';
+          window.__electronNewTabActionAt = newTabActions.includes(actionLabel) ? Date.now() : 0;
+
           if (!clickable) return;
 
           const isBackButton = [
