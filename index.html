@@ -1442,10 +1442,16 @@
       tab.className = 'tab';
       tab.dataset.tabId = tabId;
       tab.draggable = true;
-      tab.innerHTML = `
-        <span class="tab-title">${formatTabTitle(url)}</span>
-        <button class="tab-close">&times;</button>
-      `;
+      // Via textContent, niet innerHTML: de titel komt uit een (gedecodeerde)
+      // URL, en een link als .../%3Cimg%20onerror=...%3E zou anders als HTML
+      // in dit venster - dat bij electronAPI kan - worden uitgevoerd.
+      const tabTitle = document.createElement('span');
+      tabTitle.className = 'tab-title';
+      tabTitle.textContent = formatTabTitle(url);
+      const tabClose = document.createElement('button');
+      tabClose.className = 'tab-close';
+      tabClose.textContent = '×';
+      tab.append(tabTitle, tabClose);
 
       // Tab verslepen om de volgorde te wijzigen
       tab.addEventListener('dragstart', (event) => {
