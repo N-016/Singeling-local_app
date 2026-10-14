@@ -870,7 +870,13 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             const fromNewTabAction = type === 'pushState' &&
               Date.now() - (window.__electronNewTabActionAt || 0) < 15000;
             if (fromNewTabAction && isRealNavigation) window.__electronNewTabActionAt = 0;
-            if (isRealNavigation && !isBreadcrumbBack && (fromRowClick || fromNewTabAction || window.__electronTabLocked || window.__electronForceNewTab)) {
+            // Een resultaat gekozen in de zoekbalk bovenin ("Singeling Launch
+            // Pad"): dat is een pop-up, en kiezen kan met de muis of met Enter,
+            // dus fromRowClick ziet het niet. Zie de click-/keydown-listeners.
+            const fromLaunchPad = type === 'pushState' &&
+              Date.now() - (window.__electronLaunchPadAt || 0) < 2000;
+            if (fromLaunchPad && isRealNavigation) window.__electronLaunchPadAt = 0;
+            if (isRealNavigation && !isBreadcrumbBack && (fromRowClick || fromNewTabAction || fromLaunchPad || window.__electronTabLocked || window.__electronForceNewTab)) {
               console.log('ELECTRON_LOCKED_NAVIGATE:' + nextUrl.href);
               return;
             }
@@ -943,6 +949,14 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           console.log('ELECTRON_FOCUS_EDITABLE:false');
         });
 
+        // Enter in de zoekbalk-pop-up kiest het geselecteerde resultaat. Dat is
+        // geen klik, dus hier apart onthouden (capture: vóór de site zelf).
+        document.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter') return;
+          window.__electronLaunchPadAt =
+            document.querySelector('[data-cmd-item][data-selected="true"]') ? Date.now() : 0;
+        }, true);
+
         // Eén gecombineerde click-listener (in plaats van twee losse), zodat de
         // terugknop-check altijd EERST loopt. Anders kan een "Terug"/"Vorige"
         // die als <a href> (in plaats van <button>) is gebouwd, al door de
@@ -964,6 +978,9 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             'a[href], input, select, textarea, form, [role="dialog"], [role="alertdialog"], [contenteditable]'
           );
           window.__electronRowClickAt = isPlainClick ? Date.now() : 0;
+          // Resultaat in de zoekbalk-pop-up (Launch Pad): die items zijn
+          // [data-cmd-item]-elementen, zie fromLaunchPad hierboven.
+          window.__electronLaunchPadAt = !event.button && event.target.closest('[data-cmd-item]') ? Date.now() : 0;
 
           // Als iets anders (de eigen router/click-handler van de site) deze
           // klik al heeft afgehandeld (bv. preventDefault + eigen pushState-
