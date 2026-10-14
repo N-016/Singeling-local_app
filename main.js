@@ -472,8 +472,8 @@ function sendNavigationState(tabId) {
   let canGoBack = false;
   let canGoForward = false;
   try {
-    canGoBack = view.webContents.navigationHistory.canGoBack();
-    canGoForward = view.webContents.navigationHistory.canGoForward();
+    canGoBack = findOtherPageIndex(view.webContents.navigationHistory, -1) !== -1;
+    canGoForward = findOtherPageIndex(view.webContents.navigationHistory, 1) !== -1;
   } catch {
     // Navigation history is not ready yet.
   }
@@ -567,11 +567,19 @@ function closeIfStillBlank(view, tabId) {
   });
 }
 
-// Index van de laatste geschiedenisregel die op een ANDER pad zit dan de
-// huidige pagina, of -1 als die er niet is. Regels met hetzelfde pad (alleen
-// een andere querystring/hash, zoals een subtabblad binnen een order) en
-// niet-http(s)-regels (about:blank van een window.open()-tab) tellen niet mee.
-function findPreviousPageIndex(navigationHistory) {
+// Index van de dichtstbijzijnde geschiedenisregel (direction -1 = terug,
+// +1 = vooruit) die op een ANDER pad zit dan de huidige pagina, of -1 als die
+// er niet is. Regels met hetzelfde pad (alleen een andere querystring/hash,
+// zoals een subtabblad binnen een order) en niet-http(s)-regels (about:blank
+// van een window.open()-tab) tellen niet mee.
+//
+// Belangrijk voor de orderpagina van de site: die spiegelt het subtabblad
+// twee kanten op (URL -> tabblad én tabblad -> URL via replaceState). Wisselt
+// alleen ?tab= terwijl de pagina open blijft (bv. terug van
+// ...?tab=production&scrollTo=... naar ...?tab=kwaliteit), dan corrigeren die
+// twee elkaar eindeloos en springt het scherm ~4x per seconde heen en weer.
+// Door zulke regels over te slaan komt de pagina altijd vers binnen.
+function findOtherPageIndex(navigationHistory, direction) {
   const pathOf = (url) => {
     try {
       const parsed = new URL(url);
@@ -585,7 +593,7 @@ function findPreviousPageIndex(navigationHistory) {
   const entries = navigationHistory.getAllEntries();
   const activeIndex = navigationHistory.getActiveIndex();
   const currentPath = pathOf(entries[activeIndex] && entries[activeIndex].url);
-  for (let i = activeIndex - 1; i >= 0; i--) {
+  for (let i = activeIndex + direction; i >= 0 && i < entries.length; i += direction) {
     const path = pathOf(entries[i].url);
     if (path && path !== currentPath) return i;
   }
@@ -866,6 +874,29 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
               console.log('ELECTRON_LOCKED_NAVIGATE:' + nextUrl.href);
               return;
             }
+            // Vangnet voor een tab-lus in de site zelf (zie findOtherPageIndex
+            // in main.js): de pagina zet de URL dan in hoog tempo om en om
+            // tussen twee adressen op hetzelfde pad. Na 8x binnen 2 seconden
+            // met maar 2 verschillende adressen herladen we de pagina één
+            // keer; vers geladen klopt het tabblad weer met de URL. Hoogstens
+            // eens per 10 seconden, zodat een herlaadlus onmogelijk is.
+            if (type === 'replaceState' && !isRealNavigation) {
+              const now = Date.now();
+              const log = (window.__electronReplaceLog || []).filter(entry => now - entry.at < 2000);
+              log.push({ at: now, href: nextUrl.href });
+              window.__electronReplaceLog = log;
+              if (log.length >= 8 && new Set(log.map(entry => entry.href)).size <= 2) {
+                let lastReload = 0;
+                try { lastReload = Number(sessionStorage.getItem('__electronLoopReloadAt')) || 0; } catch {}
+                if (now - lastReload > 10000) {
+                  try { sessionStorage.setItem('__electronLoopReloadAt', String(now)); } catch {}
+                  window.__electronReplaceLog = [];
+                  console.log('ELECTRON_TAB_LOOP_RELOAD:' + window.location.href);
+                  window.location.reload();
+                  return;
+                }
+              }
+            }
             const result = original.apply(this, args);
             console.log('ELECTRON_URL_UPDATE:' + window.location.href);
             return result;
@@ -1059,7 +1090,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       // pushState. Een kale goBack() ging dan terug naar hetzelfde order met
       // een ander subtabblad (de pagina "glitchte" tussen de tabs) i.p.v.
       // terug naar de lijst of de brontab.
-      const previousPageIndex = findPreviousPageIndex(view.webContents.navigationHistory);
+      const previousPageIndex = findOtherPageIndex(view.webContents.navigationHistory, -1);
       if (previousPageIndex !== -1) {
         internalNavigations.add(tabId);
         view.webContents.navigationHistory.goToIndex(previousPageIndex);
@@ -1330,14 +1361,20 @@ ipcMain.on('navigate-active-tab', (event, action) => {
   const view = tabs.get(activeTabId);
   if (!view) return;
 
-  if (action === 'back' && view.webContents.navigationHistory.canGoBack()) {
+  // Net als ELECTRON_BACK_BUTTON: sla regels op hetzelfde pad over (zie
+  // findOtherPageIndex), anders kan de orderpagina in een tab-lus schieten.
+  const history = view.webContents.navigationHistory;
+  const backIndex = action === 'back' ? findOtherPageIndex(history, -1) : -1;
+  const forwardIndex = action === 'forward' ? findOtherPageIndex(history, 1) : -1;
+
+  if (backIndex !== -1) {
     internalNavigations.add(activeTabId);
-    view.webContents.navigationHistory.goBack();
+    history.goToIndex(backIndex);
   } else if (action === 'back' && (parentTabs.has(activeTabId) || previousTabs.has(activeTabId))) {
     switchTab(parentTabs.get(activeTabId) || previousTabs.get(activeTabId), { recordHistory: false });
-  } else if (action === 'forward' && view.webContents.navigationHistory.canGoForward()) {
+  } else if (forwardIndex !== -1) {
     internalNavigations.add(activeTabId);
-    view.webContents.navigationHistory.goForward();
+    history.goToIndex(forwardIndex);
   } else if (action === 'reload') {
     view.webContents.reload();
   }
