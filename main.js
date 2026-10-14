@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, Menu, dialog, clipboard, shell, screen } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, Menu, dialog, clipboard, shell, screen, session } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
@@ -112,6 +112,21 @@ function setZoomFactor(factor) {
 function adjustZoom(direction) {
   const delta = direction === 'in' ? ZOOM_STEP : -ZOOM_STEP;
   setZoomFactor(appSettings.zoomFactor + delta);
+}
+
+// Alles wat een webpagina in een tab "extern" wil openen gaat hierlangs.
+// shell.openExternal() geeft de URL rechtstreeks aan Windows, dus zonder
+// deze check kan een pagina ook file://, ms-msdt:, search-ms: e.d. openen
+// en daarmee programma's op de pc laten starten. Alleen gewone web- en
+// mail-/bellinks gaan door naar de standaardapp.
+const SAFE_EXTERNAL_PROTOCOLS = ['http:', 'https:', 'mailto:', 'tel:'];
+
+function openExternalSafe(url) {
+  try {
+    if (SAFE_EXTERNAL_PROTOCOLS.includes(new URL(url).protocol)) shell.openExternal(url);
+  } catch {
+    // Ongeldige URL: niets openen.
+  }
 }
 
 function isInternalUrl(url) {
@@ -552,6 +567,31 @@ function closeIfStillBlank(view, tabId) {
   });
 }
 
+// Index van de laatste geschiedenisregel die op een ANDER pad zit dan de
+// huidige pagina, of -1 als die er niet is. Regels met hetzelfde pad (alleen
+// een andere querystring/hash, zoals een subtabblad binnen een order) en
+// niet-http(s)-regels (about:blank van een window.open()-tab) tellen niet mee.
+function findPreviousPageIndex(navigationHistory) {
+  const pathOf = (url) => {
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+      return parsed.origin + parsed.pathname.replace(/\/$/, '');
+    } catch {
+      return null;
+    }
+  };
+
+  const entries = navigationHistory.getAllEntries();
+  const activeIndex = navigationHistory.getActiveIndex();
+  const currentPath = pathOf(entries[activeIndex] && entries[activeIndex].url);
+  for (let i = activeIndex - 1; i >= 0; i--) {
+    const path = pathOf(entries[i].url);
+    if (path && path !== currentPath) return i;
+  }
+  return -1;
+}
+
 // Vastgezette tabs openen navigatie altijd in een NIEUWE tab; losse tabs navigeren gewoon door
 //
 // skipFirstNavigation: bij een tab die via createTab() zelf loadURL() aanroept
@@ -623,7 +663,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       // gewoon laten laden in deze tab (zie uitleg bij skipFirstNavigation).
       if (!isInternalUrl(url)) {
         event.preventDefault();
-        shell.openExternal(url);
+        openExternalSafe(url);
         closeIfStillBlank(view, tabId);
       }
       return;
@@ -634,7 +674,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     }
     if (!isInternalUrl(url)) {
       event.preventDefault();
-      shell.openExternal(url);
+      openExternalSafe(url);
       closeIfStillBlank(view, tabId);
       return;
     }
@@ -648,7 +688,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
   view.webContents.on('will-redirect', (event, url) => {
     if (!isInternalUrl(url) && !isAuthUrl(url)) {
       event.preventDefault();
-      shell.openExternal(url);
+      openExternalSafe(url);
       closeIfStillBlank(view, tabId);
     }
   });
@@ -676,7 +716,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
         return { action: 'allow' };
       }
       if (!isInternalUrl(details.url)) {
-        shell.openExternal(details.url);
+        openExternalSafe(details.url);
       } else {
         createTab(details.url, true, false, tabId);
       }
@@ -721,7 +761,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
         {
           label: external ? 'Link openen in browser' : 'Link openen in nieuw tabblad',
           click: () => {
-            if (external) shell.openExternal(params.linkURL);
+            if (external) openExternalSafe(params.linkURL);
             else createTab(params.linkURL, true, false, tabId);
           }
         }
@@ -814,7 +854,15 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
               !nextUrl.pathname.startsWith('/auth') &&
               Date.now() - (window.__electronRowClickAt || 0) < 1000;
             if (fromRowClick) window.__electronRowClickAt = 0;
-            if (isRealNavigation && !isBreadcrumbBack && (fromRowClick || window.__electronTabLocked || window.__electronForceNewTab)) {
+            // "Factuur maken"/"Pakbon maken" zitten in een pop-up en navigeren
+            // pas NA het aanmaken op de server naar de nieuwe factuur/pakbon.
+            // Die moeten - anders dan "Opslaan"/"Aanmaken" in andere
+            // formulieren - wel in een eigen tabblad openen, zodat de order
+            // blijft staan. Ruimer tijdvenster omdat het aanmaken even duurt.
+            const fromNewTabAction = type === 'pushState' &&
+              Date.now() - (window.__electronNewTabActionAt || 0) < 15000;
+            if (fromNewTabAction && isRealNavigation) window.__electronNewTabActionAt = 0;
+            if (isRealNavigation && !isBreadcrumbBack && (fromRowClick || fromNewTabAction || window.__electronTabLocked || window.__electronForceNewTab)) {
               console.log('ELECTRON_LOCKED_NAVIGATE:' + nextUrl.href);
               return;
             }
@@ -906,6 +954,12 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           const clickable = event.target.closest(
             'a[href], button, [role="button"], input[type="button"], input[type="submit"]'
           );
+          // Zie fromNewTabAction in de pushState-override hierboven. Elke
+          // andere klik (bv. "Annuleren") wist het weer.
+          const newTabActions = ['factuurmaken', 'pakbonmaken', 'facturenaanmaken'];
+          const actionLabel = clickable ? clickable.textContent.toLowerCase().replace(/[^a-z]/g, '') : '';
+          window.__electronNewTabActionAt = newTabActions.includes(actionLabel) ? Date.now() : 0;
+
           if (!clickable) return;
 
           const isBackButton = [
@@ -983,14 +1037,14 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     if (message.startsWith('ELECTRON_LINK_CLICK:')) {
       const url = message.replace('ELECTRON_LINK_CLICK:', '');
       if (isAuthUrl(url)) view.webContents.loadURL(url);
-      else if (!isInternalUrl(url)) shell.openExternal(url);
+      else if (!isInternalUrl(url)) openExternalSafe(url);
       else createTab(url, true, false, tabId);
       return;
     }
 
     if (message.startsWith('ELECTRON_LOCKED_NAVIGATE:')) {
       const url = message.replace('ELECTRON_LOCKED_NAVIGATE:', '');
-      if (!isInternalUrl(url)) shell.openExternal(url);
+      if (!isInternalUrl(url)) openExternalSafe(url);
       else createTab(url, true, false, tabId);
       return;
     }
@@ -1000,9 +1054,15 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       // (niet tabs.get(tabId)): die laatste is leeg voor een losgetrokken tab
       // (zie detachTab), waardoor in-pagina "terug" binnen zo'n los venster
       // anders zou stoppen met werken.
-      if (view.webContents.navigationHistory.canGoBack()) {
+      // Sla geschiedenisregels over die op hetzelfde pad zitten: een subtabblad
+      // of filter (bv. sales-orders/123 -> ...?tab=kwaliteit) doet ook een
+      // pushState. Een kale goBack() ging dan terug naar hetzelfde order met
+      // een ander subtabblad (de pagina "glitchte" tussen de tabs) i.p.v.
+      // terug naar de lijst of de brontab.
+      const previousPageIndex = findPreviousPageIndex(view.webContents.navigationHistory);
+      if (previousPageIndex !== -1) {
         internalNavigations.add(tabId);
-        view.webContents.navigationHistory.goBack();
+        view.webContents.navigationHistory.goToIndex(previousPageIndex);
         return;
       }
 
@@ -1031,7 +1091,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
 
 function createTab(url, makeActive = true, lockTab = false, parentTabId = null) {
   if (!isInternalUrl(url)) {
-    shell.openExternal(url);
+    openExternalSafe(url);
     return null;
   }
 
@@ -1040,7 +1100,8 @@ function createTab(url, makeActive = true, lockTab = false, parentTabId = null) 
   const view = new WebContentsView({
     webPreferences: {
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true,
+      sandbox: true
     }
   });
 
@@ -1286,8 +1347,8 @@ ipcMain.on('set-tab-locked', (event, { tabId, locked }) => {
 
   if (locked) lockedTabs.add(tabId);
   else lockedTabs.delete(tabId);
-  tabs.get(tabId).webContents.executeJavaScript(`window.__electronTabLocked = ${locked};`);
-  mainWindow.webContents.send('tab-lock-changed', { tabId, locked });
+  tabs.get(tabId).webContents.executeJavaScript(`window.__electronTabLocked = ${!!locked};`);
+  mainWindow.webContents.send('tab-lock-changed', { tabId, locked: !!locked });
 });
 ipcMain.on('show-tab-context-menu', (event, { tabId, x, y }) => {
   if (event.sender !== mainWindow.webContents || !tabs.has(tabId)) return;
@@ -1610,6 +1671,17 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Electron staat standaard ELKE toestemmingsvraag toe (camera, microfoon,
+  // locatie, meldingen, ...), ook voor externe pagina's zoals de
+  // inlogschermen. Alleen de eigen app krijgt die rechten nog.
+  const isTrustedOrigin = (url) => !!url && isInternalUrl(url);
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    callback(isTrustedOrigin(details.requestingUrl || webContents.getURL()));
+  });
+  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+    return isTrustedOrigin(requestingOrigin);
+  });
+
   loadSettings();
   createWindow();
   app.on('activate', () => {
