@@ -180,3 +180,11 @@ Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden.
 - Links die een pagina "extern" wil openen gaan alleen nog naar de browser of mail-app als het een gewone web-, mail- of bellink is; andere soorten links (die bv. een programma op de pc kunnen starten) worden genegeerd.
 - Een speciaal gemaakte link kon via de tabnaam code uitvoeren in de app; de tabnaam wordt nu altijd als gewone tekst getoond.
 - Alleen de eigen app krijgt nog toegang tot o.a. camera, microfoon en locatie; externe pagina's (zoals inlogschermen) niet meer.
+
+## [1.1.4] - 2026-10-14
+
+### Gewijzigd
+- Een resultaat uit de zoekbalk bovenin (bv. een ander ordernummer, een klant of een artikel) opent nu in een nieuw tabblad, met de muis én met Enter. De pagina waar je was blijft gewoon staan.
+
+### Opgelost
+- Terug gaan in een order kon het scherm in een eindeloze lus laten springen tussen twee tabbladen (zo'n 4x per seconde). De terug- en vooruitknop in de tabbalk slaan nu wissels van subtabblad binnen dezelfde pagina over, en schiet een pagina toch in zo'n lus, dan wordt die één keer automatisch herladen.
