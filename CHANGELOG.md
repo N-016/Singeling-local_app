@@ -166,3 +166,17 @@ Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden.
 ### Opgelost
 - De tabnaam werd niet bijgewerkt als een tabblad via een volledige paginalading (bv. een redirect of herladen) op een andere pagina terechtkwam.
 - Spaties en andere speciale tekens stonden gecodeerd in de tabnaam (bv. "20264101800%20Rev.%200"); nu leesbaar ("20264101800 Rev. 0").
+
+## [1.1.3] - 2026-10-14
+
+### Gewijzigd
+- "Factuur maken" en "Pakbon maken" vanuit een order openen de nieuwe factuur/pakbon nu in een eigen tabblad; de order blijft staan in het tabblad waar je was.
+- Laadscherm: kleine tekstaanpassing.
+
+### Opgelost
+- Op een subtabblad van een order (bv. Kwaliteit) op "Verkooporders" klikken liet het scherm heen en weer springen tussen de subtabbladen i.p.v. terug te gaan naar de lijst. Terugknoppen en broodkruimels slaan subtabbladen en filters nu over.
+
+### Beveiliging
+- Links die een pagina "extern" wil openen gaan alleen nog naar de browser of mail-app als het een gewone web-, mail- of bellink is; andere soorten links (die bv. een programma op de pc kunnen starten) worden genegeerd.
+- Een speciaal gemaakte link kon via de tabnaam code uitvoeren in de app; de tabnaam wordt nu altijd als gewone tekst getoond.
+- Alleen de eigen app krijgt nog toegang tot o.a. camera, microfoon en locatie; externe pagina's (zoals inlogschermen) niet meer.
