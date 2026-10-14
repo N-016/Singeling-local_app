@@ -552,6 +552,31 @@ function closeIfStillBlank(view, tabId) {
   });
 }
 
+// Index van de laatste geschiedenisregel die op een ANDER pad zit dan de
+// huidige pagina, of -1 als die er niet is. Regels met hetzelfde pad (alleen
+// een andere querystring/hash, zoals een subtabblad binnen een order) en
+// niet-http(s)-regels (about:blank van een window.open()-tab) tellen niet mee.
+function findPreviousPageIndex(navigationHistory) {
+  const pathOf = (url) => {
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+      return parsed.origin + parsed.pathname.replace(/\/$/, '');
+    } catch {
+      return null;
+    }
+  };
+
+  const entries = navigationHistory.getAllEntries();
+  const activeIndex = navigationHistory.getActiveIndex();
+  const currentPath = pathOf(entries[activeIndex] && entries[activeIndex].url);
+  for (let i = activeIndex - 1; i >= 0; i--) {
+    const path = pathOf(entries[i].url);
+    if (path && path !== currentPath) return i;
+  }
+  return -1;
+}
+
 // Vastgezette tabs openen navigatie altijd in een NIEUWE tab; losse tabs navigeren gewoon door
 //
 // skipFirstNavigation: bij een tab die via createTab() zelf loadURL() aanroept
@@ -1000,9 +1025,15 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       // (niet tabs.get(tabId)): die laatste is leeg voor een losgetrokken tab
       // (zie detachTab), waardoor in-pagina "terug" binnen zo'n los venster
       // anders zou stoppen met werken.
-      if (view.webContents.navigationHistory.canGoBack()) {
+      // Sla geschiedenisregels over die op hetzelfde pad zitten: een subtabblad
+      // of filter (bv. sales-orders/123 -> ...?tab=kwaliteit) doet ook een
+      // pushState. Een kale goBack() ging dan terug naar hetzelfde order met
+      // een ander subtabblad (de pagina "glitchte" tussen de tabs) i.p.v.
+      // terug naar de lijst of de brontab.
+      const previousPageIndex = findPreviousPageIndex(view.webContents.navigationHistory);
+      if (previousPageIndex !== -1) {
         internalNavigations.add(tabId);
-        view.webContents.navigationHistory.goBack();
+        view.webContents.navigationHistory.goToIndex(previousPageIndex);
         return;
       }
 
