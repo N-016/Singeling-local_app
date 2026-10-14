@@ -653,9 +653,16 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     }
   });
 
-  view.webContents.on('did-navigate', () => {
+  view.webContents.on('did-navigate', (event, url) => {
     internalNavigations.delete(tabId);
     sendNavigationState(tabId);
+    // De tabnaam wordt uit de URL afgeleid. Binnen de site (pushState) meldt
+    // de geïnjecteerde ELECTRON_URL_UPDATE dat al, maar bij een volledige
+    // paginalading (redirect, doorklik in een losse tab, herladen) bleef de
+    // naam anders op de oude pagina staan.
+    if (mainWindow && !mainWindow.isDestroyed() && url && url !== 'about:blank') {
+      mainWindow.webContents.send('update-tab-url', { tabId, url });
+    }
   });
 
   view.webContents.on('did-navigate-in-page', () => sendNavigationState(tabId));
@@ -797,7 +804,17 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             const currentPath = window.location.pathname;
             const isBreadcrumbBack = destPath !== currentPath && currentPath.startsWith(destPath) &&
               (currentPath[destPath.length] === '/' || destPath === '');
-            if (isRealNavigation && !isBreadcrumbBack && (window.__electronTabLocked || window.__electronForceNewTab)) {
+            // Klikbare rijen/kaarten/knoppen (bv. een offerte in de lijst bij
+            // Quotations) zijn geen <a href>, dus de linkhandler hieronder
+            // ziet ze niet: de site navigeert zelf via pushState. Een
+            // pushState vlak na zo'n klik behandelen we daarom als linkklik
+            // en openen we - net als echte links - in een nieuw tabblad.
+            // Uitloggen (naar /auth) moet uiteraard in deze tab blijven.
+            const fromRowClick = type === 'pushState' &&
+              !nextUrl.pathname.startsWith('/auth') &&
+              Date.now() - (window.__electronRowClickAt || 0) < 1000;
+            if (fromRowClick) window.__electronRowClickAt = 0;
+            if (isRealNavigation && !isBreadcrumbBack && (fromRowClick || window.__electronTabLocked || window.__electronForceNewTab)) {
               console.log('ELECTRON_LOCKED_NAVIGATE:' + nextUrl.href);
               return;
             }
@@ -853,6 +870,22 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
         // linkhandler zijn afgevangen (en dus als nieuw tabblad geopend worden)
         // vóórdat de terugknop-check er zelfs maar naar kijkt.
         document.addEventListener('click', (event) => {
+          // De site navigeert meestal niet via <a href>, maar via een eigen
+          // click-handler op een rij, kaart of knop (bv. een offerte bij
+          // Quotations, een issuekaart, de klantnaam bij Verkooporders) die
+          // daarna pushState doet. Onthoud daarom het tijdstip van elke klik,
+          // zodat de pushState-override hierboven die navigatie - net als een
+          // echte link - in een nieuw tabblad kan openen. Klikken binnen
+          // formulieren en dialogen tellen niet mee: "Opslaan"/"Aanmaken" die
+          // daarna naar de nieuwe detailpagina springt hoort in dezelfde tab.
+          // Klikken die op dezelfde pagina blijven (filters, subtabbladen,
+          // verwijderen) doen geen pad-wijzigende pushState en merken hier
+          // dus niets van.
+          const isPlainClick = !event.button && !event.target.closest(
+            'a[href], input, select, textarea, form, [role="dialog"], [role="alertdialog"], [contenteditable]'
+          );
+          window.__electronRowClickAt = isPlainClick ? Date.now() : 0;
+
           // Als iets anders (de eigen router/click-handler van de site) deze
           // klik al heeft afgehandeld (bv. preventDefault + eigen pushState-
           // navigatie), moeten wij niet ook nog eens zelfstandig een tab

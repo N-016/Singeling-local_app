@@ -157,3 +157,12 @@ Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden.
 ### Opgelost
 - Inloggen met een Microsoft-account gaf de foutmelding "AADSTS900561: The endpoint only accepts POST requests". De inlogstappen werden naar de standaardbrowser gestuurd, waarbij het formulier verloren ging. De volledige inlogflow (Microsoft/Supabase) loopt nu binnen de app zelf, zodat je ook echt in de app ingelogd raakt.
 
+## [1.1.2] - 2026-10-09
+
+### Gewijzigd
+- Elke klik die naar een andere pagina leidt opent nu uniform een nieuw tabblad, ook als het geen gewone link is: een offerte in de lijst bij Quotations, een issuekaart, de klantnaam of een orderregel bij Verkooporders, en de rijen bij o.a. Klanten, Inkooporders, Pakbonnen, Stuklijsten, QF-offertes, Artikelen, facturen en offerteaanvragen. De lijst blijft in het oorspronkelijke tabblad staan.
+- Uitzonderingen blijven in hetzelfde tabblad: terugnavigatie (terugknoppen en broodkruimels), uitloggen, klikken binnen formulieren en pop-ups (bv. "Opslaan" of "Aanmaken"), en alles wat op dezelfde pagina blijft (subtabbladen, filters, weergave wisselen).
+
+### Opgelost
+- De tabnaam werd niet bijgewerkt als een tabblad via een volledige paginalading (bv. een redirect of herladen) op een andere pagina terechtkwam.
+- Spaties en andere speciale tekens stonden gecodeerd in de tabnaam (bv. "20264101800%20Rev.%200"); nu leesbaar ("20264101800 Rev. 0").

@@ -1402,7 +1402,15 @@
     function formatTabTitle(url) {
       try {
         const parsed = new URL(url);
-        const segments = parsed.pathname.split('/').filter(Boolean);
+        // Gedecodeerd, zodat bv. een stuklijst "20264101800%20Rev.%200" als
+        // "20264101800 Rev. 0" in de tab staat.
+        const segments = parsed.pathname.split('/').filter(Boolean).map(segment => {
+          try {
+            return decodeURIComponent(segment);
+          } catch {
+            return segment;
+          }
+        });
 
         // Als je op de homepage bent, toon dan de hostname
         if (segments.length === 0) {
