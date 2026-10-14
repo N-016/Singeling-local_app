@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setOpenAllLinksInNewTab: (value) => ipcRenderer.send('set-open-all-links-in-new-tab', value),
   setShowOnboarding: (value) => ipcRenderer.send('set-show-onboarding', value),
   setBlockCtrlB: (value) => ipcRenderer.send('set-block-ctrl-b', value),
+  setDarkMode: (value) => ipcRenderer.send('set-dark-mode', value),
   checkForUpdatesNow: () => ipcRenderer.invoke('check-for-updates-now'),
   getChangelog: () => ipcRenderer.invoke('get-changelog'),
   notifyChangelogNoticeClosed: () => ipcRenderer.send('changelog-notice-closed'),

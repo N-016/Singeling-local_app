@@ -1002,6 +1002,11 @@
         Ctrl+B blokkeren
       </label>
       <p class="settings-hint">Voorkomt dat Ctrl+B (bedoeld om vetgedrukt te typen) de zijbalk van de pagina in-/uitklapt.</p>
+      <label class="general-toggle">
+        <input type="checkbox" id="dark-mode-checkbox">
+        Donkere modus
+      </label>
+      <p class="settings-hint">Toont de Singeling-pagina's in donkere kleuren. Geldt direct voor alle open tabs.</p>
     </div>
 
     <div class="settings-section">
@@ -1702,6 +1707,7 @@
         renderTabGroups(settings.tabGroups);
         openAllLinksNewTabCheckbox.checked = !!settings.openAllLinksInNewTab;
         blockCtrlBCheckbox.checked = !!settings.blockCtrlB;
+        darkModeCheckbox.checked = !!settings.darkMode;
         applyUpdateStatusUI(!!settings.updateVersion, settings.updateVersion);
       }
       settingsBackdrop.classList.remove('hidden');
@@ -1742,6 +1748,7 @@
     const changelogCloseBtn = document.getElementById('changelog-close');
     const openAllLinksNewTabCheckbox = document.getElementById('open-all-links-new-tab-checkbox');
     const blockCtrlBCheckbox = document.getElementById('block-ctrl-b-checkbox');
+    const darkModeCheckbox = document.getElementById('dark-mode-checkbox');
 
     openAllLinksNewTabCheckbox.addEventListener('change', () => {
       window.electronAPI.setOpenAllLinksInNewTab(openAllLinksNewTabCheckbox.checked);
@@ -1749,6 +1756,10 @@
 
     blockCtrlBCheckbox.addEventListener('change', () => {
       window.electronAPI.setBlockCtrlB(blockCtrlBCheckbox.checked);
+    });
+
+    darkModeCheckbox.addEventListener('change', () => {
+      window.electronAPI.setDarkMode(darkModeCheckbox.checked);
     });
 
     const checkUpdatesBtn = document.getElementById('check-updates-btn');

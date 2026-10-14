@@ -26,6 +26,34 @@ const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.1;
 
+// Donkere modus: de Lovable-app heeft al een volledig donker thema onder de
+// class "dark" (shadcn/Tailwind), maar zet die zelf nooit aan. Wij zetten de
+// class op <html>. Alleen de eigen Singeling-variabelen (--bg-surface, --fg-2,
+// --border-1, ... gebruikt door de sg-*-componenten) en een handvol vaste
+// Tailwind-kleuren hebben geen donkere variant; die vullen we hier aan.
+// Alles hangt onder html.dark, dus zonder de class doet deze CSS niets.
+const DARK_MODE_BACKGROUND = '#14161a'; // = --background van .dark (220 12% 9%)
+const DARK_MODE_CSS = `
+  html.dark {
+    color-scheme: dark;
+    --bg-canvas: hsl(220 12% 9%);
+    --bg-surface: hsl(222 12% 13%);
+    --bg-sunk: hsl(222 12% 11%);
+    --fg-1: hsl(210 11% 96%);
+    --fg-2: hsl(212 8% 72%);
+    --fg-3: hsl(212 8% 55%);
+    --border-1: hsl(220 13% 20%);
+    --border-2: hsl(220 13% 26%);
+    --border-strong: hsl(210 11% 85%);
+  }
+  html.dark .bg-white { background-color: hsl(var(--card)); }
+  html.dark .bg-gray-50,
+  html.dark .bg-gray-100,
+  html.dark .bg-slate-50 { background-color: hsl(var(--muted)); }
+  html.dark .text-black,
+  html.dark .text-gray-900 { color: hsl(var(--foreground)); }
+`;
+
 let mainWindow;
 let tabs = new Map();      // tabId -> WebContentsView
 let parentTabs = new Map(); // tabId -> tab waaruit deze tab is geopend
@@ -58,7 +86,8 @@ let appSettings = {
   lastSeenChangelogVersion: null,
   openAllLinksInNewTab: false,
   showOnboarding: true,
-  blockCtrlB: false
+  blockCtrlB: false,
+  darkMode: false
 };
 
 function getSettingsPath() {
@@ -76,7 +105,8 @@ function loadSettings() {
       lastSeenChangelogVersion: typeof parsed.lastSeenChangelogVersion === 'string' ? parsed.lastSeenChangelogVersion : null,
       openAllLinksInNewTab: typeof parsed.openAllLinksInNewTab === 'boolean' ? parsed.openAllLinksInNewTab : false,
       showOnboarding: typeof parsed.showOnboarding === 'boolean' ? parsed.showOnboarding : true,
-      blockCtrlB: typeof parsed.blockCtrlB === 'boolean' ? parsed.blockCtrlB : false
+      blockCtrlB: typeof parsed.blockCtrlB === 'boolean' ? parsed.blockCtrlB : false,
+      darkMode: typeof parsed.darkMode === 'boolean' ? parsed.darkMode : false
     };
   } catch {
     // Nog geen instellingenbestand of het is ongeldig; standaardwaarden blijven staan.
@@ -613,8 +643,30 @@ function findOtherPageIndex(navigationHistory, direction) {
 // "vergrendeld/alles-in-nieuwe-tab"-regel omgeleid worden, want dat zou deze
 // tab (die de window.open()-referentie in de openende pagina moet blijven
 // vertegenwoordigen) evengoed leeg en vastzittend achterlaten.
+// Zet de class "dark" op de pagina aan of uit volgens de instelling. Alleen op
+// pagina's van de app zelf; inlogpagina's (Microsoft e.d.) blijven ongemoeid.
+// De achtergrondkleur van de view voorkomt een witte flits tijdens het laden.
+function applyDarkMode(view) {
+  if (view.webContents.isDestroyed()) return;
+  view.setBackgroundColor(appSettings.darkMode ? DARK_MODE_BACKGROUND : '#ffffff');
+  if (!isInternalUrl(view.webContents.getURL())) return;
+  view.webContents.executeJavaScript(
+    `document.documentElement.classList.toggle('dark', ${appSettings.darkMode});`
+  ).catch(() => {});
+}
+
 function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = {}) {
   let isInitialLoad = true;
+
+  // dom-ready komt eerder dan did-finish-load, dus het thema staat er al
+  // voordat de pagina zichtbaar is opgebouwd. insertCSS blijft gelden tot de
+  // volgende volledige paginalading en wordt dan hier opnieuw gezet.
+  view.webContents.on('dom-ready', () => {
+    if (isInternalUrl(view.webContents.getURL())) {
+      view.webContents.insertCSS(DARK_MODE_CSS).catch(() => {});
+    }
+    applyDarkMode(view);
+  });
   // Bijgewerkt via ELECTRON_FOCUS_EDITABLE in de console-message-handler
   // hieronder (focusin/focusout-listener die in de pagina geïnjecteerd
   // wordt). Zo weten we bij Ctrl+B of de focus in een tekstveld staat, zonder
@@ -744,6 +796,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
         mainWindow.contentView.addChildView(newView);
         newView.setBounds(getViewBounds());
         newView.webContents.zoomFactor = appSettings.zoomFactor;
+        if (appSettings.darkMode) newView.setBackgroundColor(DARK_MODE_BACKGROUND);
         attachNavigationHandlers(newView, newTabId, { skipFirstNavigation: false });
         tabs.set(newTabId, newView);
         parentTabs.set(newTabId, tabId);
@@ -1158,6 +1211,7 @@ function createTab(url, makeActive = true, lockTab = false, parentTabId = null) 
   // niet-actieve tab (bv. een tweede starttab) zichtbaar bovenop de rest.
   view.setBounds(makeActive ? getViewBounds() : { x: 0, y: 0, width: 0, height: 0 });
   view.webContents.zoomFactor = appSettings.zoomFactor;
+  if (appSettings.darkMode) view.setBackgroundColor(DARK_MODE_BACKGROUND);
   view.webContents.loadURL(url);
 
   attachNavigationHandlers(view, tabId);
@@ -1516,6 +1570,7 @@ ipcMain.handle('get-settings', (event) => {
     openAllLinksInNewTab: appSettings.openAllLinksInNewTab,
     showOnboarding: appSettings.showOnboarding,
     blockCtrlB: appSettings.blockCtrlB,
+    darkMode: appSettings.darkMode,
     updateVersion: updateAvailableInfo ? updateAvailableInfo.version : null
   };
 });
@@ -1523,6 +1578,13 @@ ipcMain.on('set-block-ctrl-b', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
   appSettings.blockCtrlB = !!value;
   saveSettings();
+});
+ipcMain.on('set-dark-mode', (event, value) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.darkMode = !!value;
+  saveSettings();
+  // Direct effect voor al open tabs, zonder herladen.
+  for (const view of tabs.values()) applyDarkMode(view);
 });
 ipcMain.on('set-show-onboarding', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
