@@ -151,3 +151,9 @@ Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden.
 ### Opgelost
 - Terugknoppen/breadcrumbs (zoals "Verkooporders" bovenaan een order) die niet "Terug"/"Vorige" heten werden niet herkend en openden onterecht een nieuw tabblad i.p.v. terug te gaan naar de lijst.
 - De eigenlijke oorzaak van meerdere terugknop-problemen: zo'n knop navigeert vaak via de native `history.back()`, niet via een link. Omdat elke link bij ons een gloednieuwe tab met een lege paginageschiedenis opent, deed `history.back()` daar altijd al niets. Dit wordt nu herkend en omgeleid naar onze eigen terugnavigatie (eerst in-pagina geschiedenis, anders terug naar de brontab).
+
+## [1.1.1] - 2026-10-05
+
+### Opgelost
+- Inloggen met een Microsoft-account gaf de foutmelding "AADSTS900561: The endpoint only accepts POST requests". De inlogstappen werden naar de standaardbrowser gestuurd, waarbij het formulier verloren ging. De volledige inlogflow (Microsoft/Supabase) loopt nu binnen de app zelf, zodat je ook echt in de app ingelogd raakt.
+

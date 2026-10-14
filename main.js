@@ -123,6 +123,32 @@ function isInternalUrl(url) {
   }
 }
 
+// Inloggen (bv. "Inloggen met Microsoft") loopt via een keten van redirects en
+// formulier-POSTs langs Supabase en Microsoft. Die domeinen zijn niet "intern",
+// dus zonder uitzondering werd elke stap naar de standaardbrowser gestuurd via
+// shell.openExternal(url) - en dat opent altijd een GET zonder de POST-body.
+// Microsoft antwoordt dan met AADSTS900561 ("endpoint only accepts POST").
+// Bovendien zou de sessie dan in de browser landen i.p.v. in de app. Daarom
+// mag de volledige inlogflow gewoon binnen het tabblad zelf plaatsvinden.
+const AUTH_HOST_SUFFIXES = [
+  'login.microsoftonline.com',
+  'login.microsoft.com',
+  'login.live.com',
+  'login.windows.net',
+  'account.live.com',
+  'supabase.co',
+  'oauth.lovable.app'
+];
+
+function isAuthUrl(url) {
+  try {
+    const hostname = new URL(url).hostname;
+    return AUTH_HOST_SUFFIXES.some(suffix => hostname === suffix || hostname.endsWith(`.${suffix}`));
+  } catch {
+    return false;
+  }
+}
+
 function isRefreshShortcut(input) {
   return input.key === 'F5' || ((input.control || input.meta) && input.key.toLowerCase() === 'r');
 }
@@ -584,6 +610,12 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
   });
 
   view.webContents.on('will-navigate', (event, url) => {
+    // Inlogstappen altijd in-place laten doorlopen (ook in een vergrendelde
+    // tab), zodat POSTs intact blijven en de sessie in de app terechtkomt.
+    if (isAuthUrl(url)) {
+      isInitialLoad = false;
+      return;
+    }
     if (isInitialLoad) {
       isInitialLoad = false;
       if (skipFirstNavigation) return;
@@ -614,7 +646,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
   });
 
   view.webContents.on('will-redirect', (event, url) => {
-    if (!isInternalUrl(url)) {
+    if (!isInternalUrl(url) && !isAuthUrl(url)) {
       event.preventDefault();
       shell.openExternal(url);
       closeIfStillBlank(view, tabId);
@@ -630,6 +662,12 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
 
   view.webContents.setWindowOpenHandler((details) => {
     if (details.url && details.url !== 'about:blank') {
+      // Inlog-popup (bv. MSAL loginPopup): als echt popupvenster toestaan,
+      // anders verliest de pagina haar window.opener-koppeling en mislukt
+      // het afronden van de login.
+      if (isAuthUrl(details.url)) {
+        return { action: 'allow' };
+      }
       if (!isInternalUrl(details.url)) {
         shell.openExternal(details.url);
       } else {
@@ -911,7 +949,8 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
 
     if (message.startsWith('ELECTRON_LINK_CLICK:')) {
       const url = message.replace('ELECTRON_LINK_CLICK:', '');
-      if (!isInternalUrl(url)) shell.openExternal(url);
+      if (isAuthUrl(url)) view.webContents.loadURL(url);
+      else if (!isInternalUrl(url)) shell.openExternal(url);
       else createTab(url, true, false, tabId);
       return;
     }
