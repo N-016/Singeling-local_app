@@ -2,6 +2,7 @@ const { app, BrowserWindow, WebContentsView, ipcMain, Menu, dialog, clipboard, s
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
+const { DARK_MODE_BACKGROUND, DARK_MODE_CSS } = require('./dark-mode');
 
 // Zonder deze lock start elke nieuwe poging een los proces dat om dezelfde
 // cache- en instellingenbestanden in userData vecht met de al draaiende app
@@ -25,34 +26,6 @@ const DEFAULT_ZOOM = 1;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.1;
-
-// Donkere modus: de Lovable-app heeft al een volledig donker thema onder de
-// class "dark" (shadcn/Tailwind), maar zet die zelf nooit aan. Wij zetten de
-// class op <html>. Alleen de eigen Singeling-variabelen (--bg-surface, --fg-2,
-// --border-1, ... gebruikt door de sg-*-componenten) en een handvol vaste
-// Tailwind-kleuren hebben geen donkere variant; die vullen we hier aan.
-// Alles hangt onder html.dark, dus zonder de class doet deze CSS niets.
-const DARK_MODE_BACKGROUND = '#14161a'; // = --background van .dark (220 12% 9%)
-const DARK_MODE_CSS = `
-  html.dark {
-    color-scheme: dark;
-    --bg-canvas: hsl(220 12% 9%);
-    --bg-surface: hsl(222 12% 13%);
-    --bg-sunk: hsl(222 12% 11%);
-    --fg-1: hsl(210 11% 96%);
-    --fg-2: hsl(212 8% 72%);
-    --fg-3: hsl(212 8% 55%);
-    --border-1: hsl(220 13% 20%);
-    --border-2: hsl(220 13% 26%);
-    --border-strong: hsl(210 11% 85%);
-  }
-  html.dark .bg-white { background-color: hsl(var(--card)); }
-  html.dark .bg-gray-50,
-  html.dark .bg-gray-100,
-  html.dark .bg-slate-50 { background-color: hsl(var(--muted)); }
-  html.dark .text-black,
-  html.dark .text-gray-900 { color: hsl(var(--foreground)); }
-`;
 
 let mainWindow;
 let tabs = new Map();      // tabId -> WebContentsView
