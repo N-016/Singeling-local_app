@@ -6,8 +6,34 @@ dist/
 dist-*/
 
 # Persoonlijke/lokale instellingen, niet gedeeld tussen machines
-.claude/settings.local.json
+.claude/
+.vscode/
+.idea/
+
+# Geheimen - deze repo is OPENBAAR, dus nooit tokens, wachtwoorden of
+# certificaten committen. electron-builder.env kan GH_TOKEN of het
+# wachtwoord van een code-signing-certificaat bevatten.
+.env
+.env.*
+electron-builder.env
+*.pem
+*.key
+*.pfx
+*.p12
+*.cer
+*.crt
+*.token
+secrets/
+
+# Supabase CLI-configuratie: lokaal, niet nodig voor de app en hoort niet
+# in een openbare repo
+supabase/
+
+# Windows/OneDrive-rommel
+Thumbs.db
+desktop.ini
+~$*
 
 # Overig
-supabase/.temp/
 *.log
+*.tmp
