@@ -5,7 +5,7 @@
 //
 // Klokbalk bovenaan de pagina (.clockbar in de webapp) heeft drie standen:
 //   - "Afwezig": zelfde balk met inline background var(--stop)  -> blijft zoals hij is
-//   - "Niet geklokt op een order": oranje balk                    -> hier subtiel / verborgen
+//   - "Niet geklokt op een order": oranje balk                    -> instelling: aan / subtiel / uit
 //   - "Geklokt op ...": een ander blok (geen .clockbar)           -> blijft zoals hij is
 // "Niet geklokt" herkennen we dus aan .clockbar zonder --stop in de style.
 // Verandert dat in de webapp, dan hier de selector aanpassen.
@@ -13,8 +13,11 @@
 const NOT_CLOCKED = '.sg-app .clockbar:not([style*="--stop"])';
 
 const PAGE_TWEAKS_CSS = `
-  /* Als de melding aan staat: rustige regel i.p.v. de grote oranje balk. */
-  ${NOT_CLOCKED} {
+  /* Instelling "Niet geklokt op een order": "aan" (de standaard) laat de
+     oranje balk van de webapp gewoon staan. */
+
+  /* "Subtiel": rustige regel i.p.v. de grote oranje balk. */
+  html.sg-not-clocked-subtiel ${NOT_CLOCKED} {
     height: 24px;
     background: transparent;
     color: var(--fg-2);
@@ -23,14 +26,14 @@ const PAGE_TWEAKS_CSS = `
     letter-spacing: 0.1em;
   }
 
-  ${NOT_CLOCKED} svg {
+  html.sg-not-clocked-subtiel ${NOT_CLOCKED} svg {
     width: 12px;
     height: 12px;
     color: var(--sg-orange);
   }
 
-  /* Instelling "Melding niet geklokt tonen" uit (de standaard): helemaal weg. */
-  html.sg-hide-not-clocked ${NOT_CLOCKED} {
+  /* "Uit": helemaal weg. */
+  html.sg-not-clocked-uit ${NOT_CLOCKED} {
     display: none;
   }
 

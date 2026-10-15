@@ -1008,6 +1008,61 @@
       border-color: var(--border-strong);
     }
 
+    /* Instelling met een keuze uit een paar standen i.p.v. aan/uit. */
+    .general-choice {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    /* Knoppenrij waarvan er één gekozen is (zelfde stijl als de tabs: oranje
+       streepje onder de gekozen stand). Gebruikt in de instellingen en in het
+       keuzescherm na de rondleiding. */
+    .choice-group {
+      display: inline-flex;
+      align-self: flex-start;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .choice-group button {
+      position: relative;
+      padding: 6px 14px;
+      border: 0;
+      border-right: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font: inherit;
+      font-size: 12.5px;
+      cursor: pointer;
+      transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
+    }
+
+    .choice-group button:last-child {
+      border-right: 0;
+    }
+
+    .choice-group button:hover {
+      color: var(--text);
+      background: var(--hover);
+    }
+
+    .choice-group button[aria-checked="true"] {
+      color: var(--text);
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+
+    .choice-group button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
     .toggle-text {
       display: flex;
       flex-direction: column;
@@ -1563,6 +1618,34 @@
 
     #onboarding-bullets.hidden {
       display: none;
+    }
+
+    /* Keuzescherm (stap met choices: true): per vraag een label en knoppen. */
+    #onboarding-choices {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    #onboarding-choices.hidden {
+      display: none;
+    }
+
+    .onboarding-choice-label {
+      margin-bottom: 6px;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .onboarding-choice-hint {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
     }
 
     #onboarding-bullets li {
@@ -2479,13 +2562,13 @@
         </span>
         <input type="checkbox" class="switch" id="block-ctrl-b-checkbox">
       </label>
-      <label id="show-not-clocked-row" class="general-toggle">
+      <div id="show-not-clocked-row" class="general-choice">
         <span class="toggle-text">
-          Melding "Niet geklokt op een order" tonen
-          <span class="settings-hint">Standaard uit. Aan = een rustige regel bovenaan de pagina. "Afwezig" en het blok "Geklokt op" blijven altijd zichtbaar.</span>
+          Melding "Niet geklokt op een order"
+          <span class="settings-hint">Aan = de oranje balk bovenaan de pagina. Subtiel = een rustige regel. Uit = niet tonen. "Afwezig" en het blok "Geklokt op" blijven altijd zichtbaar.</span>
         </span>
-        <input type="checkbox" class="switch" id="show-not-clocked-checkbox">
-      </label>
+        <div class="choice-group" role="radiogroup" aria-label="Melding Niet geklokt op een order" data-choice="not-clocked"></div>
+      </div>
     </div>
 
     <div class="settings-section hidden" data-section="updates">
@@ -2563,6 +2646,7 @@
         <h2 id="onboarding-title"></h2>
         <p id="onboarding-text"></p>
         <ul id="onboarding-bullets" class="hidden"></ul>
+        <div id="onboarding-choices" class="hidden"></div>
       </div>
       <div class="onboarding-progressbar"><span id="onboarding-progress-fill"></span></div>
       <div class="onboarding-footer">
@@ -2740,6 +2824,65 @@
     const onboardingPrev = document.getElementById('onboarding-prev');
     const onboardingNext = document.getElementById('onboarding-next');
     const onboardingChangelog = document.getElementById('onboarding-changelog');
+    const onboardingChoices = document.getElementById('onboarding-choices');
+
+    // Keuzescherm aan het eind van de rondleiding: licht/donker en de melding
+    // "Niet geklokt op een order". Bestaande gebruikers krijgen het één keer
+    // na een update (zie 'whats-new' en 'tab-created' hieronder); daarna
+    // staat preferencesChosen in de instellingen.
+    const PREFERENCES_STEP = {
+      choices: true,
+      title: 'Nog twee keuzes',
+      text: 'Kies hoe je de app wilt hebben. Je kunt dit later altijd aanpassen in de instellingen.'
+    };
+    let preferencesChosen = true; // pas na getSettings bekend
+    let preferencesTourTimer = null;
+    window.electronAPI.getSettings().then(settings => {
+      if (settings) preferencesChosen = !!settings.preferencesChosen;
+    });
+
+    function renderOnboardingChoices() {
+      onboardingChoices.innerHTML = '';
+      const addQuestion = (label, choiceKey, hint) => {
+        const block = document.createElement('div');
+        const title = document.createElement('div');
+        title.className = 'onboarding-choice-label';
+        title.textContent = label;
+        const group = document.createElement('div');
+        group.className = 'choice-group';
+        group.setAttribute('role', 'radiogroup');
+        group.setAttribute('aria-label', label);
+        if (choiceKey) group.dataset.choice = choiceKey;
+        block.append(title, group);
+        if (hint) {
+          const hintElement = document.createElement('div');
+          hintElement.className = 'onboarding-choice-hint';
+          hintElement.textContent = hint;
+          block.appendChild(hintElement);
+        }
+        onboardingChoices.appendChild(block);
+        return group;
+      };
+
+      const themeGroup = addQuestion('Weergave');
+      buildChoiceGroup(themeGroup, THEME_CHOICES, darkModeBtn.classList.contains('active') ? 'dark' : 'light',
+        value => setThemeDirect(value === 'dark'));
+
+      addQuestion('Melding "Niet geklokt op een order"', 'not-clocked',
+        'Aan = de oranje balk bovenaan de pagina. Subtiel = een rustige regel. Uit = niet tonen. "Afwezig" blijft altijd zichtbaar.');
+      renderNotClockedChoice();
+    }
+
+    function markPreferencesChosen() {
+      if (preferencesChosen) return;
+      preferencesChosen = true;
+      window.electronAPI.markPreferencesChosen();
+    }
+
+    // Alleen het keuzescherm, voor wie de rondleiding niet volgt.
+    function startPreferencesTour({ showChangelog = false } = {}) {
+      startTour({ label: 'Even kiezen', steps: [PREFERENCES_STEP], showChangelog });
+    }
 
     const FULL_TOUR = {
       label: 'Rondleiding',
@@ -2812,8 +2955,9 @@
           settingsSection: 'start'
         },
         {
-          title: 'Klaar!',
-          text: 'Je bent er klaar voor. Deze rondleiding kun je altijd opnieuw volgen via Instellingen > Algemeen.'
+          ...PREFERENCES_STEP,
+          title: 'Klaar! Nog twee keuzes',
+          text: 'Je bent er klaar voor. Kies nog hoe je de app wilt hebben; dit en de rondleiding vind je later terug in de instellingen.'
         }
       ]
     };
@@ -2887,8 +3031,8 @@
           },
           {
             target: '#show-not-clocked-row',
-            title: 'Rustiger bovenaan de pagina',
-            text: 'De oranje balk "Niet geklokt op een order" staat nu standaard uit. "Afwezig" blijft gewoon in het rood zichtbaar. Wil je de melding toch, zet hem dan hier aan; dan verschijnt hij als rustige regel.',
+            title: 'Melding "Niet geklokt"',
+            text: 'Kies hier hoe de oranje balk "Niet geklokt op een order" bovenaan de pagina verschijnt: aan, als rustige regel (subtiel) of helemaal niet. "Afwezig" blijft altijd in het rood zichtbaar.',
             requiresSettingsOpen: true,
             settingsSection: 'general'
           }
@@ -3049,6 +3193,9 @@
         onboardingBullets.appendChild(item);
       });
       onboardingBullets.classList.toggle('hidden', !step.bullets);
+      if (step.choices) renderOnboardingChoices();
+      else onboardingChoices.innerHTML = '';
+      onboardingChoices.classList.toggle('hidden', !step.choices);
       onboardingPrev.classList.toggle('hidden', onboardingStepIndex === 0);
       onboardingChangelog.classList.toggle('hidden', !(isLast && activeTour.showChangelog));
       onboardingNext.textContent = isLast ? 'Klaar' : (onboardingStepIndex === 0 && !step.target ? 'Laten zien' : 'Volgende');
@@ -3163,6 +3310,7 @@
       // van het instellingenscherm), waardoor het scherm per ongeluk sluit.
       event.stopPropagation();
       if (!activeTour) return;
+      if (activeTour.steps[onboardingStepIndex].choices) markPreferencesChosen();
       if (onboardingStepIndex >= activeTour.steps.length - 1) {
         stopOnboarding();
         return;
@@ -3183,6 +3331,7 @@
     // rondleiding sluiten, anders flitst de pagina even op.
     onboardingChangelog.addEventListener('click', async (event) => {
       event.stopPropagation();
+      if (activeTour && activeTour.steps[onboardingStepIndex].choices) markPreferencesChosen();
       showChangelogOverlay('Changelog', await window.electronAPI.getChangelog());
       stopOnboarding();
     });
@@ -3206,9 +3355,15 @@
     // het accepteren van de welkomstmelding), en na de intro van de tabs.
     const TOUR_START_DELAY_MS = 1400;
     window.electronAPI.on('tab-created', () => {
-      if (wantsOnboarding && !onboardingStarted) {
-        onboardingStarted = true;
+      if (onboardingStarted) return;
+      onboardingStarted = true;
+      if (wantsOnboarding) {
         setTimeout(startOnboarding, TOUR_START_DELAY_MS);
+      } else if (!preferencesChosen) {
+        // Geen rondleiding, maar nog niet gekozen: alleen het keuzescherm.
+        // Komt er direct hierna een 'whats-new' (update), dan neemt die het
+        // over en zet het keuzescherm achter de "nieuw"-rondleiding.
+        preferencesTourTimer = setTimeout(() => startPreferencesTour(), TOUR_START_DELAY_MS);
       }
     });
 
@@ -3218,22 +3373,32 @@
     //      laat alles al zien, dus de "nieuw"-rondleidingen als gezien markeren.
     //   2. Nog niet geziene "Nieuw in deze versie"-rondleiding(en): tonen.
     //   3. Anders: de laatste changelog-entry, zoals voorheen.
-    window.electronAPI.on('whats-new', ({ isNewInstall, changelog, seenTours }) => {
+    // Nog geen keuze gemaakt voor thema/klokmelding (bv. bestaande gebruiker
+    // na deze update)? Dan komt het keuzescherm achteraan bij 2, of in plaats
+    // van 3 (met de knop "Changelog" erop).
+    window.electronAPI.on('whats-new', ({ isNewInstall, changelog, seenTours, preferencesChosen: chosen }) => {
       const unseen = WHATS_NEW_TOURS.filter(tour => !(seenTours || []).includes(tour.id));
       const unseenIds = unseen.map(tour => tour.id);
+      preferencesChosen = !!chosen;
 
       if (isNewInstall || wantsOnboarding) {
         if (unseenIds.length > 0) window.electronAPI.markWhatsNewSeen(unseenIds);
         return;
       }
 
+      clearTimeout(preferencesTourTimer);
       if (unseen.length > 0) {
         setTimeout(() => startTour({
           label: 'Nieuw in deze versie',
-          steps: unseen.flatMap(tour => tour.steps),
+          steps: [...unseen.flatMap(tour => tour.steps), ...(preferencesChosen ? [] : [PREFERENCES_STEP])],
           showChangelog: true,
           onFinish: () => window.electronAPI.markWhatsNewSeen(unseenIds)
         }), TOUR_START_DELAY_MS);
+        return;
+      }
+
+      if (!preferencesChosen) {
+        setTimeout(() => startPreferencesTour({ showChangelog: true }), TOUR_START_DELAY_MS);
         return;
       }
 
@@ -3875,7 +4040,7 @@
         betaUpdatesCheckbox.checked = !!settings.betaUpdates;
         openAllLinksNewTabCheckbox.checked = !!settings.openAllLinksInNewTab;
         blockCtrlBCheckbox.checked = !!settings.blockCtrlB;
-        showNotClockedCheckbox.checked = !!settings.showNotClockedBar;
+        renderNotClockedChoice(settings.notClockedMode);
         applyUpdateStatusUI(!!settings.updateVersion, settings.updateVersion);
       }
       clearTimeout(settingsHideTimer);
@@ -3956,9 +4121,53 @@
       window.electronAPI.setBetaUpdates(betaUpdatesCheckbox.checked);
     });
 
-    const showNotClockedCheckbox = document.getElementById('show-not-clocked-checkbox');
-    showNotClockedCheckbox.addEventListener('change', () => {
-      window.electronAPI.setShowNotClockedBar(showNotClockedCheckbox.checked);
+    // ---------- Keuzeknoppen (instellingen + keuzescherm na de rondleiding) ----------
+    const NOT_CLOCKED_CHOICES = [
+      { value: 'aan', label: 'Aan' },
+      { value: 'subtiel', label: 'Subtiel' },
+      { value: 'uit', label: 'Uit' }
+    ];
+    const THEME_CHOICES = [
+      { value: 'light', label: 'Licht' },
+      { value: 'dark', label: 'Donker' }
+    ];
+    let notClockedMode = 'aan';
+
+    // Vult een .choice-group met knoppen; onSelect(value) bij een klik.
+    function buildChoiceGroup(group, choices, current, onSelect) {
+      group.innerHTML = '';
+      for (const choice of choices) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.setAttribute('role', 'radio');
+        button.dataset.value = choice.value;
+        button.textContent = choice.label;
+        button.setAttribute('aria-checked', String(choice.value === current));
+        button.addEventListener('click', (event) => {
+          event.stopPropagation();
+          for (const other of group.children) other.setAttribute('aria-checked', String(other === button));
+          onSelect(choice.value);
+        });
+        group.appendChild(button);
+      }
+    }
+
+    function setNotClockedMode(mode) {
+      notClockedMode = mode;
+      window.electronAPI.setNotClockedMode(mode);
+      renderNotClockedChoice(mode);
+    }
+
+    // Alle plekken met deze keuze bijwerken (instellingen én keuzescherm).
+    function renderNotClockedChoice(mode) {
+      if (mode) notClockedMode = mode;
+      document.querySelectorAll('.choice-group[data-choice="not-clocked"]').forEach(group => {
+        buildChoiceGroup(group, NOT_CLOCKED_CHOICES, notClockedMode, setNotClockedMode);
+      });
+    }
+
+    window.electronAPI.getSettings().then(settings => {
+      if (settings) renderNotClockedChoice(settings.notClockedMode);
     });
 
     // Donkere modus: losse knop in de tabbalk naast de instellingenknop.

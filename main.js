@@ -67,13 +67,25 @@ let appSettings = {
   openAllLinksInNewTab: false,
   showOnboarding: true,
   blockCtrlB: false,
-  showNotClockedBar: false, // melding "Niet geklokt op een order" (subtiel) tonen; standaard uit
+  notClockedMode: 'aan', // melding "Niet geklokt op een order": 'aan' (oranje balk), 'subtiel' of 'uit'
+  preferencesChosen: false, // keuzescherm (thema + klokmelding) al gezien
   darkMode: false,
   betaUpdates: RUNNING_PRERELEASE // ook bètaversies (GitHub pre-releases) als update aanbieden
 };
 
 function getSettingsPath() {
   return path.join(app.getPath('userData'), 'settings.json');
+}
+
+const NOT_CLOCKED_MODES = ['aan', 'subtiel', 'uit'];
+
+// Tot en met 1.2.0 was dit een aan/uit-instelling (showNotClockedBar): uit =
+// verborgen, aan = subtiel. Wie dat al had, houdt precies hetzelfde; zonder
+// die oude instelling (nieuw, of van vóór 1.2.0) de gewone oranje balk.
+function notClockedModeFrom(parsed) {
+  if (NOT_CLOCKED_MODES.includes(parsed.notClockedMode)) return parsed.notClockedMode;
+  if (typeof parsed.showNotClockedBar === 'boolean') return parsed.showNotClockedBar ? 'subtiel' : 'uit';
+  return 'aan';
 }
 
 function loadSettings() {
@@ -89,7 +101,8 @@ function loadSettings() {
       openAllLinksInNewTab: typeof parsed.openAllLinksInNewTab === 'boolean' ? parsed.openAllLinksInNewTab : false,
       showOnboarding: typeof parsed.showOnboarding === 'boolean' ? parsed.showOnboarding : true,
       blockCtrlB: typeof parsed.blockCtrlB === 'boolean' ? parsed.blockCtrlB : false,
-      showNotClockedBar: typeof parsed.showNotClockedBar === 'boolean' ? parsed.showNotClockedBar : false,
+      notClockedMode: notClockedModeFrom(parsed),
+      preferencesChosen: typeof parsed.preferencesChosen === 'boolean' ? parsed.preferencesChosen : false,
       darkMode: typeof parsed.darkMode === 'boolean' ? parsed.darkMode : false,
       betaUpdates: typeof parsed.betaUpdates === 'boolean' ? parsed.betaUpdates : RUNNING_PRERELEASE
     };
@@ -231,7 +244,8 @@ function maybeShowChangelogNotice() {
   mainWindow.webContents.send('whats-new', {
     isNewInstall: previousVersion === null,
     changelog: getLatestChangelogEntry(),
-    seenTours: appSettings.seenWhatsNewTours
+    seenTours: appSettings.seenWhatsNewTours,
+    preferencesChosen: appSettings.preferencesChosen
   });
 }
 
@@ -688,7 +702,8 @@ function applyDarkMode(view) {
 function applyPageTweaks(view) {
   if (view.webContents.isDestroyed() || !isInternalUrl(view.webContents.getURL())) return;
   view.webContents.executeJavaScript(
-    `document.documentElement.classList.toggle('sg-hide-not-clocked', ${!appSettings.showNotClockedBar});`
+    `document.documentElement.classList.toggle('sg-not-clocked-subtiel', ${appSettings.notClockedMode === 'subtiel'});
+     document.documentElement.classList.toggle('sg-not-clocked-uit', ${appSettings.notClockedMode === 'uit'});`
   ).catch(() => {});
 }
 
@@ -1882,7 +1897,7 @@ ipcMain.handle('get-settings', (event) => {
     openAllLinksInNewTab: appSettings.openAllLinksInNewTab,
     showOnboarding: appSettings.showOnboarding,
     blockCtrlB: appSettings.blockCtrlB,
-    showNotClockedBar: appSettings.showNotClockedBar,
+    notClockedMode: appSettings.notClockedMode,
     darkMode: appSettings.darkMode,
     betaUpdates: appSettings.betaUpdates,
     customWindowControls: CUSTOM_WINDOW_CONTROLS,
@@ -1906,9 +1921,9 @@ ipcMain.on('set-block-ctrl-b', (event, value) => {
   appSettings.blockCtrlB = !!value;
   saveSettings();
 });
-ipcMain.on('set-show-not-clocked-bar', (event, value) => {
-  if (event.sender !== mainWindow.webContents) return;
-  appSettings.showNotClockedBar = !!value;
+ipcMain.on('set-not-clocked-mode', (event, mode) => {
+  if (event.sender !== mainWindow.webContents || !NOT_CLOCKED_MODES.includes(mode)) return;
+  appSettings.notClockedMode = mode;
   saveSettings();
   // Direct effect voor al open tabs (ook in losse vensters), zonder herladen.
   for (const view of tabs.values()) applyPageTweaks(view);
@@ -2000,6 +2015,12 @@ ipcMain.on('changelog-notice-opened', (event) => {
   if (event.sender !== mainWindow.webContents) return;
   changelogNoticeOpen = true;
   applyActiveTabBounds();
+});
+// Keuzescherm na de rondleiding (thema + klokmelding) is doorlopen.
+ipcMain.on('mark-preferences-chosen', (event) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.preferencesChosen = true;
+  saveSettings();
 });
 ipcMain.on('mark-whats-new-seen', (event, ids) => {
   if (event.sender !== mainWindow.webContents || !Array.isArray(ids)) return;
