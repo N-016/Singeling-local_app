@@ -1588,8 +1588,35 @@
     }
 
     .notice-panel h1 {
-      margin: 0 0 16px;
+      margin: 0 0 24px;
       font-size: 22px;
+    }
+
+    /* Singeling-woordlogo (assets/singeling-logo*.svg); in licht de variant
+       met donkere letters. Gebruikt in de welkomstmelding en het menu van de
+       instellingen. */
+    .brand-logo {
+      display: block;
+      height: auto;
+    }
+
+    .brand-logo.logo-light,
+    html.theme-light .brand-logo.logo-dark {
+      display: none;
+    }
+
+    html.theme-light .brand-logo.logo-light {
+      display: block;
+    }
+
+    .notice-panel .brand-logo {
+      width: 230px;
+      margin-bottom: 20px;
+    }
+
+    .settings-nav-footer .brand-logo {
+      width: 130px;
+      margin-bottom: 6px;
     }
 
     .notice-panel p {
@@ -2776,7 +2803,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
         Terug
       </button>
-      <div class="settings-nav-footer">Singeling App <span id="settings-version"></span> <span id="settings-beta-badge" class="beta-badge hidden">bèta</span></div>
+      <div class="settings-nav-footer">
+        <img class="brand-logo logo-dark" src="assets/singeling-logo.svg" alt="">
+        <img class="brand-logo logo-light" src="assets/singeling-logo-licht.svg" alt="">
+        Singeling App <span id="settings-version"></span> <span id="settings-beta-badge" class="beta-badge hidden">bèta</span></div>
     </nav>
     <div class="settings-content">
     <button id="settings-close" class="settings-close" type="button" title="Sluiten (Esc)" aria-label="Sluiten">
@@ -2878,8 +2908,9 @@
 
   <section id="beta-notice" role="dialog" aria-modal="true" aria-labelledby="beta-title">
     <div class="notice-panel">
-      <h1 id="beta-title">Welkom bij Singeling App</h1>
-      <p>Gebruik de app alleen binnen Singeling!.</p>
+      <img class="brand-logo logo-dark" src="assets/singeling-logo.svg" alt="Singeling – Geen las te lastig!">
+      <img class="brand-logo logo-light" src="assets/singeling-logo-licht.svg" alt="Singeling – Geen las te lastig!">
+      <h1 id="beta-title">Welkom bij de Singeling App</h1>
       <label class="onboarding-toggle">
         <input type="checkbox" id="show-onboarding-checkbox" checked>
         Laat de functies van deze app zien

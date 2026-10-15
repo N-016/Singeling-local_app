@@ -86,36 +86,35 @@
             pointer-events: none;
         }
 
+        /* Woordlogo "Singeling – Geen las te lastig!" met daaronder de
+           productnaam. In licht de variant met donkere letters. */
         .brand {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 14px;
+            gap: 12px;
             animation: fade-up 0.4s 0.45s cubic-bezier(0.2, 0, 0, 1) both;
         }
 
-        .logo-mark {
-            width: 52px;
-            height: 52px;
-            object-fit: contain;
+        .logo {
+            display: block;
+            width: 280px;
+            height: auto;
         }
 
-        .wordmark {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
+        .logo-light,
+        html.theme-light .logo-dark {
+            display: none;
         }
 
-        .wordmark strong {
-            font-size: 17px;
-            font-weight: 700;
-            letter-spacing: 0.14em;
-            color: var(--text);
+        html.theme-light .logo-light {
+            display: block;
         }
 
-        .wordmark span {
+        .product {
             font-size: 10.5px;
             font-weight: 600;
-            letter-spacing: 0.22em;
+            letter-spacing: 0.24em;
             text-transform: uppercase;
             color: var(--text-muted);
         }
@@ -205,11 +204,9 @@
 <body>
     <div class="card">
         <div class="brand">
-            <img class="logo-mark" src="assets/logo.png" alt="">
-            <div class="wordmark">
-                <strong>SINGELING APP</strong>
-                <span>Productiesysteem</span>
-            </div>
+            <img class="logo logo-dark" src="assets/singeling-logo.svg" alt="Singeling – Geen las te lastig!">
+            <img class="logo logo-light" src="assets/singeling-logo-licht.svg" alt="Singeling – Geen las te lastig!">
+            <span class="product">Productiesysteem</span>
         </div>
         <div class="loader"><div class="loader-fill"></div></div>
         <div class="version" id="version"></div>

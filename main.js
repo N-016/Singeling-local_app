@@ -493,7 +493,8 @@ function showUpdatingWindow(version, { maxSeconds = 180, processName = 'Singelin
       const marker = path.join(dir, 'shown');
       const launcherPath = path.join(dir, 'start.vbs');
       fs.writeFileSync(scriptPath, fs.readFileSync(path.join(__dirname, 'update-window.ps1')));
-      fs.writeFileSync(logoPath, fs.readFileSync(path.join(__dirname, 'assets/logo.png')));
+      const logoFile = appSettings.darkMode ? 'assets/singeling-logo.png' : 'assets/singeling-logo-licht.png';
+      fs.writeFileSync(logoPath, fs.readFileSync(path.join(__dirname, logoFile)));
       // In VBScript is "" een aanhalingsteken binnen een string.
       const quoted = (value) => `""${String(value).replace(/"/g, '')}""`;
       const args = [
@@ -2201,6 +2202,9 @@ ipcMain.handle('get-settings', (event) => {
     showOnboarding: appSettings.showOnboarding,
     blockCtrlB: appSettings.blockCtrlB,
     notClockedMode: appSettings.notClockedMode,
+    // Keuzescherm (thema + klokmelding) al gezien? Zonder dit veld dacht
+    // index.html bij elke start van niet en kwam het scherm steeds terug.
+    preferencesChosen: appSettings.preferencesChosen,
     darkMode: appSettings.darkMode,
     themeMode: appSettings.themeMode,
     themeTimes: appSettings.themeTimes,
