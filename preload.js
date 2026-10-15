@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const incomingChannels = ['tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed'];
+const incomingChannels = ['update-notice-show', 'update-notice-state', 'update-notice-hide', 'tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed'];
 
 contextBridge.exposeInMainWorld('electronAPI', {
   switchTab: (tabId) => ipcRenderer.send('switch-tab', tabId),
@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   notifyTabOverviewOpened: () => ipcRenderer.send('tab-overview-opened'),
   notifyTabOverviewClosed: () => ipcRenderer.send('tab-overview-closed'),
   checkForUpdatesNow: () => ipcRenderer.invoke('check-for-updates-now'),
+  installUpdate: () => ipcRenderer.send('update-notice-install'),
+  postponeUpdate: () => ipcRenderer.send('update-notice-later'),
   getChangelog: () => ipcRenderer.invoke('get-changelog'),
   notifyChangelogNoticeOpened: () => ipcRenderer.send('changelog-notice-opened'),
   notifyChangelogNoticeClosed: () => ipcRenderer.send('changelog-notice-closed'),

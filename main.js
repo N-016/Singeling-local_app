@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, Menu, dialog, clipboard, shell, screen, session, systemPreferences } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, Menu, clipboard, shell, screen, session, systemPreferences } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
@@ -37,20 +37,23 @@ const detachedWindows = new Map(); // tabId -> { window, view } - losgetrokken t
 let activeTabId = null;
 let tabCounter = 0;
 const internalNavigations = new Set();
-let updateDialogOpen = false;
-let updateProgressWindow = null;
 let onboardingActive = false;
 let settingsPanelOpen = false;
 let tabOverviewOpen = false;
 let changelogNoticeOpen = false;
 let updateBannerOpen = false;
 let updateAvailableInfo = null;
-// true = deze updatecontrole mag de "wil je downloaden?"-dialoog tonen (bij
-// opstarten of een handmatige "nu controleren"-klik); false = stille
-// achtergrondcontrole die alleen het bolletje bij het instellingen-icoon zet.
-let pendingCheckIsInteractive = true;
 let dailyUpdateCheckScheduled = false;
-const DAILY_UPDATE_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
+// Elk uur stil op de achtergrond kijken (was: elke dag), zodat een kritieke
+// update ook midden op de dag snel binnenkomt.
+const DAILY_UPDATE_CHECK_INTERVAL = 60 * 60 * 1000;
+// Gevonden update (zie "Updatemelding"):
+// { version, critical, reason, beta, downloading, downloaded, percent, error }
+let pendingUpdate = null;
+let updateNoticeOpen = false;
+let updateReminderTimer = null;
+let updatePostponedVersion = null; // gewone update: "Later" -> pas bij de volgende start weer
+const CRITICAL_REMINDER_MS = 60 * 60 * 1000;
 
 // Draait er een bètaversie (bv. 1.3.0-beta.1)? Dan staan bèta-updates
 // standaard aan, zodat iemand die een bèta installeert ook de volgende krijgt.
@@ -267,61 +270,6 @@ function logUpdater(message, error) {
   }
 }
 
-function showUpdateProgress() {
-  if (updateProgressWindow && !updateProgressWindow.isDestroyed()) return;
-
-  updateProgressWindow = new BrowserWindow({
-    width: 420,
-    height: 170,
-    parent: mainWindow,
-    modal: true,
-    frame: false,
-    resizable: false,
-    alwaysOnTop: true,
-    backgroundColor: '#292929',
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true
-    }
-  });
-
-  updateProgressWindow.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(`
-    <!doctype html>
-    <html><head><meta charset="UTF-8"><style>
-      body { margin: 0; padding: 26px; background: #292929; color: #fff; font: 14px "Segoe UI", sans-serif; }
-      h1 { margin: 0 0 18px; font-size: 17px; font-weight: 600; }
-      .bar { height: 8px; overflow: hidden; background: #555; border-radius: 4px; }
-      .fill { width: 0%; height: 100%; background: #ff5e00; transition: width .2s ease; }
-      .status { display: flex; justify-content: space-between; margin-top: 10px; color: #cfcfcf; }
-    </style></head><body>
-      <h1>Update downloaden...</h1>
-      <div class="bar"><div id="fill" class="fill"></div></div>
-      <div class="status"><span id="status">Even geduld...</span><span id="percent">0%</span></div>
-    </body></html>
-  `)}`);
-
-  updateProgressWindow.once('ready-to-show', () => updateProgressWindow.show());
-  updateProgressWindow.on('closed', () => {
-    updateProgressWindow = null;
-  });
-}
-
-function updateProgress(percent, status) {
-  if (!updateProgressWindow || updateProgressWindow.isDestroyed()) return;
-  updateProgressWindow.webContents.executeJavaScript(`
-    document.getElementById('fill').style.width = '${percent}%';
-    document.getElementById('percent').textContent = '${percent}%';
-    document.getElementById('status').textContent = '${status}';
-  `).catch(() => {});
-}
-
-function closeUpdateProgress() {
-  if (updateProgressWindow && !updateProgressWindow.isDestroyed()) {
-    updateProgressWindow.close();
-  }
-}
-
 // Bèta-updates: een bèta is een GitHub-release met "Set as a pre-release" en
 // een versie als 1.3.0-beta.1. Zonder deze instelling vraagt de updater
 // GitHub om de "laatste release", en daar slaat GitHub pre-releases altijd
@@ -332,6 +280,206 @@ function applyUpdateChannel() {
   autoUpdater.allowPrerelease = !!appSettings.betaUpdates;
   autoUpdater.allowDowngrade = false;
 }
+
+// ---------- Kritieke updates ----------
+//
+// Een update is kritiek als de beschrijving van de GitHub-release de regel
+// "Kritieke update" bevat (de updater haalt die tekst bij elke controle op;
+// achteraf aanpassen kan dus ook). Daarbij optioneel:
+//   - "minimale versie: 1.2.1": kritiek voor iedereen onder die versie. Zet
+//     die regel ook in latere releases, anders mist wie de kritieke update
+//     overslaat hem (de updater ziet alleen de nieuwste release).
+//     Zonder deze regel: kritiek voor iedereen onder de nieuwe versie.
+//   - "Reden: ...": korte uitleg in de melding.
+// Zie "Updatemelding" hieronder voor wat de gebruiker dan ziet.
+function parseVersion(version) {
+  const match = String(version || '').match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?/);
+  return match ? { parts: match.slice(1, 4).map(Number), pre: match[4] || null } : null;
+}
+
+// < 0 als a ouder is dan b, 0 gelijk, > 0 nieuwer. Een gewone versie is
+// nieuwer dan de bèta's ervan (1.3.0 > 1.3.0-beta.2).
+function compareVersions(a, b) {
+  const va = parseVersion(a);
+  const vb = parseVersion(b);
+  if (!va || !vb) return 0;
+  for (let i = 0; i < 3; i++) {
+    if (va.parts[i] !== vb.parts[i]) return va.parts[i] - vb.parts[i];
+  }
+  if (va.pre === vb.pre) return 0;
+  if (va.pre === null) return 1;
+  if (vb.pre === null) return -1;
+  return va.pre.localeCompare(vb.pre, undefined, { numeric: true });
+}
+
+// Release-tekst als platte tekst (de updater geeft HTML, soms per versie).
+function releaseNotesText(updateInfo) {
+  const notes = updateInfo.releaseNotes;
+  const raw = Array.isArray(notes) ? notes.map(entry => entry && entry.note).join('\n') : String(notes || '');
+  return `${updateInfo.releaseName || ''}\n${raw}`
+    .replace(/<\/(p|li|h\d|div)>|<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+}
+
+function criticalUpdateFrom(updateInfo) {
+  const text = releaseNotesText(updateInfo);
+  if (!/kritieke update/i.test(text)) return null;
+  const minimum = (text.match(/minimale versie:?\s*v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/i) || [])[1] || updateInfo.version;
+  if (compareVersions(app.getVersion(), minimum) >= 0) return null;
+  const reason = ((text.match(/reden:?\s*([^\n]+)/i) || [])[1] || '').trim();
+  return { reason };
+}
+
+// ---------- Updatemelding ----------
+//
+// Elke gevonden update (bij opstarten en bij de controle van elk uur) komt als
+// melding in beeld (index.html, #update-notice), in twee standen:
+//   - gewoon: "Nu updaten" / "Later". Later = pas bij de volgende start weer
+//     (het bolletje bij de instellingen blijft staan).
+//   - kritiek (zie criticalUpdateFrom): direct downloaden, zwaardere melding,
+//     "Later" = over een uur weer. De app blijft wel bruikbaar: misschien is
+//     iemand net met iets belangrijks bezig.
+// Bij afsluiten wordt een al gedownloade update altijd geïnstalleerd.
+function sendUpdateState() {
+  if (mainWindow && !mainWindow.isDestroyed() && pendingUpdate) {
+    mainWindow.webContents.send('update-notice-state', pendingUpdate);
+  }
+}
+
+function showUpdateNotice() {
+  if (!pendingUpdate || !mainWindow || mainWindow.isDestroyed()) return;
+  clearTimeout(updateReminderTimer);
+  updateReminderTimer = null;
+  updateNoticeOpen = true;
+  applyActiveTabBounds();
+  mainWindow.webContents.send('update-notice-show', pendingUpdate);
+}
+
+function hideUpdateNotice() {
+  updateNoticeOpen = false;
+  applyActiveTabBounds();
+}
+
+// Testmodus, alleen bij npm start (nooit in de geïnstalleerde app): de
+// updatemelding nabootsen om hem te bekijken, zonder echte download/herstart.
+//   npm start -- --test-update=gewoon   of   npm start -- --test-update=kritiek
+const TEST_UPDATE_MODE = app.isPackaged
+  ? null
+  : ((process.argv.find(arg => arg.startsWith('--test-update=')) || '').split('=')[1] || null);
+
+function startTestUpdate() {
+  if (!TEST_UPDATE_MODE) return;
+  const critical = TEST_UPDATE_MODE === 'kritiek';
+  logUpdater(`TEST: ${critical ? 'kritieke' : 'gewone'} update nagebootst`);
+  handleUpdateAvailable({
+    version: '9.9.9',
+    releaseName: 'v9.9.9',
+    releaseNotes: critical
+      ? '<p><strong>Kritieke update</strong></p><p>Reden: dit is een test van de melding</p>'
+      : '<p>Testupdate</p>'
+  });
+}
+
+function fakeTestDownload() {
+  const timer = setInterval(() => {
+    if (!pendingUpdate) return clearInterval(timer);
+    pendingUpdate.percent = Math.min(100, pendingUpdate.percent + 9);
+    if (pendingUpdate.percent >= 100) {
+      clearInterval(timer);
+      pendingUpdate.downloading = false;
+      pendingUpdate.downloaded = true;
+    }
+    sendUpdateState();
+  }, 250);
+}
+
+function downloadPendingUpdate() {
+  if (!pendingUpdate || pendingUpdate.downloading || pendingUpdate.downloaded) return;
+  pendingUpdate.downloading = true;
+  pendingUpdate.error = null;
+  sendUpdateState();
+  if (TEST_UPDATE_MODE) {
+    fakeTestDownload();
+    return;
+  }
+  logUpdater(`Download gestart voor ${pendingUpdate.version}${pendingUpdate.critical ? ' (kritiek)' : ''}`);
+  autoUpdater.downloadUpdate().catch((error) => {
+    if (!pendingUpdate) return;
+    pendingUpdate.downloading = false;
+    pendingUpdate.error = error.message;
+    sendUpdateState();
+  });
+}
+
+function handleUpdateAvailable(updateInfo) {
+  const critical = criticalUpdateFrom(updateInfo);
+  if (!pendingUpdate || pendingUpdate.version !== updateInfo.version) {
+    clearTimeout(updateReminderTimer);
+    updateReminderTimer = null;
+    pendingUpdate = {
+      version: updateInfo.version,
+      critical: false,
+      reason: '',
+      beta: String(updateInfo.version).includes('-'),
+      downloading: false,
+      downloaded: false,
+      percent: 0,
+      error: null
+    };
+  }
+  // Kan achteraf veranderen: de release-tekst wordt bij elke controle gelezen.
+  pendingUpdate.critical = !!critical;
+  pendingUpdate.reason = critical ? critical.reason : '';
+
+  if (pendingUpdate.critical) {
+    logUpdater(`Kritieke update: ${pendingUpdate.version}${pendingUpdate.reason ? ` (${pendingUpdate.reason})` : ''}`);
+    downloadPendingUpdate();
+    if (!updateNoticeOpen && !updateReminderTimer) showUpdateNotice();
+    else sendUpdateState();
+    return;
+  }
+  if (updatePostponedVersion === pendingUpdate.version) return; // "Later" gekozen
+  if (updateNoticeOpen) sendUpdateState();
+  else showUpdateNotice();
+}
+
+// Hoofdknop: "Nu updaten" (download starten), "Opnieuw proberen" of, als hij
+// klaar is, installeren en herstarten.
+ipcMain.on('update-notice-install', (event) => {
+  if (event.sender !== mainWindow.webContents || !pendingUpdate) return;
+  if (pendingUpdate.downloaded) {
+    if (TEST_UPDATE_MODE) {
+      // Test: niet echt herstarten, alleen de melding sluiten.
+      logUpdater('TEST: zou nu installeren en herstarten');
+      hideUpdateNotice();
+      mainWindow.webContents.send('update-notice-hide');
+      pendingUpdate = null;
+      return;
+    }
+    logUpdater('Installeren bevestigd, app wordt opnieuw gestart');
+    autoUpdater.quitAndInstall();
+  } else {
+    downloadPendingUpdate();
+  }
+});
+
+ipcMain.on('update-notice-later', (event) => {
+  if (event.sender !== mainWindow.webContents || !pendingUpdate) return;
+  hideUpdateNotice();
+  if (pendingUpdate.critical) {
+    logUpdater('Kritieke update: herinnering over 1 uur');
+    clearTimeout(updateReminderTimer);
+    updateReminderTimer = setTimeout(() => {
+      updateReminderTimer = null;
+      showUpdateNotice();
+    }, CRITICAL_REMINDER_MS);
+  } else {
+    logUpdater(`Update ${pendingUpdate.version}: later (weer bij de volgende start)`);
+    updatePostponedVersion = pendingUpdate.version;
+  }
+});
 
 function setupAutoUpdater() {
   if (!app.isPackaged) return Promise.resolve(false);
@@ -358,60 +506,17 @@ function setupAutoUpdater() {
     settleUpdateCheck(updateAvailable);
   };
 
-  autoUpdater.on('update-available', async (updateInfo) => {
-    // Meteen resetten voor de volgende check (opstart-check, dagelijkse
-    // achtergrondcheck of een handmatige klik in instellingen) - anders blijft
-    // een latere check per ongeluk het gedrag van deze check overnemen.
-    const isInteractive = pendingCheckIsInteractive;
-    pendingCheckIsInteractive = true;
-
+  autoUpdater.on('update-available', (updateInfo) => {
     logUpdater(`Update beschikbaar: ${updateInfo.version}`);
     resolveUpdateCheck(true);
     updateAvailableInfo = updateInfo;
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('update-badge-changed', { available: true, version: updateInfo.version });
     }
-
-    // Achtergrondcontrole (dagelijks, of een stille handmatige check): geen
-    // storende dialoog, alleen het bolletje bij het instellingen-icoon. De
-    // gebruiker start de app later zelf opnieuw op; dan doorloopt de normale
-    // (interactieve) opstart-check de rest van de flow.
-    if (!isInteractive) return;
-
-    if (updateDialogOpen || !mainWindow || mainWindow.isDestroyed()) return;
-    updateDialogOpen = true;
-
-    const isBeta = String(updateInfo.version).includes('-');
-    const result = await dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Update beschikbaar',
-      message: isBeta
-        ? `Er is een nieuwe bètaversie beschikbaar: v${updateInfo.version}.`
-        : `Er is een nieuwe versie beschikbaar: v${updateInfo.version}.`,
-      detail: isBeta
-        ? 'Je krijgt deze omdat "Bèta-versies ontvangen" aanstaat. Een bèta is nog niet helemaal getest. Wil je deze update nu downloaden?'
-        : 'Wil je deze update nu downloaden?',
-      buttons: ['Nu downloaden', 'Niet nu'],
-      defaultId: 0,
-      cancelId: 1,
-      noLink: true
-    });
-
-    updateDialogOpen = false;
-    if (result.response === 0) {
-      logUpdater(`Download bevestigd voor ${updateInfo.version}`);
-      showUpdateProgress();
-      autoUpdater.downloadUpdate().catch((error) => {
-        closeUpdateProgress();
-        console.error('Update downloaden mislukt:', error.message);
-      });
-    } else {
-      logUpdater(`Download afgewezen voor ${updateInfo.version}`);
-    }
+    handleUpdateAvailable(updateInfo);
   });
 
   autoUpdater.on('update-not-available', () => {
-    pendingCheckIsInteractive = true;
     logUpdater('Geen update beschikbaar');
     updateAvailableInfo = null;
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -422,53 +527,29 @@ function setupAutoUpdater() {
 
   autoUpdater.on('download-progress', (progress) => {
     logUpdater(`Downloadvoortgang: ${Math.round(progress.percent)}%`);
-    updateProgress(Math.round(progress.percent), `${Math.round(progress.percent)}% gedownload`);
+    if (!pendingUpdate) return;
+    pendingUpdate.percent = Math.round(progress.percent);
+    sendUpdateState();
   });
 
-  autoUpdater.on('update-downloaded', async () => {
+  autoUpdater.on('update-downloaded', () => {
     logUpdater('Update volledig gedownload');
-    closeUpdateProgress();
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-
-    const result = await dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Update gedownload',
-      message: 'De update is gedownload en klaar om te installeren.',
-      detail: 'De app moet opnieuw worden gestart om de update te installeren.',
-      buttons: ['Nu opnieuw starten', 'Later'],
-      defaultId: 0,
-      cancelId: 1,
-      noLink: true
-    });
-
-    if (result.response === 0) {
-      logUpdater('Installatie bevestigd, app wordt opnieuw gestart');
-      autoUpdater.quitAndInstall();
-    } else {
-      logUpdater('Installatie uitgesteld');
-    }
+    if (!pendingUpdate) return;
+    pendingUpdate.downloading = false;
+    pendingUpdate.downloaded = true;
+    pendingUpdate.percent = 100;
+    sendUpdateState();
   });
 
   autoUpdater.on('error', (error) => {
-    const isInteractive = pendingCheckIsInteractive;
-    pendingCheckIsInteractive = true;
-
-    closeUpdateProgress();
     logUpdater('Updatecontrole of download mislukt', error);
     resolveUpdateCheck(false);
-
-    // Een mislukte stille achtergrondcheck (bv. geen internet) mag niet als
-    // storende foutmelding verschijnen; die krijgt gewoon volgende keer weer
-    // een kans.
-    if (isInteractive && mainWindow && !mainWindow.isDestroyed()) {
-      dialog.showMessageBox(mainWindow, {
-        type: 'error',
-        title: 'Update mislukt',
-        message: 'De update kon niet worden gedownload.',
-        detail: error.message,
-        buttons: ['OK'],
-        noLink: true
-      }).catch(() => {});
+    // Mislukte download: in de melding zelf ("Opnieuw proberen"). Een
+    // mislukte controle (bv. geen internet) blijft stil; volgende keer weer.
+    if (pendingUpdate && pendingUpdate.downloading) {
+      pendingUpdate.downloading = false;
+      pendingUpdate.error = error.message;
+      sendUpdateState();
     }
   });
 
@@ -485,8 +566,7 @@ function setupAutoUpdater() {
 // dat zou de listeners dubbel registreren (dubbele dialogen per update).
 function checkForUpdatesInBackground() {
   if (!app.isPackaged) return;
-  pendingCheckIsInteractive = false;
-  logUpdater('Dagelijkse achtergrond-updatecontrole gestart');
+  logUpdater('Achtergrond-updatecontrole gestart');
   autoUpdater.checkForUpdates().catch((error) => {
     logUpdater('Achtergrond-updatecontrole mislukt', error);
   });
@@ -504,7 +584,8 @@ function scheduleDailyUpdateCheck() {
 function requestUpdateCheck() {
   if (!app.isPackaged) return Promise.resolve({ status: 'not-packaged' });
 
-  pendingCheckIsInteractive = false;
+  // Zelf op de knop gedrukt: een eerder "Later" telt dan niet meer.
+  updatePostponedVersion = null;
   return autoUpdater.checkForUpdates()
     .then(() => (
       updateAvailableInfo
@@ -530,7 +611,7 @@ function getViewBounds() {
 function applyActiveTabBounds() {
   if (!activeTabId || !tabs.has(activeTabId)) return;
   tabs.get(activeTabId).setBounds(
-    (onboardingActive || settingsPanelOpen || changelogNoticeOpen || tabOverviewOpen) ? { x: 0, y: 0, width: 0, height: 0 } : getViewBounds()
+    (onboardingActive || settingsPanelOpen || changelogNoticeOpen || tabOverviewOpen || updateNoticeOpen) ? { x: 0, y: 0, width: 0, height: 0 } : getViewBounds()
   );
 }
 
@@ -1398,7 +1479,7 @@ function createCurtain() {
 function coverActiveView(view, { color = curtainColor(), revealDelay = CURTAIN_SWITCH_DELAY_MS, fadeMs = CURTAIN_FADE_MS, waitForLoad = true } = {}) {
   if (!curtain || curtain.webContents.isDestroyed()) return;
   // Tabinhoud is dan toch verborgen (zie applyActiveTabBounds).
-  if (onboardingActive || settingsPanelOpen || changelogNoticeOpen || tabOverviewOpen) return;
+  if (onboardingActive || settingsPanelOpen || changelogNoticeOpen || tabOverviewOpen || updateNoticeOpen) return;
   // Windows' "Animatie-effecten" uit -> gewoon direct wisselen.
   if (systemPreferences.getAnimationSettings().prefersReducedMotion) return;
 
@@ -2712,6 +2793,7 @@ function createWindow() {
         setupAutoUpdater().then(() => {
           scheduleDailyUpdateCheck();
         });
+        if (TEST_UPDATE_MODE) setTimeout(startTestUpdate, 3000);
       }
     };
 
