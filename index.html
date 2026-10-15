@@ -311,14 +311,14 @@
       background: #292929;
     }
 
-    /* Maan als de donkere modus uit staat (klik = donker), zon als hij aan staat. */
-    #dark-mode-btn .icon-sun,
-    #dark-mode-btn.active .icon-moon {
-      display: none;
+    /* Contrast-icoon (halfgevulde cirkel); bij donkere modus aan wisselt de
+       gevulde helft van kant, zodat je de stand ziet. */
+    #dark-mode-btn svg {
+      transition: transform 0.2s ease;
     }
 
-    #dark-mode-btn.active .icon-sun {
-      display: block;
+    #dark-mode-btn.active svg {
+      transform: rotate(180deg);
     }
 
     #settings-btn {
@@ -990,12 +990,9 @@
       </div>
       <button id="new-tab-btn">+</button>
       <button id="dark-mode-btn" class="navigation-button" type="button" title="Donkere modus aanzetten" aria-label="Donkere modus" aria-pressed="false">
-        <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
-        <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="4"/>
-          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>
         </svg>
       </button>
       <button id="settings-btn" class="navigation-button" type="button" title="Instellingen" aria-label="Instellingen">
