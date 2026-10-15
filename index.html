@@ -1379,10 +1379,13 @@
       cursor: pointer;
     }
 
+    /* ---------- Rondleidingen (volledig + "Nieuw in deze versie") ---------- */
+
     #onboarding-overlay {
       position: fixed;
       inset: 0;
       z-index: 15;
+      transition: background-color 0.3s var(--ease);
       -webkit-app-region: no-drag;
     }
 
@@ -1390,69 +1393,203 @@
       display: none;
     }
 
+    /* Stap zonder aanwijsdoel (welkom/afsluiting): de kaart staat in het
+       midden en de overlay dimt zelf, i.p.v. via de spotlight. */
+    #onboarding-overlay.no-target {
+      background: rgba(0, 0, 0, 0.62);
+    }
+
     /* Tijdens instellingen-stappen moet de rondleiding boven het (dan
-       geopende) instellingenpaneel en de bijbehorende backdrop uitsteken. */
+       geopende) instellingenscherm uitsteken. */
     #onboarding-overlay.above-settings {
       z-index: 26;
     }
 
+    /* Uitgelicht onderdeel: rest van het venster gedimd via een grote
+       schaduw, met een oranje rand en een zachte pulserende ring. */
     .onboarding-spotlight {
       position: fixed;
-      border-radius: 8px;
+      border-radius: 6px;
       border: 2px solid var(--accent);
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62);
       pointer-events: none;
-      transition: top 0.3s var(--ease), left 0.3s var(--ease), width 0.3s var(--ease), height 0.3s var(--ease);
+      transition:
+        top 0.4s var(--ease),
+        left 0.4s var(--ease),
+        width 0.4s var(--ease),
+        height 0.4s var(--ease),
+        opacity 0.3s var(--ease);
+    }
+
+    .onboarding-spotlight::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 6px;
+      border: 2px solid var(--accent);
+      animation: spotlight-pulse 1.8s ease-out infinite;
+    }
+
+    #onboarding-overlay.no-target .onboarding-spotlight {
+      opacity: 0;
     }
 
     .onboarding-tooltip {
+      --arrow-left: 32px;
       position: fixed;
-      width: min(320px, calc(100vw - 32px));
+      width: min(340px, calc(100vw - 32px));
       box-sizing: border-box;
-      padding: 18px 20px;
+      padding: 16px 18px 14px;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
-      box-shadow: var(--shadow);
-      transition: top 0.3s var(--ease), left 0.3s var(--ease);
-      animation: pop-in 0.26s var(--ease);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+      transition: top 0.4s var(--ease), left 0.4s var(--ease);
+      animation: pop-in 0.3s var(--ease);
     }
 
+    /* Pijltje naar het uitgelichte onderdeel (boven of onder de kaart). */
     .onboarding-tooltip::before {
       content: '';
       position: absolute;
-      top: -8px;
-      left: 28px;
-      width: 14px;
-      height: 14px;
+      top: -7px;
+      left: calc(var(--arrow-left) - 6px);
+      width: 12px;
+      height: 12px;
       background: var(--surface);
       border-left: 1px solid var(--border);
       border-top: 1px solid var(--border);
       transform: rotate(45deg);
+      transition: left 0.4s var(--ease);
+    }
+
+    .onboarding-tooltip.above::before {
+      top: auto;
+      bottom: -7px;
+      transform: rotate(225deg);
+    }
+
+    .onboarding-tooltip.centered::before {
+      display: none;
+    }
+
+    .onboarding-tooltip.centered {
+      width: min(440px, calc(100vw - 32px));
+      padding: 24px 26px 18px;
+    }
+
+    /* Inhoud faded over bij het wisselen van stap. */
+    .onboarding-content {
+      transition: opacity 0.16s var(--ease), transform 0.16s var(--ease);
+    }
+
+    .onboarding-tooltip.switching .onboarding-content {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+
+    .onboarding-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    #onboarding-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+    }
+
+    #onboarding-label::before {
+      content: '';
+      width: 2px;
+      height: 11px;
+      background: var(--accent);
+    }
+
+    #onboarding-progress {
+      font-size: 11.5px;
+      color: var(--text-faint);
+      font-variant-numeric: tabular-nums;
     }
 
     .onboarding-tooltip h2 {
-      margin: 0 0 8px;
+      margin: 0 0 6px;
       font-size: 16px;
+      font-weight: 600;
+    }
+
+    .onboarding-tooltip.centered h2 {
+      font-size: 20px;
     }
 
     .onboarding-tooltip p {
-      margin: 0 0 16px;
+      margin: 0;
       color: var(--text-2);
       font-size: 13px;
-      line-height: 1.5;
+      line-height: 1.55;
+    }
+
+    /* Opsomming (bv. "wat is er nieuw"), met oranje streepjes. */
+    #onboarding-bullets {
+      list-style: none;
+      margin: 12px 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    #onboarding-bullets.hidden {
+      display: none;
+    }
+
+    #onboarding-bullets li {
+      position: relative;
+      padding-left: 16px;
+      font-size: 13px;
+      color: var(--text-2);
+      line-height: 1.45;
+    }
+
+    #onboarding-bullets li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 8px;
+      height: 2px;
+      background: var(--accent);
+    }
+
+    .onboarding-progressbar {
+      height: 3px;
+      margin: 14px 0 12px;
+      border-radius: 3px;
+      background: var(--hover-strong);
+      overflow: hidden;
+    }
+
+    #onboarding-progress-fill {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--accent);
+      transition: width 0.4s var(--ease);
     }
 
     .onboarding-footer {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       gap: 12px;
-    }
-
-    #onboarding-progress {
-      font-size: 12px;
-      color: var(--text-muted);
     }
 
     .onboarding-buttons {
@@ -1463,16 +1600,24 @@
     .onboarding-buttons button {
       padding: 6px 14px;
       border: 1px solid var(--border-strong);
-      border-radius: 4px;
+      border-radius: var(--radius);
       color: var(--text);
       background: var(--surface-raised);
       font-size: 13px;
       cursor: pointer;
-      transition: background-color 0.15s var(--ease);
+      transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease), transform 0.12s var(--ease);
     }
 
     .onboarding-buttons button:hover {
       background: var(--hover-strong);
+    }
+
+    .onboarding-buttons button:active {
+      transform: scale(0.96);
+    }
+
+    .onboarding-buttons button.hidden {
+      display: none;
     }
 
     #onboarding-next {
@@ -1483,6 +1628,33 @@
 
     #onboarding-next:hover {
       background: var(--accent);
+    }
+
+    #onboarding-next:disabled {
+      opacity: 0.55;
+      cursor: wait;
+      background: var(--accent-strong);
+    }
+
+    /* Golf bij de licht/donker-demo: rolt vanuit de knop in de nieuwe
+       themakleur over het scherm (onder de kaart, boven de dimlaag). */
+    .theme-ripple {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    /* Kaart naast een hoog onderdeel (bv. de instellingen-navigatie):
+       rechts ernaast, onderaan, met het pijltje naar links. */
+    .onboarding-tooltip.side::before {
+      top: var(--arrow-top, 28px);
+      left: -7px;
+      transform: rotate(-45deg);
+    }
+
+    @keyframes spotlight-pulse {
+      0% { opacity: 0.8; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.08); }
     }
 
     /* ---------- Taboverzicht ---------- */
@@ -2242,7 +2414,7 @@
       </button>
     </div>
     <div id="tab-overview-body">
-      <section class="overview-section">
+      <section id="overview-groups-section" class="overview-section">
         <h3 class="overview-section-title">Tabgroepen <span id="overview-groups-count" class="overview-count"></span></h3>
         <div id="overview-groups"></div>
         <p id="overview-groups-empty" class="overview-hint">Nog geen tabgroepen. Rechtsklik op een tab en kies "Toevoegen aan tabgroup".</p>
@@ -2292,6 +2464,13 @@
           <span class="settings-hint">Voorkomt dat Ctrl+B (bedoeld om vetgedrukt te typen) de zijbalk van de pagina in-/uitklapt.</span>
         </span>
         <input type="checkbox" class="switch" id="block-ctrl-b-checkbox">
+      </label>
+      <label id="show-not-clocked-row" class="general-toggle">
+        <span class="toggle-text">
+          Melding "Niet geklokt op een order" tonen
+          <span class="settings-hint">Standaard uit. Aan = een rustige regel bovenaan de pagina. "Afwezig" en het blok "Geklokt op" blijven altijd zichtbaar.</span>
+        </span>
+        <input type="checkbox" class="switch" id="show-not-clocked-checkbox">
       </label>
     </div>
 
@@ -2355,12 +2534,20 @@
   <section id="onboarding-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
     <div id="onboarding-spotlight" class="onboarding-spotlight"></div>
     <div id="onboarding-tooltip" class="onboarding-tooltip">
-      <h2 id="onboarding-title"></h2>
-      <p id="onboarding-text"></p>
+      <div class="onboarding-content">
+        <div class="onboarding-head">
+          <span id="onboarding-label">Rondleiding</span>
+          <span id="onboarding-progress"></span>
+        </div>
+        <h2 id="onboarding-title"></h2>
+        <p id="onboarding-text"></p>
+        <ul id="onboarding-bullets" class="hidden"></ul>
+      </div>
+      <div class="onboarding-progressbar"><span id="onboarding-progress-fill"></span></div>
       <div class="onboarding-footer">
-        <span id="onboarding-progress"></span>
         <div class="onboarding-buttons">
-          <button id="onboarding-skip" type="button">Overslaan</button>
+          <button id="onboarding-prev" type="button">Vorige</button>
+          <button id="onboarding-changelog" class="hidden" type="button">Changelog</button>
           <button id="onboarding-next" type="button">Volgende</button>
         </div>
       </div>
@@ -2508,139 +2695,454 @@
     window.electronAPI.getSettings().then((settings) => {
       if (settings) showOnboardingCheckbox.checked = settings.showOnboarding !== false;
     });
+    // ---------- Rondleidingen ----------
+    //
+    // Eén mechanisme voor twee soorten rondleiding:
+    //   - FULL_TOUR: de volledige rondleiding (eerste keer, of via
+    //     Instellingen > Algemeen > "Rondleiding opnieuw volgen").
+    //   - WHATS_NEW_TOURS: korte "Nieuw in deze versie"-rondleidingen die na
+    //     een update eenmalig verschijnen (zie 'whats-new' hieronder).
+    //
+    // Een stap heeft een target (CSS-selector van het uit te lichten
+    // onderdeel) of geen target (kaart in het midden). Verder optioneel:
+    // bullets (opsomming), requiresSettingsOpen + settingsSection (stap in het
+    // instellingenscherm) en optional (overslaan als het onderdeel er niet is).
     const onboardingOverlay = document.getElementById('onboarding-overlay');
     const onboardingSpotlight = document.getElementById('onboarding-spotlight');
     const onboardingTooltip = document.getElementById('onboarding-tooltip');
+    const onboardingLabel = document.getElementById('onboarding-label');
     const onboardingTitle = document.getElementById('onboarding-title');
     const onboardingText = document.getElementById('onboarding-text');
+    const onboardingBullets = document.getElementById('onboarding-bullets');
     const onboardingProgress = document.getElementById('onboarding-progress');
-    const onboardingSkip = document.getElementById('onboarding-skip');
+    const onboardingProgressFill = document.getElementById('onboarding-progress-fill');
+    const onboardingPrev = document.getElementById('onboarding-prev');
     const onboardingNext = document.getElementById('onboarding-next');
+    const onboardingChangelog = document.getElementById('onboarding-changelog');
 
-    const onboardingSteps = [
+    const FULL_TOUR = {
+      label: 'Rondleiding',
+      steps: [
+        {
+          title: 'Welkom in de Singeling App',
+          text: 'In een paar stappen laten we zien hoe de app werkt en waar je alles vindt. Je kunt de rondleiding later altijd opnieuw volgen via de instellingen.'
+        },
+        {
+          target: '#navigation-buttons',
+          title: 'Navigeren en verversen',
+          text: 'Met de pijltjes ga je terug of vooruit, net als in een browser. De ververs-knop (en F5) laadt de huidige pagina opnieuw.'
+        },
+        {
+          target: '#share-link-btn',
+          title: 'Link delen',
+          text: 'Kopieer de link van de huidige pagina, zodat je hem makkelijk kunt delen met collega\'s binnen Singeling.'
+        },
+        {
+          target: '#tab-scroll',
+          title: 'Tabs',
+          text: 'De actieve tab herken je aan het oranje balkje. Rechtsklik op een tab om hem vast te zetten: vastgezette tabs zijn goudgeel met een slotje en openen links altijd in een nieuw tabblad. Met de middelste muisknop sluit je een tab.'
+        },
+        {
+          target: '#tab-scroll',
+          title: 'Tab loskoppelen',
+          text: 'Sleep een tab ver genoeg onder de tabbalk uit en laat los: hij wordt een eigen venster, dat je bijvoorbeeld naar een tweede scherm kunt slepen.'
+        },
+        {
+          target: '#tab-overview-btn',
+          title: 'Taboverzicht',
+          text: 'Met deze knop zie je al je tabs in één oogopslag. We openen hem even.'
+        },
+        {
+          target: '.overview-card.active',
+          requiresOverviewOpen: true,
+          title: 'Al je tabs op een rij',
+          text: 'Elke kaart is een open tab, met een voorbeeld van de pagina. Klik op een kaart om ernaartoe te gaan, of zoek bovenin op naam of adres.'
+        },
+        {
+          target: '#overview-groups-section',
+          requiresOverviewOpen: true,
+          title: 'Tabgroepen',
+          text: 'Maak een groep via rechtsklik op een tab > "Toevoegen aan tabgroup". Hier hernoem je de groep, haal je tabs eruit of open je de hele groep in één klik.'
+        },
+        {
+          target: '#tabbar-zoom',
+          title: 'Zoomen',
+          text: 'Maak de pagina groter of kleiner met − en +. Klik op het percentage om terug te gaan naar 100%. Ctrl + scrollen op een pagina werkt ook.'
+        },
+        {
+          target: '#dark-mode-btn',
+          demo: 'theme',
+          title: 'Licht of donker',
+          text: 'Kijk maar: met deze knop wissel je tussen een lichte en een donkere weergave. De tabbalk en de pagina\'s gaan mee.'
+        },
+        {
+          target: '.settings-nav',
+          placement: 'side',
+          title: 'Instellingen',
+          text: 'Via de moersleutel kom je hier. Links kies je een onderdeel: algemene voorkeuren, updates, zoomen en starttabs. Met "Terug" onderin (of Esc) ga je weer naar de pagina.',
+          requiresSettingsOpen: true,
+          settingsSection: 'general'
+        },
+        {
+          target: '#settings-section-start',
+          title: 'Starttabs',
+          text: 'Rechtsklik op een tab en kies "Openen bij opstarten" om hem hier toe te voegen. Starttabs kun je verwijderen of vergrendeld laten openen.',
+          requiresSettingsOpen: true,
+          settingsSection: 'start'
+        },
+        {
+          title: 'Klaar!',
+          text: 'Je bent er klaar voor. Deze rondleiding kun je altijd opnieuw volgen via Instellingen > Algemeen.'
+        }
+      ]
+    };
+
+    // "Nieuw in deze versie": per update één rondleiding met een vaste id
+    // (los van het versienummer). Wie hem gezien heeft, krijgt hem niet nog
+    // eens (seenWhatsNewTours in de instellingen). Voor een volgende update
+    // met nieuwe functies: een nieuw blok met een nieuwe id toevoegen.
+    const WHATS_NEW_TOURS = [
       {
-        target: '#navigation-buttons',
-        title: 'Navigeren en verversen',
-        text: 'Met deze pijltjes ga je terug of vooruit, net als in een browser. De ververs-knop (en de F5-toets) laden altijd gewoon de huidige pagina opnieuw.'
-      },
-      {
-        target: '#share-link-btn',
-        title: 'Link delen',
-        text: 'Klik hier om de link van de huidige pagina te kopiëren, zodat je deze makkelijk kunt delen met collega\'s binnen het bedrijf.'
-      },
-      {
-        target: '#tab-scroll',
-        title: 'Tabs vastzetten',
-        text: 'Rechtsklik op een tab om hem vast te zetten. Bij een vastgezette tab (met slotje) openen links altijd in een nieuw tabblad. Externe links (buiten Singeling) openen automatisch in je standaardbrowser.'
-      },
-      {
-        target: '#tab-scroll',
-        title: 'Tab loskoppelen',
-        text: 'Sleep een tab ver genoeg onder de tabbalk uit en laat los: hij wordt dan een eigen los venster, dat je net als elk ander Windows-venster naar bijvoorbeeld een tweede scherm kunt verslepen.'
-      },
-      {
-        target: '#tab-overview-btn',
-        title: 'Taboverzicht en tabgroepen',
-        text: 'Klik hier om al je tabs in één oogopslag te zien, met een voorbeeld van elke pagina. Hier staan ook je tabgroepen: rechtsklik op een tab en kies "Toevoegen aan tabgroup" om er een te maken. In het overzicht hernoem je een groep, haal je tabs eruit of open je de hele groep in één keer.'
-      },
-      {
-        target: '.general-actions',
-        title: 'Instellingen: algemeen',
-        text: 'Via het moersleutel-icoon kom je hier. Bekijk de changelog met alle wijzigingen, of start deze rondleiding op elk moment opnieuw.',
-        requiresSettingsOpen: true,
-        settingsSection: 'general'
-      },
-      {
-        target: '.zoom-controls',
-        title: 'Zoomen',
-        text: 'Pas het zoomniveau aan met deze knoppen, met het blokje rechtsboven in de tabbalk, of houd Ctrl ingedrukt en scroll op een pagina.',
-        requiresSettingsOpen: true,
-        settingsSection: 'zoom'
-      },
-      {
-        target: '#settings-section-start',
-        title: 'Starttabs',
-        text: 'Rechtsklik op een tab en kies "Openen bij opstarten" om hem hier toe te voegen. Je kunt starttabs verwijderen of los vergrendelen.',
-        requiresSettingsOpen: true,
-        settingsSection: 'start'
+        id: '2026-10-nieuwe-tabbalk',
+        steps: [
+          {
+            title: 'De app heeft een nieuw jasje',
+            text: 'Deze update brengt een hoop nieuws. We laten het in een paar stappen zien:',
+            bullets: [
+              'Een vernieuwde tabbalk in Singeling-stijl',
+              'Taboverzicht met voorbeelden en tabgroepen',
+              'Zoomen direct vanuit de tabbalk',
+              'Licht en donker thema',
+              'Een nieuw instellingenscherm',
+              'Rustiger bovenaan de pagina: geen "Niet geklokt"-balk meer'
+            ]
+          },
+          {
+            target: '#tab-scroll',
+            title: 'Vernieuwde tabbalk',
+            text: 'De actieve tab heeft nu een oranje balkje, vastgezette tabs zijn goudgeel met een slotje. Wisselen, openen en sluiten van tabs gaat met een soepele overgang.'
+          },
+          {
+            target: '#window-controls',
+            optional: true,
+            title: 'Meer ruimte',
+            text: 'De Windows-titelbalk is weg: de tabbalk staat nu helemaal bovenin en de knoppen om te minimaliseren, maximaliseren en sluiten zitten hier. Je sleept het venster gewoon aan de tabbalk.'
+          },
+          {
+            target: '#tab-overview-btn',
+            title: 'Taboverzicht',
+            text: 'Nieuw: met deze knop zie je al je tabs in één oogopslag. We openen hem even.'
+          },
+          {
+            target: '.overview-card.active',
+            requiresOverviewOpen: true,
+            title: 'Al je tabs op een rij',
+            text: 'Elke kaart is een open tab, met een voorbeeld van de pagina. Klik op een kaart om ernaartoe te gaan, of zoek bovenin op naam of adres.'
+          },
+          {
+            target: '#overview-groups-section',
+            requiresOverviewOpen: true,
+            title: 'Tabgroepen',
+            text: 'Je tabgroepen staan nu hier, in plaats van in de instellingen. Hernoem een groep, haal tabs eruit of open de hele groep in één klik.'
+          },
+          {
+            target: '#tabbar-zoom',
+            title: 'Zoomen in de tabbalk',
+            text: 'Je ziet altijd hoe ver je bent ingezoomd. Gebruik − en +, of klik op het percentage om terug te gaan naar 100%.'
+          },
+          {
+            target: '#dark-mode-btn',
+            demo: 'theme',
+            title: 'Licht of donker',
+            text: 'Kijk maar: met deze knop wissel je tussen een lichte en een donkere weergave. De tabbalk en de pagina\'s gaan mee.'
+          },
+          {
+            target: '.settings-nav',
+            placement: 'side',
+            title: 'Nieuw instellingenscherm',
+            text: 'De instellingen zijn nu een eigen scherm met links de onderdelen. Met "Terug" onderin of Esc ga je weer naar de pagina.',
+            requiresSettingsOpen: true,
+            settingsSection: 'general'
+          },
+          {
+            target: '#show-not-clocked-row',
+            title: 'Rustiger bovenaan de pagina',
+            text: 'De oranje balk "Niet geklokt op een order" staat nu standaard uit. "Afwezig" blijft gewoon in het rood zichtbaar. Wil je de melding toch, zet hem dan hier aan; dan verschijnt hij als rustige regel.',
+            requiresSettingsOpen: true,
+            settingsSection: 'general'
+          }
+        ]
       }
     ];
+
+    let activeTour = null; // { label, steps, onFinish, showChangelog }
     let onboardingStepIndex = 0;
     let wantsOnboarding = true;
     let onboardingStarted = false;
     let settingsOpenedByOnboarding = false;
+    let overviewOpenedByOnboarding = false;
+    // Kaarten in het overzicht schuiven even in; pas daarna meten.
+    const OVERVIEW_SETTLE_MS = 420;
+    const ONBOARDING_SWITCH_MS = 160;
 
-    async function positionOnboardingStep() {
-      const step = onboardingSteps[onboardingStepIndex];
+    function isTargetAvailable(selector) {
+      const el = document.querySelector(selector);
+      return !!el && el.getClientRects().length > 0;
+    }
 
+    // Kaart naast het uitgelichte onderdeel: liefst eronder, gecentreerd op
+    // het onderdeel; past dat niet, dan erboven. Het pijltje wijst naar het
+    // midden van het onderdeel.
+    function placeOnboardingTooltip(rect, placement) {
+      const margin = 16;
+      const gap = 16;
+      const width = onboardingTooltip.offsetWidth;
+      const height = onboardingTooltip.offsetHeight;
+      onboardingTooltip.classList.toggle('side', !!rect && placement === 'side');
+
+      // Rechts naast het onderdeel, onderaan in beeld, zodat de kaart niet
+      // over de inhoud ernaast valt (bv. de instellingen-navigatie).
+      if (rect && placement === 'side') {
+        const left = Math.min(rect.right + gap, window.innerWidth - width - margin);
+        const top = Math.max(margin, window.innerHeight - height - 28);
+        onboardingTooltip.classList.remove('above');
+        onboardingTooltip.style.left = `${Math.round(left)}px`;
+        onboardingTooltip.style.top = `${Math.round(top)}px`;
+        onboardingTooltip.style.setProperty('--arrow-top', `${Math.round(height / 2)}px`);
+        return;
+      }
+
+      if (!rect) {
+        onboardingTooltip.style.left = `${Math.round((window.innerWidth - width) / 2)}px`;
+        onboardingTooltip.style.top = `${Math.round((window.innerHeight - height) / 2)}px`;
+        return;
+      }
+
+      let top = rect.bottom + gap;
+      const fitsBelow = top + height <= window.innerHeight - margin;
+      if (!fitsBelow) top = Math.max(margin, rect.top - gap - height);
+      onboardingTooltip.classList.toggle('above', !fitsBelow);
+
+      const center = rect.left + rect.width / 2;
+      const left = Math.max(margin, Math.min(center - width / 2, window.innerWidth - width - margin));
+      onboardingTooltip.style.left = `${Math.round(left)}px`;
+      onboardingTooltip.style.top = `${Math.round(top)}px`;
+      onboardingTooltip.style.setProperty('--arrow-left', `${Math.round(Math.max(20, Math.min(center - left, width - 20)))}px`);
+    }
+
+    // ---- Licht/donker-demo (stap met demo: 'theme') ----
+    //
+    // Schakelt tijdens de stap zelf het thema om en weer terug, telkens met
+    // een golf die vanuit de knop over het scherm rolt. Verlaat je de stap
+    // eerder, dan gaat het thema direct terug naar wat het was.
+    const THEME_COLORS = { dark: '#14161a', light: '#f7f8f9' };
+    const THEME_RIPPLE_MS = 700;
+    const THEME_HOLD_MS = 2000; // hoe lang het andere thema blijft staan
+    const THEME_FADE_MS = 450;
+    let themeDemo = null; // { original, timers: [], animations: [] }
+
+    function setThemeDirect(enabled) {
+      renderDarkModeButton(enabled);
+      window.electronAPI.setDarkMode(enabled);
+    }
+
+    function playThemeRipple(toDark) {
+      const demo = themeDemo;
+      if (!demo) return;
+      const rect = darkModeBtn.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+      const ripple = document.createElement('div');
+      ripple.className = 'theme-ripple';
+      ripple.style.background = toDark ? THEME_COLORS.dark : THEME_COLORS.light;
+      onboardingOverlay.insertBefore(ripple, onboardingTooltip);
+      const grow = ripple.animate(
+        [{ clipPath: `circle(0px at ${x}px ${y}px)` }, { clipPath: `circle(${radius}px at ${x}px ${y}px)` }],
+        { duration: THEME_RIPPLE_MS, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', fill: 'forwards' }
+      );
+      demo.animations.push(grow);
+      grow.finished.then(() => {
+        // Alleen als de demo nog loopt (stap niet inmiddels verlaten):
+        // thema omzetten zolang de golf alles bedekt, dan de golf wegfaden.
+        if (themeDemo !== demo) return undefined;
+        setThemeDirect(toDark);
+        const fade = ripple.animate([{ opacity: 1 }, { opacity: 0 }], { duration: THEME_FADE_MS, easing: 'ease-out', fill: 'forwards' });
+        demo.animations.push(fade);
+        return fade.finished;
+      }).catch(() => {}).finally(() => ripple.remove());
+    }
+
+    function startThemeDemo() {
+      if (themeDemo) return;
+      const original = darkModeBtn.classList.contains('active');
+      // Volgende pas weer aan als je beide standen hebt gezien.
+      const backAt = 600 + THEME_RIPPLE_MS + THEME_HOLD_MS;
+      const doneAt = backAt + THEME_RIPPLE_MS + THEME_FADE_MS + 200;
+      setNextBlocked(true);
+      themeDemo = {
+        original,
+        animations: [],
+        timers: [
+          setTimeout(() => playThemeRipple(!original), 600),
+          setTimeout(() => playThemeRipple(original), backAt),
+          setTimeout(() => setNextBlocked(false), doneAt)
+        ]
+      };
+    }
+
+    function setNextBlocked(blocked) {
+      onboardingNext.disabled = blocked;
+      if (blocked) {
+        onboardingNext.dataset.label = onboardingNext.textContent;
+        onboardingNext.textContent = 'Even kijken…';
+      } else if (onboardingNext.dataset.label) {
+        onboardingNext.textContent = onboardingNext.dataset.label;
+        delete onboardingNext.dataset.label;
+      }
+    }
+
+    function stopThemeDemo() {
+      if (!themeDemo) return;
+      const demo = themeDemo;
+      themeDemo = null; // eerst, zodat lopende golven het thema niet meer omzetten
+      demo.timers.forEach(clearTimeout);
+      demo.animations.forEach(animation => animation.cancel());
+      onboardingOverlay.querySelectorAll('.theme-ripple').forEach(ripple => ripple.remove());
+      if (darkModeBtn.classList.contains('active') !== demo.original) setThemeDirect(demo.original);
+      setNextBlocked(false);
+    }
+
+    function fillOnboardingContent(step) {
+      const total = activeTour.steps.length;
+      const isLast = onboardingStepIndex === total - 1;
+      onboardingLabel.textContent = activeTour.label;
+      onboardingProgress.textContent = `${onboardingStepIndex + 1} / ${total}`;
+      onboardingProgressFill.style.width = `${((onboardingStepIndex + 1) / total) * 100}%`;
+      onboardingTitle.textContent = step.title;
+      onboardingText.textContent = step.text;
+      onboardingBullets.innerHTML = '';
+      (step.bullets || []).forEach(text => {
+        const item = document.createElement('li');
+        item.textContent = text;
+        onboardingBullets.appendChild(item);
+      });
+      onboardingBullets.classList.toggle('hidden', !step.bullets);
+      onboardingPrev.classList.toggle('hidden', onboardingStepIndex === 0);
+      onboardingChangelog.classList.toggle('hidden', !(isLast && activeTour.showChangelog));
+      onboardingNext.textContent = isLast ? 'Klaar' : (onboardingStepIndex === 0 && !step.target ? 'Laten zien' : 'Volgende');
+    }
+
+    async function positionOnboardingStep({ animate = true } = {}) {
+      const step = activeTour.steps[onboardingStepIndex];
+
+      // Tekst eerst laten uitfaden; de kaart schuift ondertussen al.
+      if (animate) {
+        onboardingTooltip.classList.add('switching');
+        await new Promise(resolve => setTimeout(resolve, ONBOARDING_SWITCH_MS));
+      }
+
+      // Stap in het instellingenscherm of het taboverzicht: dat scherm (als
+      // dat nog niet open is) openen, en de rondleiding erboven leggen. Een
+      // scherm dat de rondleiding zelf opende, gaat weer dicht zodra een stap
+      // het niet meer nodig heeft.
+      if (!step.requiresOverviewOpen && overviewOpenedByOnboarding) {
+        closeTabOverview();
+        overviewOpenedByOnboarding = false;
+      }
       if (step.requiresSettingsOpen) {
-        onboardingOverlay.classList.add('above-settings');
         if (!settingsOpen) {
           await openSettingsPanel();
           settingsOpenedByOnboarding = true;
         }
         if (step.settingsSection) setSettingsSection(step.settingsSection);
-      } else {
-        onboardingOverlay.classList.remove('above-settings');
-        if (settingsOpenedByOnboarding) {
-          closeSettingsPanel();
-          settingsOpenedByOnboarding = false;
-        }
+      } else if (settingsOpenedByOnboarding) {
+        closeSettingsPanel();
+        settingsOpenedByOnboarding = false;
       }
+      if (step.requiresOverviewOpen && !tabOverviewOpen) {
+        await openTabOverview();
+        overviewOpenedByOnboarding = true;
+        await new Promise(resolve => setTimeout(resolve, OVERVIEW_SETTLE_MS));
+      }
+      onboardingOverlay.classList.toggle('above-settings', !!(step.requiresSettingsOpen || step.requiresOverviewOpen));
 
-      // Wacht een frame zodat het instellingenpaneel (indien net geopend of
-      // gewisseld) zijn layout heeft bijgewerkt voordat we de positie meten.
+      fillOnboardingContent(step);
+      onboardingTooltip.classList.toggle('centered', !step.target);
+      onboardingOverlay.classList.toggle('no-target', !step.target);
+
+      // Wacht een frame zodat het instellingenscherm (indien net geopend of
+      // gewisseld) en de nieuwe tekst hun layout hebben voordat we meten.
       await new Promise(resolve => requestAnimationFrame(resolve));
 
-      const target = document.querySelector(step.target);
-      if (!target) return;
+      const target = step.target ? document.querySelector(step.target) : null;
+      focusOnboardingTarget(target, step.placement);
 
+      onboardingTooltip.classList.remove('switching');
+
+      if (step.demo === 'theme') startThemeDemo();
+      else stopThemeDemo();
+    }
+
+    function focusOnboardingTarget(target, placement) {
+      if (!target) {
+        placeOnboardingTooltip(null);
+        return;
+      }
       const rect = target.getBoundingClientRect();
-      const padding = 6;
-
+      const padding = 5;
       onboardingSpotlight.style.top = `${rect.top - padding}px`;
       onboardingSpotlight.style.left = `${rect.left - padding}px`;
       onboardingSpotlight.style.width = `${rect.width + padding * 2}px`;
       onboardingSpotlight.style.height = `${rect.height + padding * 2}px`;
-
-      onboardingTitle.textContent = step.title;
-      onboardingText.textContent = step.text;
-      onboardingProgress.textContent = `${onboardingStepIndex + 1} / ${onboardingSteps.length}`;
-      onboardingNext.textContent = onboardingStepIndex === onboardingSteps.length - 1 ? 'Klaar' : 'Volgende';
-
-      const tooltipTop = rect.bottom + padding + 14;
-      let tooltipLeft = rect.left;
-      const maxLeft = window.innerWidth - onboardingTooltip.offsetWidth - 16;
-      tooltipLeft = Math.max(16, Math.min(tooltipLeft, maxLeft));
-
-      onboardingTooltip.style.top = `${tooltipTop}px`;
-      onboardingTooltip.style.left = `${tooltipLeft}px`;
+      placeOnboardingTooltip(rect, placement);
     }
 
-    function startOnboarding() {
+    // tour: { label, steps, showChangelog, onFinish }
+    function startTour(tour) {
+      const steps = tour.steps.filter(step => !step.optional || isTargetAvailable(step.target));
+      if (steps.length === 0) return;
+      activeTour = { ...tour, steps };
       onboardingStarted = true;
       onboardingStepIndex = 0;
       window.electronAPI.notifyOnboardingStarted();
       onboardingOverlay.classList.remove('hidden');
-      positionOnboardingStep();
+      // Kaart opnieuw laten "inpoppen" (animation herstarten).
+      onboardingTooltip.style.animation = 'none';
+      void onboardingTooltip.offsetWidth;
+      onboardingTooltip.style.animation = '';
+      positionOnboardingStep({ animate: false });
+    }
+
+    function startOnboarding() {
+      startTour(FULL_TOUR);
     }
 
     function stopOnboarding() {
+      const finishedTour = activeTour;
+      activeTour = null;
+      stopThemeDemo();
       onboardingOverlay.classList.add('hidden');
-      onboardingOverlay.classList.remove('above-settings');
+      onboardingOverlay.classList.remove('above-settings', 'no-target');
       window.electronAPI.notifyOnboardingEnded();
       if (settingsOpenedByOnboarding) {
         closeSettingsPanel();
         settingsOpenedByOnboarding = false;
       }
+      if (overviewOpenedByOnboarding) {
+        closeTabOverview();
+        overviewOpenedByOnboarding = false;
+      }
+      if (finishedTour && finishedTour.onFinish) finishedTour.onFinish();
     }
 
     onboardingNext.addEventListener('click', async (event) => {
       // Zonder dit vangt de document-brede "klik-buiten-sluit-instellingen"
       // listener deze klik ook op (de rondleiding-knoppen staan buiten de DOM
-      // van het instellingenpaneel), waardoor het paneel per ongeluk sluit.
+      // van het instellingenscherm), waardoor het scherm per ongeluk sluit.
       event.stopPropagation();
-      if (onboardingStepIndex >= onboardingSteps.length - 1) {
+      if (!activeTour) return;
+      if (onboardingStepIndex >= activeTour.steps.length - 1) {
         stopOnboarding();
         return;
       }
@@ -2648,24 +3150,73 @@
       await positionOnboardingStep();
     });
 
-    onboardingSkip.addEventListener('click', (event) => {
+    onboardingPrev.addEventListener('click', async (event) => {
       event.stopPropagation();
+      if (!activeTour || onboardingStepIndex === 0) return;
+      onboardingStepIndex -= 1;
+      await positionOnboardingStep();
+    });
+
+    // "Changelog" op de laatste stap van een "Nieuw in deze versie"-rondleiding:
+    // eerst de changelog openen (houdt de tabinhoud verborgen), dan pas de
+    // rondleiding sluiten, anders flitst de pagina even op.
+    onboardingChangelog.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      showChangelogOverlay('Changelog', await window.electronAPI.getChangelog());
       stopOnboarding();
     });
 
+    // Pijltjestoetsen en Enter tijdens een rondleiding. Overslaan kan bewust
+    // niet: Esc doet niets (en sluit ook niet het scherm eronder).
+    document.addEventListener('keydown', (event) => {
+      if (!activeTour) return;
+      if (event.key === 'ArrowRight' || event.key === 'Enter') onboardingNext.click();
+      else if (event.key === 'ArrowLeft') onboardingPrev.click();
+      else if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }, true);
+
     window.addEventListener('resize', () => {
-      if (!onboardingOverlay.classList.contains('hidden')) {
-        positionOnboardingStep();
+      if (activeTour) positionOnboardingStep({ animate: false });
+    });
+
+    // Start de volledige rondleiding pas zodra de eerste tab echt bestaat (na
+    // het accepteren van de welkomstmelding), en na de intro van de tabs.
+    const TOUR_START_DELAY_MS = 1400;
+    window.electronAPI.on('tab-created', () => {
+      if (wantsOnboarding && !onboardingStarted) {
+        onboardingStarted = true;
+        setTimeout(startOnboarding, TOUR_START_DELAY_MS);
       }
     });
 
-    // Start de rondleiding pas zodra de eerste tab echt bestaat (na accepteren van de melding)
-    window.electronAPI.on('tab-created', () => {
-      if (wantsOnboarding && !onboardingStarted) {
-        // Wacht op de volgende frame zodat de tab daadwerkelijk is gerenderd
-        // (deze listener draait vóór de listener die de tab-DOM opbouwt).
-        requestAnimationFrame(startOnboarding);
+    // Na een update (of eerste installatie) - zie maybeShowChangelogNotice in
+    // main.js. Volgorde van voorrang:
+    //   1. Volledige rondleiding loopt (nieuwe gebruiker of vinkje aan): die
+    //      laat alles al zien, dus de "nieuw"-rondleidingen als gezien markeren.
+    //   2. Nog niet geziene "Nieuw in deze versie"-rondleiding(en): tonen.
+    //   3. Anders: de laatste changelog-entry, zoals voorheen.
+    window.electronAPI.on('whats-new', ({ isNewInstall, changelog, seenTours }) => {
+      const unseen = WHATS_NEW_TOURS.filter(tour => !(seenTours || []).includes(tour.id));
+      const unseenIds = unseen.map(tour => tour.id);
+
+      if (isNewInstall || wantsOnboarding) {
+        if (unseenIds.length > 0) window.electronAPI.markWhatsNewSeen(unseenIds);
+        return;
       }
+
+      if (unseen.length > 0) {
+        setTimeout(() => startTour({
+          label: 'Nieuw in deze versie',
+          steps: unseen.flatMap(tour => tour.steps),
+          showChangelog: true,
+          onFinish: () => window.electronAPI.markWhatsNewSeen(unseenIds)
+        }), TOUR_START_DELAY_MS);
+        return;
+      }
+
+      showChangelogOverlay('Wat is er nieuw?', changelog);
     });
 
     // Eerst de sluitanimatie afspelen (#beta-notice.leaving), pas daarna
@@ -3299,6 +3850,7 @@
         document.getElementById('settings-version').textContent = settings.appVersion ? `v${settings.appVersion}` : '';
         openAllLinksNewTabCheckbox.checked = !!settings.openAllLinksInNewTab;
         blockCtrlBCheckbox.checked = !!settings.blockCtrlB;
+        showNotClockedCheckbox.checked = !!settings.showNotClockedBar;
         applyUpdateStatusUI(!!settings.updateVersion, settings.updateVersion);
       }
       clearTimeout(settingsHideTimer);
@@ -3372,6 +3924,11 @@
 
     blockCtrlBCheckbox.addEventListener('change', () => {
       window.electronAPI.setBlockCtrlB(blockCtrlBCheckbox.checked);
+    });
+
+    const showNotClockedCheckbox = document.getElementById('show-not-clocked-checkbox');
+    showNotClockedCheckbox.addEventListener('change', () => {
+      window.electronAPI.setShowNotClockedBar(showNotClockedCheckbox.checked);
     });
 
     // Donkere modus: losse knop in de tabbalk naast de instellingenknop.
@@ -3499,6 +4056,7 @@
       changelogTitleEl.textContent = title;
       changelogContent.textContent = text;
       changelogOverlay.classList.remove('hidden');
+      window.electronAPI.notifyChangelogNoticeOpened();
     }
 
     function hideChangelogOverlay() {
@@ -3514,12 +4072,6 @@
 
     changelogOverlay.addEventListener('click', (event) => {
       if (event.target === changelogOverlay) hideChangelogOverlay();
-    });
-
-    // Automatisch getoond na een update: alleen de laatste changelog-entry,
-    // niet de hele geschiedenis (dat blijft voor de "Changelog bekijken"-knop).
-    window.electronAPI.on('show-changelog-notice', (latestEntry) => {
-      showChangelogOverlay('Wat is er nieuw?', latestEntry);
     });
 
     restartOnboardingBtn.addEventListener('click', () => {

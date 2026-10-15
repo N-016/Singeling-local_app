@@ -3,7 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <title>Singeling App</title>
+    <script>
+        // main.js geeft het thema (?theme=light|dark) en de versie mee, zodat
+        // het splash-scherm meteen in de juiste kleuren verschijnt.
+        const splashParams = new URLSearchParams(location.search);
+        if (splashParams.get('theme') === 'light') {
+            document.documentElement.classList.add('theme-light');
+        }
+    </script>
     <style>
+        /* Zelfde kleuren als de chrome in index.html. */
+        :root {
+            --accent: #ff5100;
+            --bg: #14161a;
+            --border: rgba(255, 255, 255, 0.09);
+            --text: #f4f5f6;
+            --text-muted: #9da3ac;
+            --text-faint: #5f6670;
+            --track: rgba(255, 255, 255, 0.08);
+            --shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+        }
+
+        html.theme-light {
+            --bg: #ffffff;
+            --border: #dfe2e6;
+            --text: #16181d;
+            --text-muted: #6b7178;
+            --text-faint: #9aa0a8;
+            --track: #eef0f2;
+            --shadow: 0 24px 60px rgba(22, 24, 29, 0.22);
+        }
+
         * {
             box-sizing: border-box;
         }
@@ -13,16 +43,18 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
+            padding: 18px;
             -webkit-app-region: drag;
             overflow: hidden;
         }
 
+        /* Minimalistisch: het logo in het midden met een laadbalkje eronder. */
         .card {
             position: relative;
             width: 100%;
@@ -31,12 +63,100 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(155deg, #24242a 0%, #1a1a1e 55%, #201814 100%);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 22px;
+            padding: 0 30px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55);
-            animation: card-in 0.5s cubic-bezier(0.2, 0, 0, 1) both;
+            box-shadow: var(--shadow);
+            animation: card-in 0.6s linear both;
+        }
+
+        /* Zachte oranje gloed rechtsboven. */
+        .card::after {
+            content: '';
+            position: absolute;
+            top: -90px;
+            right: -70px;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: rgba(255, 81, 0, 0.16);
+            filter: blur(60px);
+            pointer-events: none;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            animation: fade-up 0.4s 0.45s cubic-bezier(0.2, 0, 0, 1) both;
+        }
+
+        .logo-mark {
+            width: 52px;
+            height: 52px;
+            object-fit: contain;
+        }
+
+        .wordmark {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .wordmark strong {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            color: var(--text);
+        }
+
+        .wordmark span {
+            font-size: 10.5px;
+            font-weight: 600;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        /* Versienummer klein en gedempt onderaan. */
+        .version {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 14px;
+            text-align: center;
+            font-size: 10.5px;
+            letter-spacing: 0.08em;
+            color: var(--text-faint);
+            animation: fade-up 0.4s 0.6s cubic-bezier(0.2, 0, 0, 1) both;
+        }
+
+        /* Laadbalkje onder het logo: een oranje stukje dat steeds van links
+           naar rechts door het spoor schuift (we weten niet hoe lang het
+           laden duurt, dus geen echte voortgang). */
+        .loader {
+            position: relative;
+            width: 168px;
+            height: 3px;
+            margin-top: 24px;
+            border-radius: 2px;
+            background: var(--track);
+            overflow: hidden;
+            animation: fade-up 0.4s 0.55s cubic-bezier(0.2, 0, 0, 1) both;
+        }
+
+        .loader-fill {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 38%;
+            border-radius: 2px;
+            background: linear-gradient(90deg, rgba(255, 81, 0, 0), var(--accent) 35%, #ff8a3d);
+            box-shadow: 0 0 8px rgba(255, 81, 0, 0.6);
+            animation: slide 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
         }
 
         /* main.js zet .leaving op body; daarna pas verschijnt het
@@ -46,9 +166,15 @@
             animation: card-out 0.55s cubic-bezier(0.5, 0, 0.7, 0.4) forwards;
         }
 
+        /* Openen vanuit een horizontale lijn: het spiegelbeeld van de
+           sluitanimatie. Daarna schuiven logo en tekst in. */
         @keyframes card-in {
-            from { opacity: 0; transform: scale(0.94) translateY(6px); }
-            to { opacity: 1; transform: none; }
+            0% { opacity: 0; clip-path: inset(50% 0 50% 0); }
+            30% { opacity: 1; clip-path: inset(49.5% 0 49.5% 0); filter: brightness(1.6); }
+            70% { clip-path: inset(0 0 0 0); filter: none; }
+            78% { opacity: 0.7; }
+            86% { opacity: 1; }
+            100% { opacity: 1; clip-path: inset(0 0 0 0); }
         }
 
         @keyframes card-out {
@@ -58,121 +184,39 @@
             100% { opacity: 0; transform: scale(0, 0.012); }
         }
 
-        .glow {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(70px);
-            z-index: 0;
-        }
-
-        .glow-1 {
-            width: 220px;
-            height: 220px;
-            top: -70px;
-            left: -60px;
-            background: rgba(255, 94, 0, 0.22);
-        }
-
-        .glow-2 {
-            width: 180px;
-            height: 180px;
-            bottom: -80px;
-            right: -50px;
-            background: rgba(255, 94, 0, 0.14);
-        }
-
-        .content {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .logo-mark {
-            width: 88px;
-            height: 88px;
-            margin-bottom: 20px;
-            filter: drop-shadow(0 10px 24px rgba(255, 94, 0, 0.4));
-            animation: breathe 2.4s ease-in-out infinite;
-        }
-
-        h2 {
-            font-size: 16px;
-            font-weight: 600;
-            margin: 0 0 4px 0;
-            letter-spacing: 0.2px;
-            color: #ffffff;
-        }
-
-        .subtitle {
-            font-size: 12.5px;
-            color: #9a9aa3;
-            margin: 0 0 22px 0;
-        }
-
-        .progress-track {
-            width: 160px;
-            height: 4px;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, 0.08);
-            overflow: hidden;
-            margin-bottom: 18px;
-        }
-
-        .progress-fill {
-            width: 40%;
-            height: 100%;
-            border-radius: 4px;
-            background: linear-gradient(90deg, #ff5e00, #ffa14d);
-            animation: slide 1.3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-        }
-
-        .version-pill {
-            padding: 3px 10px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #b7b7bf;
-            font-size: 11px;
-            letter-spacing: 0.4px;
-        }
-
-        .footer {
-            position: absolute;
-            z-index: 1;
-            bottom: 16px;
-            color: #5f5f68;
-            font-size: 10.5px;
-            letter-spacing: 0.6px;
-            text-transform: uppercase;
-        }
-
-        @keyframes breathe {
-            0%, 100% { transform: scale(1); filter: drop-shadow(0 10px 24px rgba(255, 94, 0, 0.4)); }
-            50% { transform: scale(1.06); filter: drop-shadow(0 14px 32px rgba(255, 94, 0, 0.55)); }
+        @keyframes fade-up {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: none; }
         }
 
         @keyframes slide {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(350%); }
+            from { transform: translateX(-100%); }
+            to { transform: translateX(270%); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-delay: 0s !important;
+            }
         }
     </style>
 </head>
 <body>
     <div class="card">
-        <div class="glow glow-1"></div>
-        <div class="glow glow-2"></div>
-        <div class="content">
-            <img class="logo-mark" src="assets/logo.png" alt="Singeling">
-            <h2>Singeling App wordt gestart.</h2>
-            <div class="subtitle">Even geduld, dit duurt maar heel even&hellip;</div>
-            <div class="progress-track">
-                <div class="progress-fill"></div>
+        <div class="brand">
+            <img class="logo-mark" src="assets/logo.png" alt="">
+            <div class="wordmark">
+                <strong>SINGELING APP</strong>
+                <span>Productiesysteem</span>
             </div>
-            <div class="version-pill">v0.4.3</div>
         </div>
-        <div class="footer">Singeling B.V.</div>
+        <div class="loader"><div class="loader-fill"></div></div>
+        <div class="version" id="version"></div>
     </div>
+    <script>
+        const splashVersion = splashParams.get('version');
+        if (splashVersion) document.getElementById('version').textContent = 'v' + splashVersion;
+    </script>
 </body>
 </html>

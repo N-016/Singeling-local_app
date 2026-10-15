@@ -3,6 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
 const { DARK_MODE_BACKGROUND, DARK_MODE_CSS } = require('./dark-mode');
+const { PAGE_TWEAKS_CSS } = require('./page-tweaks');
 
 // Zonder deze lock start elke nieuwe poging een los proces dat om dezelfde
 // cache- en instellingenbestanden in userData vecht met de al draaiende app
@@ -58,9 +59,11 @@ let appSettings = {
   startTabs: [], // [{ url, locked }]
   tabGroups: [], // [{ id, name, urls: [] }]
   lastSeenChangelogVersion: null,
+  seenWhatsNewTours: [], // ids van "Nieuw in deze versie"-rondleidingen die al getoond zijn
   openAllLinksInNewTab: false,
   showOnboarding: true,
   blockCtrlB: false,
+  showNotClockedBar: false, // melding "Niet geklokt op een order" (subtiel) tonen; standaard uit
   darkMode: false
 };
 
@@ -77,9 +80,11 @@ function loadSettings() {
       startTabs: Array.isArray(parsed.startTabs) ? parsed.startTabs : [],
       tabGroups: Array.isArray(parsed.tabGroups) ? parsed.tabGroups : [],
       lastSeenChangelogVersion: typeof parsed.lastSeenChangelogVersion === 'string' ? parsed.lastSeenChangelogVersion : null,
+      seenWhatsNewTours: Array.isArray(parsed.seenWhatsNewTours) ? parsed.seenWhatsNewTours : [],
       openAllLinksInNewTab: typeof parsed.openAllLinksInNewTab === 'boolean' ? parsed.openAllLinksInNewTab : false,
       showOnboarding: typeof parsed.showOnboarding === 'boolean' ? parsed.showOnboarding : true,
       blockCtrlB: typeof parsed.blockCtrlB === 'boolean' ? parsed.blockCtrlB : false,
+      showNotClockedBar: typeof parsed.showNotClockedBar === 'boolean' ? parsed.showNotClockedBar : false,
       darkMode: typeof parsed.darkMode === 'boolean' ? parsed.darkMode : false
     };
   } catch {
@@ -172,33 +177,48 @@ function isRefreshShortcut(input) {
   return input.key === 'F5' || ((input.control || input.meta) && input.key.toLowerCase() === 'r');
 }
 
+// CHANGELOG.md staat met de nieuwste versie bovenaan. Om niet afhankelijk te
+// zijn van die volgorde kiezen we de sectie met het hoogste versienummer
+// ("## [x.y.z] - datum").
 function getLatestChangelogEntry() {
   try {
-    const content = fs.readFileSync(path.join(__dirname, 'CHANGELOG.md'), 'utf-8');
-    // CHANGELOG.md staat chronologisch oplopend (oudste eerst), dus de
-    // laatste "## "-sectie in het bestand is de meest recente wijziging.
-    const lastIdx = content.lastIndexOf('\n## ');
-    if (lastIdx === -1) return content.trim();
-    return content.slice(lastIdx + 1).trim();
+    const content = fs.readFileSync(path.join(__dirname, 'CHANGELOG.md'), 'utf-8').replace(/\r\n/g, '\n');
+    const sections = content.split(/\n(?=## )/).filter(section => section.startsWith('## '));
+    if (sections.length === 0) return content.trim();
+    const versionOf = (section) => {
+      const match = section.match(/^## \[(\d+)\.(\d+)\.(\d+)\]/);
+      return match ? match.slice(1).map(Number) : [-1, -1, -1];
+    };
+    const newest = sections.reduce((best, section) => {
+      const a = versionOf(section);
+      const b = versionOf(best);
+      for (let i = 0; i < 3; i++) {
+        if (a[i] !== b[i]) return a[i] > b[i] ? section : best;
+      }
+      return best;
+    });
+    return newest.trim();
   } catch (error) {
     return `Changelog kon niet worden geladen: ${error.message}`;
   }
 }
 
+// Na een update: index.html beslist wat er getoond wordt - een
+// "Nieuw in deze versie"-rondleiding als die er is en nog niet gezien is,
+// anders de laatste changelog-entry. Bij een gloednieuwe installatie
+// (previousVersion === null) niets: dan loopt de volledige rondleiding al.
 function maybeShowChangelogNotice() {
   const currentVersion = app.getVersion();
   const previousVersion = appSettings.lastSeenChangelogVersion;
   appSettings.lastSeenChangelogVersion = currentVersion;
   saveSettings();
 
-  // Niet tonen bij een gloednieuwe installatie (previousVersion === null) -
-  // dan loopt de onboarding-rondleiding al, en zouden beide overlays botsen.
-  // Wel tonen zodra de versie is veranderd t.o.v. de vorige keer opstarten.
-  if (previousVersion === null || previousVersion === currentVersion) return;
-
-  changelogNoticeOpen = true;
-  applyActiveTabBounds();
-  mainWindow.webContents.send('show-changelog-notice', getLatestChangelogEntry());
+  if (previousVersion === currentVersion) return;
+  mainWindow.webContents.send('whats-new', {
+    isNewInstall: previousVersion === null,
+    changelog: getLatestChangelogEntry(),
+    seenTours: appSettings.seenWhatsNewTours
+  });
 }
 
 function openStartTabs() {
@@ -629,6 +649,14 @@ function applyDarkMode(view) {
   ).catch(() => {});
 }
 
+// Classes op <html> voor de pagina-aanpassingen uit page-tweaks.js.
+function applyPageTweaks(view) {
+  if (view.webContents.isDestroyed() || !isInternalUrl(view.webContents.getURL())) return;
+  view.webContents.executeJavaScript(
+    `document.documentElement.classList.toggle('sg-hide-not-clocked', ${!appSettings.showNotClockedBar});`
+  ).catch(() => {});
+}
+
 function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = {}) {
   let isInitialLoad = true;
 
@@ -638,8 +666,10 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
   view.webContents.on('dom-ready', () => {
     if (isInternalUrl(view.webContents.getURL())) {
       view.webContents.insertCSS(DARK_MODE_CSS).catch(() => {});
+      view.webContents.insertCSS(PAGE_TWEAKS_CSS).catch(() => {});
     }
     applyDarkMode(view);
+    applyPageTweaks(view);
     // Voorbeeld voor het taboverzicht zodra de pagina wat is opgebouwd.
     setTimeout(() => {
       if (tabs.get(activeTabId) === view) captureTabThumbnail(tabId);
@@ -1678,7 +1708,7 @@ ipcMain.handle('get-changelog', (event) => {
 // Eigen vensterknoppen in de tabbalk (CUSTOM_WINDOW_CONTROLS).
 ipcMain.on('window-control', (event, action) => {
   if (event.sender !== mainWindow.webContents) return;
-  if (action === 'minimize') mainWindow.minimize();
+  if (action === 'minimize') minimizeWithAnimation();
   else if (action === 'toggle-maximize') mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
   else if (action === 'close') mainWindow.close();
 });
@@ -1692,6 +1722,7 @@ ipcMain.handle('get-settings', (event) => {
     openAllLinksInNewTab: appSettings.openAllLinksInNewTab,
     showOnboarding: appSettings.showOnboarding,
     blockCtrlB: appSettings.blockCtrlB,
+    showNotClockedBar: appSettings.showNotClockedBar,
     darkMode: appSettings.darkMode,
     customWindowControls: CUSTOM_WINDOW_CONTROLS,
     appVersion: app.getVersion(),
@@ -1703,6 +1734,13 @@ ipcMain.on('set-block-ctrl-b', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
   appSettings.blockCtrlB = !!value;
   saveSettings();
+});
+ipcMain.on('set-show-not-clocked-bar', (event, value) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.showNotClockedBar = !!value;
+  saveSettings();
+  // Direct effect voor al open tabs, zonder herladen.
+  for (const view of tabs.values()) applyPageTweaks(view);
 });
 ipcMain.on('set-dark-mode', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
@@ -1778,6 +1816,16 @@ ipcMain.on('app-notice-accepted', (event) => {
     openStartTabs();
     maybeShowChangelogNotice();
   }
+});
+ipcMain.on('changelog-notice-opened', (event) => {
+  if (event.sender !== mainWindow.webContents) return;
+  changelogNoticeOpen = true;
+  applyActiveTabBounds();
+});
+ipcMain.on('mark-whats-new-seen', (event, ids) => {
+  if (event.sender !== mainWindow.webContents || !Array.isArray(ids)) return;
+  appSettings.seenWhatsNewTours = [...new Set([...appSettings.seenWhatsNewTours, ...ids.map(String)])];
+  saveSettings();
 });
 ipcMain.on('changelog-notice-closed', (event) => {
   if (event.sender !== mainWindow.webContents) return;
@@ -1909,26 +1957,176 @@ function fadeInWindow(win, duration) {
   }, 16);
 }
 
-// ---------- Sluitanimatie ("tv uit") ----------
+// ---------- Venster-animaties: sluiten, minimaliseren, terughalen ----------
 //
-// Het venster zelf kan niet inklappen (de tabinhoud is een native laag).
-// Daarom: screenshot van de tabbalk + de actieve tab, die in een doorzichtig
-// hulpvenster op exact dezelfde plek zetten, het echte venster verbergen en
-// het hulpvenster dezelfde animatie laten spelen als het splash-scherm:
-// inklappen tot een lichtende lijn en naar het midden uitdoven.
-const CLOSE_ANIMATION_MS = 550;
-const CLOSE_OVERLAY_HTML = `<!doctype html><html><head><style>
+// Het venster zelf kan niet krimpen of vervormen (de tabinhoud is een native
+// laag). Daarom: screenshot van de tabbalk + de actieve tab, die in een
+// doorzichtig hulpvenster ("snapshot-overlay") op exact dezelfde plek zetten,
+// het echte venster onzichtbaar maken en het hulpvenster laten animeren:
+//   - sluiten:        inklappen tot een lichtende lijn ("tv uit")
+//   - minimaliseren:  dezelfde tv uit, maar tot een lichtpuntje dat daarna
+//                     naar de taakbalk zakt (zodat je ziet waar de app zit)
+//   - terughalen:     precies andersom: het puntje komt uit de taakbalk
+//                     omhoog en klapt open tot het venster
+// Het hulpvenster wordt één keer aangemaakt en blijft (verborgen) bestaan,
+// zodat een animatie direct kan starten zonder eerst een venster te laden.
+const CLOSE_ANIMATION_MS = 560;
+const MINIMIZE_ANIMATION_MS = 640;
+const RESTORE_ANIMATION_MS = 580;
+const TV_EASE = 'cubic-bezier(0.5, 0, 0.7, 0.4)';
+const SNAPSHOT_OVERLAY_HTML = `<!doctype html><html><head><style>
   html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
-  #screen { position: absolute; inset: 0; transform-origin: center; }
-  #screen img { position: absolute; display: block; }
-  body.off #screen { animation: tv-off ${CLOSE_ANIMATION_MS}ms cubic-bezier(0.5, 0, 0.7, 0.4) forwards; }
-  @keyframes tv-off {
-    0% { opacity: 1; transform: none; filter: none; }
-    50% { opacity: 1; transform: scale(1, 0.006); filter: brightness(2.2); }
-    85% { opacity: 1; transform: scale(0.02, 0.006); filter: brightness(3); }
-    100% { opacity: 0; transform: scale(0, 0.006); }
+  body { --tx: 50; }
+  #screen {
+    position: absolute; inset: 0; transform-origin: center;
+    background-repeat: no-repeat; background-size: 100% 100%;
+    will-change: transform, filter, opacity;
   }
-</style></head><body><div id="screen"></div></body></html>`;
+
+  /* Het lichtpuntje waar het venster in opgaat. Start in het midden en
+     reist naar --tx (het taakbalkicoon) onderaan het venster. */
+  #dot {
+    position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px;
+    border-radius: 50%; opacity: 0;
+    background: radial-gradient(circle, #fff 0 28%, #ffc39a 42%, #ff5100 68%, rgba(255, 81, 0, 0) 72%);
+    box-shadow: 0 0 18px 6px rgba(255, 81, 0, 0.65), 0 0 4px 1px rgba(255, 255, 255, 0.9);
+    --dx: calc((var(--tx) - 50) * 1vw);
+    --dy: calc(50vh - 4px);
+  }
+
+  /* Korte gloed op de plek waar het puntje de taakbalk "in gaat". */
+  #land {
+    position: absolute; bottom: 0; left: calc(var(--tx) * 1%); width: 90px; height: 3px;
+    border-radius: 3px; opacity: 0; transform: translateX(-50%) scaleX(0.2);
+    background: linear-gradient(90deg, transparent, #ff5100 25%, #fff2e6 50%, #ff5100 75%, transparent);
+    box-shadow: 0 0 12px 2px rgba(255, 81, 0, 0.7);
+  }
+
+  body.off #screen { animation: tv-off ${CLOSE_ANIMATION_MS}ms linear both; }
+  body.off #dot { animation: dot-fade ${CLOSE_ANIMATION_MS}ms linear both; }
+
+  body.minimize #screen { animation: tv-dot ${MINIMIZE_ANIMATION_MS}ms linear both; }
+  body.minimize #dot { animation: dot-travel ${MINIMIZE_ANIMATION_MS}ms linear both; }
+  body.minimize #land { animation: land ${MINIMIZE_ANIMATION_MS}ms linear both; }
+  body.restore #screen { animation: tv-dot ${RESTORE_ANIMATION_MS}ms linear reverse both; }
+  body.restore #dot { animation: dot-travel ${RESTORE_ANIMATION_MS}ms linear reverse both; }
+  body.restore #land { animation: land ${RESTORE_ANIMATION_MS}ms linear reverse both; }
+  body.ready #screen { opacity: 0; }
+  /* Klaargezet maar nog niet gestart (zie start()): toont het eerste beeld. */
+  body.hold #screen, body.hold #dot, body.hold #land { animation-play-state: paused !important; }
+
+  /* Sluiten: zelfde tempo als tv-dot (lijn na ~150 ms, puntje na ~250 ms),
+     daarna dooft het puntje ter plekke uit (dot-fade). */
+  @keyframes tv-off {
+    0% { opacity: 1; transform: none; filter: none; animation-timing-function: ${TV_EASE}; }
+    27% { opacity: 1; transform: scale(1, 0.006); filter: brightness(2.2); animation-timing-function: ${TV_EASE}; }
+    45% { opacity: 1; transform: scale(0.012, 0.006); filter: brightness(3); }
+    50%, 100% { opacity: 0; transform: scale(0.004, 0.006); filter: brightness(3); }
+  }
+
+  @keyframes dot-fade {
+    0%, 41% { opacity: 0; transform: scale(0.3); }
+    49% { opacity: 1; transform: scale(1.5); animation-timing-function: ease-out; }
+    57% { opacity: 1; transform: scale(1); animation-timing-function: ease-in; }
+    100% { opacity: 0; transform: scale(0.2); }
+  }
+
+  /* Eerste helft: tv uit, tot een puntje in het midden. */
+  @keyframes tv-dot {
+    0% { opacity: 1; transform: none; filter: none; animation-timing-function: ${TV_EASE}; }
+    24% { opacity: 1; transform: scale(1, 0.006); filter: brightness(2.2); animation-timing-function: ${TV_EASE}; }
+    40% { opacity: 1; transform: scale(0.012, 0.006); filter: brightness(3); }
+    44%, 100% { opacity: 0; transform: scale(0.004, 0.006); filter: brightness(3); }
+  }
+
+  /* Tweede helft: het puntje licht op en zakt (versnellend) naar de taakbalk. */
+  @keyframes dot-travel {
+    0%, 36% { opacity: 0; transform: translate(0, 0) scale(0.3); }
+    43% { opacity: 1; transform: translate(0, 0) scale(1.5); animation-timing-function: ease-out; }
+    50% { opacity: 1; transform: translate(0, 0) scale(1); animation-timing-function: cubic-bezier(0.45, 0, 0.7, 0.5); }
+    93% { opacity: 1; transform: translate(var(--dx), var(--dy)) scale(0.75); }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.2); }
+  }
+
+  @keyframes land {
+    0%, 88% { opacity: 0; transform: translateX(-50%) scaleX(0.2); }
+    95% { opacity: 1; transform: translateX(-50%) scaleX(1); }
+    100% { opacity: 0; transform: translateX(-50%) scaleX(0.6); }
+  }
+</style></head><body><div id="screen"></div><div id="dot"></div><div id="land"></div>
+<script>
+  const body = document.body;
+  const screenEl = document.getElementById('screen');
+  let snapshotUrl = null;
+
+  const loadImage = (src) => new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+
+  // Screenshot (lagen) samenvoegen tot één beeld. opts: { tx, width, height }
+  window.setSnapshot = async (layers, opts) => {
+    body.className = '';
+    body.style.setProperty('--tx', opts.tx);
+    const { width, height } = opts;
+    const dpr = window.devicePixelRatio || 1;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    for (const layer of layers) {
+      const img = await loadImage(layer.src);
+      if (img) ctx.drawImage(img, layer.x, layer.y, layer.width, layer.height);
+    }
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    if (snapshotUrl) URL.revokeObjectURL(snapshotUrl);
+    snapshotUrl = URL.createObjectURL(blob);
+    await loadImage(snapshotUrl);
+    screenEl.style.backgroundImage = 'url(' + snapshotUrl + ')';
+    // Even laten opbouwen. Bewust een timer i.p.v. requestAnimationFrame: dit
+    // venster is op dat moment verborgen, en een verborgen venster tekent geen
+    // frames (dan zou dit nooit klaar zijn).
+    await new Promise(resolve => setTimeout(resolve, 30));
+  };
+
+  // Animatie (her)starten via de class op body.
+  window.play = (cls) => {
+    body.className = '';
+    void body.offsetWidth;
+    body.className = cls;
+  };
+
+  // Wachten tot dit venster echt n frames op het scherm heeft gezet. Met een
+  // maximum: een verborgen venster tekent geen frames.
+  window.nextFrames = (n) => new Promise(resolve => {
+    const fallback = setTimeout(resolve, 150);
+    const step = () => {
+      if (--n <= 0) {
+        clearTimeout(fallback);
+        resolve();
+      } else {
+        requestAnimationFrame(step);
+      }
+    };
+    requestAnimationFrame(step);
+  });
+
+  // Zoals play(), maar de animatie staat eerst op het eerste beeld stil en
+  // loopt pas als er weer frames getekend worden. Anders loopt de klok al
+  // terwijl Windows nog bezig is met het wisselen van vensters, en mis je het
+  // begin (het venster "springt" dan meteen naar half ingeklapt).
+  window.start = async (cls) => {
+    body.className = '';
+    void body.offsetWidth;
+    body.className = cls + ' hold';
+    void body.offsetWidth;
+    await nextFrames(2);
+    body.classList.remove('hold');
+  };
+</script></body></html>`;
 
 let appQuitting = false;
 let closeAnimationRunning = false;
@@ -1939,30 +2137,50 @@ app.on('before-quit', () => {
   appQuitting = true;
 });
 
+const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 function toJpegDataUrl(image) {
-  return `data:image/jpeg;base64,${image.toJPEG(90).toString('base64')}`;
+  return `data:image/jpeg;base64,${image.toJPEG(85).toString('base64')}`;
 }
 
-async function playCloseAnimation() {
-  closeAnimationRunning = true;
-  const bounds = mainWindow.getContentBounds();
+function animationsDisabled() {
+  return systemPreferences.getAnimationSettings().prefersReducedMotion;
+}
 
-  // Lagen in de volgorde waarin ze over elkaar liggen: eerst de HTML-chrome
-  // (tabbalk), dan de actieve tab op zijn eigen plek eronder.
+// Lagen in de volgorde waarin ze over elkaar liggen: eerst de HTML-chrome
+// (tabbalk), dan de actieve tab op zijn eigen plek eronder.
+async function captureWindowLayers() {
+  const bounds = mainWindow.getContentBounds();
+  const view = activeTabId ? tabs.get(activeTabId) : null;
+  const pageVisible = view && !view.webContents.isDestroyed() && view.getBounds().width > 0;
+  const [chrome, page] = await Promise.all([
+    mainWindow.webContents.capturePage(),
+    pageVisible ? view.webContents.capturePage() : Promise.resolve(null)
+  ]);
   const layers = [];
-  const chrome = await mainWindow.webContents.capturePage();
   if (!chrome.isEmpty()) {
     layers.push({ src: toJpegDataUrl(chrome), x: 0, y: 0, width: bounds.width, height: bounds.height });
   }
-  const view = activeTabId ? tabs.get(activeTabId) : null;
-  if (view && !view.webContents.isDestroyed() && view.getBounds().width > 0) {
-    const page = await view.webContents.capturePage();
-    if (!page.isEmpty()) layers.push({ src: toJpegDataUrl(page), ...view.getBounds() });
-  }
+  if (page && !page.isEmpty()) layers.push({ src: toJpegDataUrl(page), ...view.getBounds() });
   if (layers.length === 0) throw new Error('Geen screenshot');
+  return { bounds, layers };
+}
 
-  const overlay = new BrowserWindow({
-    ...bounds,
+// Waar het lichtpuntje naartoe gaat: midden onderaan het scherm (waar in
+// Windows 11 de taakbalkiconen staan), als percentage van de vensterbreedte.
+function taskbarTargetPercent(bounds) {
+  const { workArea } = screen.getDisplayMatching(bounds);
+  const targetX = workArea.x + workArea.width / 2;
+  return Math.max(8, Math.min(92, ((targetX - bounds.x) / bounds.width) * 100));
+}
+
+let snapshotOverlay = null;
+let snapshotOverlayLoaded = null;
+
+function ensureSnapshotOverlay() {
+  if (snapshotOverlay && !snapshotOverlay.isDestroyed()) return snapshotOverlayLoaded;
+  snapshotOverlay = new BrowserWindow({
+    ...mainWindow.getContentBounds(),
     frame: false,
     transparent: true,
     hasShadow: false,
@@ -1972,38 +2190,179 @@ async function playCloseAnimation() {
     skipTaskbar: true,
     alwaysOnTop: true,
     show: false,
-    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true }
+    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, backgroundThrottling: false }
   });
-  await overlay.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(CLOSE_OVERLAY_HTML)}`);
-  // Afbeeldingen via een script i.p.v. in de URL: een data-URL met
-  // schermvullende screenshots wordt te lang.
-  await overlay.webContents.executeJavaScript(`
-    (layers => new Promise(resolve => {
-      const screen = document.getElementById('screen');
-      let pending = layers.length;
-      for (const layer of layers) {
-        const img = new Image();
-        img.onload = img.onerror = () => { if (--pending === 0) resolve(); };
-        Object.assign(img.style, {
-          left: layer.x + 'px', top: layer.y + 'px', width: layer.width + 'px', height: layer.height + 'px'
-        });
-        img.src = layer.src;
-        screen.appendChild(img);
-      }
-    }))(${JSON.stringify(layers)});
-  `);
+  snapshotOverlayLoaded = snapshotOverlay.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(SNAPSHOT_OVERLAY_HTML)}`);
+  return snapshotOverlayLoaded;
+}
+
+// Screenshot in het hulpvenster zetten op de plek van het hoofdvenster.
+// Afbeeldingen via een script i.p.v. in de URL: een data-URL met
+// schermvullende screenshots wordt te lang.
+async function loadSnapshot({ bounds, layers }) {
+  await ensureSnapshotOverlay();
+  snapshotOverlay.setBounds(bounds);
+  const opts = { tx: taskbarTargetPercent(bounds), width: bounds.width, height: bounds.height };
+  await snapshotOverlay.webContents.executeJavaScript(
+    `setSnapshot(${JSON.stringify(layers)}, ${JSON.stringify(opts)});`
+  );
+  return snapshotOverlay;
+}
+
+function playOverlay(overlay, cls) {
+  return overlay.webContents.executeJavaScript(`play(${JSON.stringify(cls)});`).catch(() => {});
+}
+
+// Hulpvenster tonen (met de screenshot), wachten tot het echt op het scherm
+// staat, dan pas het hoofdvenster onzichtbaar maken en de animatie starten
+// zodra Windows klaar is met die wissel. Zo begint de animatie echt bij 100%.
+async function swapToOverlayAndStart(overlay, cls) {
+  overlay.showInactive();
+  await overlay.webContents.executeJavaScript('nextFrames(2);').catch(() => {});
+  mainWindow.setOpacity(0);
+  await overlay.webContents.executeJavaScript(`start(${JSON.stringify(cls)});`).catch(() => {});
+}
+
+async function playCloseAnimation() {
+  closeAnimationRunning = true;
+  const overlay = await loadSnapshot(await captureWindowLayers());
 
   // Eerst het hulpvenster tonen en even laten tekenen, dan pas het echte
   // venster verbergen, zodat er geen moment niets te zien is.
-  overlay.showInactive();
-  await new Promise(resolve => setTimeout(resolve, 50));
-  mainWindow.hide();
-  overlay.webContents.executeJavaScript(`document.body.classList.add('off');`).catch(() => {});
+  // Hoofdvenster onzichtbaar maken i.p.v. hide(): bij hide() speelt Windows
+  // een eigen overgang af die door onze animatie heen hapert.
+  await swapToOverlayAndStart(overlay, 'off');
 
   setTimeout(() => {
     if (!overlay.isDestroyed()) overlay.destroy();
     if (!mainWindow.isDestroyed()) mainWindow.destroy(); // -> 'closed' -> app.quit()
   }, CLOSE_ANIMATION_MS + 50);
+}
+
+// ---- Minimaliseren en terughalen ----
+//
+// Minimaliseren via onze eigen knop: eerst de animatie, dan pas echt
+// minimaliseren; de screenshot blijft in het (verborgen) hulpvenster staan
+// voor het terughalen. Minimaliseert Windows het venster op een andere manier
+// (Win+D, klik op het taakbalkicoon), dan hoort de app dat pas achteraf: dan
+// speelt de gewone Windows-animatie en is er geen verse screenshot, dus bij
+// terughalen alleen een fade-in.
+let minimizingByApp = false;
+let snapshotReadyForRestore = false;
+let restoreAnimationPending = false;
+
+async function minimizeWithAnimation() {
+  if (animationsDisabled() || minimizingByApp || !mainWindow.isVisible()) {
+    mainWindow.minimize();
+    return;
+  }
+  minimizingByApp = true;
+  snapshotReadyForRestore = false;
+  try {
+    const overlay = await loadSnapshot(await captureWindowLayers());
+    await swapToOverlayAndStart(overlay, 'minimize');
+    await wait(MINIMIZE_ANIMATION_MS);
+    mainWindow.minimize();
+    overlay.hide();
+    playOverlay(overlay, 'ready');
+    snapshotReadyForRestore = true;
+  } catch {
+    mainWindow.minimize();
+  } finally {
+    // Pas als het venster echt geminimaliseerd is weer zichtbaar maken,
+    // anders is het voorbeeld in de taakbalk leeg.
+    setTimeout(() => {
+      if (!mainWindow.isDestroyed() && !restoreAnimationPending) mainWindow.setOpacity(1);
+      minimizingByApp = false;
+    }, 250);
+  }
+}
+
+// Windows stuurt WM_SYSCOMMAND/SC_RESTORE net vóórdat een geminimaliseerd
+// venster terugkomt (klik op het taakbalkicoon, Alt+Tab). Op dat moment het
+// venster onzichtbaar maken, zodat het via onze animatie in beeld komt i.p.v.
+// eerst even "kaal" te verschijnen.
+const WM_SYSCOMMAND = 0x0112;
+const SC_RESTORE = 0xF120;
+
+function setupMinimizeRestoreAnimations() {
+  // Hulpvenster alvast aanmaken, zodat de eerste animatie niet hapert.
+  ensureSnapshotOverlay();
+
+  if (process.platform === 'win32') {
+    mainWindow.hookWindowMessage(WM_SYSCOMMAND, (wParam) => {
+      // wParam is een Buffer ter grootte van een pointer (8 bytes in 64-bit).
+      const command = wParam.length >= 8 ? Number(wParam.readBigUInt64LE(0) & 0xFFF0n) : (wParam.readUInt32LE(0) & 0xFFF0);
+      if (command !== SC_RESTORE || !mainWindow.isMinimized() || animationsDisabled()) return;
+      restoreAnimationPending = true;
+      mainWindow.setOpacity(0);
+    });
+  }
+
+  mainWindow.on('minimize', () => {
+    // Niet via onze knop: de oude screenshot klopt niet meer.
+    if (!minimizingByApp) snapshotReadyForRestore = false;
+  });
+
+  mainWindow.on('restore', async () => {
+    if (!restoreAnimationPending) {
+      snapshotReadyForRestore = false;
+      return;
+    }
+    restoreAnimationPending = false;
+    // Vangnet: het venster mag nooit onzichtbaar blijven.
+    const safety = setTimeout(() => {
+      if (!mainWindow.isDestroyed()) mainWindow.setOpacity(1);
+    }, 1500);
+    try {
+      const overlay = snapshotOverlay;
+      const bounds = mainWindow.getContentBounds();
+      const overlayBounds = overlay && !overlay.isDestroyed() ? overlay.getBounds() : null;
+      const fits = snapshotReadyForRestore && overlayBounds &&
+        overlayBounds.width === bounds.width && overlayBounds.height === bounds.height;
+      snapshotReadyForRestore = false;
+      if (!fits) {
+        fadeInWindow(mainWindow, RESTORE_ANIMATION_MS);
+        return;
+      }
+      overlay.setBounds(bounds);
+      playOverlay(overlay, 'restore');
+      overlay.showInactive();
+      await wait(RESTORE_ANIMATION_MS);
+      mainWindow.setOpacity(1);
+      await wait(40);
+      if (!overlay.isDestroyed()) {
+        overlay.hide();
+        playOverlay(overlay, '');
+      }
+    } catch {
+      if (!mainWindow.isDestroyed()) mainWindow.setOpacity(1);
+    } finally {
+      clearTimeout(safety);
+    }
+  });
+}
+
+// Wacht tot de pagina in het hoofdvenster de breedte van het (net
+// gemaximaliseerde) venster heeft en daarop opnieuw getekend is. Met een
+// maximum, zodat het venster nooit onzichtbaar blijft hangen.
+function waitForFullWidthLayout(maxWaitMs = 800) {
+  const targetWidth = mainWindow.getContentBounds().width;
+  const check = mainWindow.webContents.executeJavaScript(`
+    new Promise(resolve => {
+      const start = performance.now();
+      const tick = () => {
+        if (window.innerWidth >= ${targetWidth} - 2 || performance.now() - start > ${maxWaitMs}) {
+          requestAnimationFrame(() => resolve());
+        } else {
+          requestAnimationFrame(tick);
+        }
+      };
+      tick();
+    });
+  `).catch(() => {});
+  const timeout = new Promise(resolve => setTimeout(resolve, maxWaitMs + 200));
+  return Promise.race([check, timeout]);
 }
 
 function createWindow() {
@@ -2021,14 +2380,10 @@ function createWindow() {
       sandbox: true
     }
   });
-  splashWindow.loadFile('splash.html');
-  splashWindow.webContents.once('did-finish-load', () => {
-    // Het versienummer stond hardcoded in splash.html en liep zo bij elke
-    // release uit de pas met de echte (titelbalk-)versie; nu overschrijven
-    // we 'm hier met de werkelijke app.getVersion().
-    splashWindow.webContents.executeJavaScript(
-      `document.querySelector('.version-pill').textContent = 'v${app.getVersion()}';`
-    ).catch(() => {});
+  // Thema en versie meegeven, zodat het splash-scherm meteen in licht/donker
+  // verschijnt en altijd het echte versienummer toont.
+  splashWindow.loadFile('splash.html', {
+    query: { theme: appSettings.darkMode ? 'dark' : 'light', version: app.getVersion() }
   });
   const splashStartTime = Date.now();
 
@@ -2068,6 +2423,8 @@ function createWindow() {
   // Sluiten (kruisje, Alt+F4, taakbalk) speelt eerst de tv-uit-animatie af.
   // Niet bij afsluiten via de app zelf, geminimaliseerd venster (niets te
   // zien) of met Windows' "Animatie-effecten" uit.
+  setupMinimizeRestoreAnimations();
+
   mainWindow.on('close', (event) => {
     if (closeAnimationRunning) {
       event.preventDefault(); // animatie loopt al; tweede klik negeren
@@ -2141,8 +2498,14 @@ function createWindow() {
         mainWindow.setOpacity(0);
         mainWindow.maximize();
         mainWindow.show();
-        fadeInWindow(mainWindow, MAIN_WINDOW_FADE_MS);
-        mainWindow.webContents.send('window-shown');
+        // Pas infaden als de pagina op de gemaximaliseerde breedte staat:
+        // anders zie je de welkomstmelding nog even op de oude (smallere)
+        // plek, links van het midden, voordat hij naar het midden springt.
+        waitForFullWidthLayout().then(() => {
+          if (mainWindow.isDestroyed()) return;
+          fadeInWindow(mainWindow, MAIN_WINDOW_FADE_MS);
+          mainWindow.webContents.send('window-shown');
+        });
         // Geen zichtbare "controleren op updates"-melding meer: de controle
         // loopt gewoon stil op de achtergrond (een gevonden update toont
         // alsnog zijn eigen dialoog, zie setupAutoUpdater).
