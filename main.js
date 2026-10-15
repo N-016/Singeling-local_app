@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, Menu, dialog, clipboard, shell, screen, session } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, Menu, dialog, clipboard, shell, screen, session, systemPreferences } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
@@ -639,6 +639,13 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       view.webContents.insertCSS(DARK_MODE_CSS).catch(() => {});
     }
     applyDarkMode(view);
+    // Wacht het overgangsgordijn op deze tab? Dan nog heel even de pagina
+    // laten renderen en het gordijn daarna wegfaden.
+    if (curtainWaitingFor === view) {
+      curtainWaitingFor = null;
+      clearTimeout(curtainTimer);
+      curtainTimer = setTimeout(revealCurtain, CURTAIN_NEW_TAB_SETTLE_MS);
+    }
   });
   // Bijgewerkt via ELECTRON_FOCUS_EDITABLE in de console-message-handler
   // hieronder (focusin/focusout-listener die in de pagina geïnjecteerd
@@ -1223,10 +1230,101 @@ function switchTab(tabId, { recordHistory = true } = {}) {
     if (id !== tabId) view.setBounds({ x: 0, y: 0, width: 0, height: 0 });
   }
 
+  const isRealSwitch = activeTabId && activeTabId !== tabId;
   activeTabId = tabId;
+  // Gordijn vóór het tonen van de nieuwe tab, zodat die geen moment
+  // half-opgebouwd in beeld komt.
+  if (isRealSwitch) coverActiveView(target);
   applyActiveTabBounds();
   mainWindow.webContents.send('tab-switched', tabId);
   sendNavigationState(tabId);
+}
+
+// ---------- Overgangsgordijn bij wisselen/openen van tabs ----------
+//
+// Een tabpagina is een native laag; die kunnen we niet zelf laten faden, en
+// een fade binnen de pagina zelf flitst eerst volledig in beeld voordat het
+// script draait. Daarom een apart laagje (het "gordijn") in de
+// achtergrondkleur van de app: dat gaat bij het wisselen meteen dekkend
+// over de pagina, de tab wisselt en bouwt zich eronder op, en daarna faded
+// het gordijn weg. Bij een nieuwe tab wacht het tot de pagina er staat.
+//
+// Het gordijn heeft als view-achtergrond de dekkende kleur; die wordt pas
+// doorzichtig vlak voor het wegfaden. Zo is het ook dekkend als de pagina
+// van het gordijn zelf nog geen nieuw beeld heeft getekend.
+const CURTAIN_SWITCH_DELAY_MS = 60;
+const CURTAIN_NEW_TAB_SETTLE_MS = 100;
+const CURTAIN_NEW_TAB_MAX_WAIT_MS = 1500;
+const CURTAIN_FADE_MS = 250;
+const LIGHT_MODE_BACKGROUND = '#f6f7f9'; // = --background van de lichte app (210 17% 97%)
+const CURTAIN_HTML = `<!doctype html><html><body style="margin:0;overflow:hidden">
+<div id="c" style="position:fixed;inset:0"></div>
+<script>
+  const c = document.getElementById('c');
+  window.cover = (color) => {
+    c.getAnimations().forEach(a => a.cancel());
+    c.style.background = color;
+    c.style.opacity = '1';
+  };
+  window.reveal = (ms) => {
+    c.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ms, easing: 'ease-out', fill: 'forwards' });
+  };
+</script></body></html>`;
+
+let curtain = null;
+let curtainTimer = null;
+let curtainWaitingFor = null;
+
+function curtainColor() {
+  return appSettings.darkMode ? DARK_MODE_BACKGROUND : LIGHT_MODE_BACKGROUND;
+}
+
+function createCurtain() {
+  curtain = new WebContentsView({
+    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true }
+  });
+  curtain.setBackgroundColor(curtainColor());
+  curtain.webContents.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(CURTAIN_HTML)}`);
+  mainWindow.contentView.addChildView(curtain);
+  curtain.setBounds({ x: 0, y: 0, width: 0, height: 0 });
+}
+
+function coverActiveView(view) {
+  if (!curtain || curtain.webContents.isDestroyed()) return;
+  // Tabinhoud is dan toch verborgen (zie applyActiveTabBounds).
+  if (onboardingActive || settingsPanelOpen || changelogNoticeOpen) return;
+  // Windows' "Animatie-effecten" uit -> gewoon direct wisselen.
+  if (systemPreferences.getAnimationSettings().prefersReducedMotion) return;
+
+  clearTimeout(curtainTimer);
+  const color = curtainColor();
+  curtain.setBackgroundColor(color);
+  curtain.webContents.executeJavaScript(`cover(${JSON.stringify(color)});`).catch(() => {});
+  mainWindow.contentView.addChildView(curtain); // opnieuw toevoegen = bovenop leggen
+  curtain.setBounds(getViewBounds());
+
+  if (view.webContents.isLoading()) {
+    // Nieuwe of ladende tab: wegfaden zodra de pagina er staat (dom-ready in
+    // attachNavigationHandlers), met een maximum zodat je nooit blijft wachten.
+    curtainWaitingFor = view;
+    curtainTimer = setTimeout(revealCurtain, CURTAIN_NEW_TAB_MAX_WAIT_MS);
+  } else {
+    curtainWaitingFor = null;
+    curtainTimer = setTimeout(revealCurtain, CURTAIN_SWITCH_DELAY_MS);
+  }
+}
+
+function revealCurtain() {
+  clearTimeout(curtainTimer);
+  curtainWaitingFor = null;
+  if (!curtain || curtain.webContents.isDestroyed()) return;
+  curtain.setBackgroundColor('#00000000');
+  curtain.webContents.executeJavaScript(`reveal(${CURTAIN_FADE_MS});`).catch(() => {});
+  curtainTimer = setTimeout(() => {
+    if (curtain.webContents.isDestroyed()) return;
+    curtain.setBounds({ x: 0, y: 0, width: 0, height: 0 });
+    curtain.setBackgroundColor(curtainColor());
+  }, CURTAIN_FADE_MS + 40);
 }
 
 function closeTab(tabId) {
@@ -1715,6 +1813,7 @@ function createWindow() {
 
   mainWindow.on('page-title-updated', (event) => event.preventDefault());
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  createCurtain();
 
   // Alle tab-aanmaak (createTab) is aan mainWindow gekoppeld, dus zonder
   // mainWindow raakt de app sowieso onbruikbaar. Sluit dan ook meteen
@@ -1756,15 +1855,22 @@ function createWindow() {
     const minimumSplashTime = 5000;
     const remainingTime = minimumSplashTime - elapsedTime;
 
-    // Overgang splash -> app: het splash-scherm krimpt en faded weg (CSS in
-    // splash.html) terwijl het hoofdvenster eronder tegelijk invaded.
+    // Overgang splash -> app: eerst speelt het splash-scherm zijn
+    // afscheidsanimatie af (CSS in splash.html), pas daarna verschijnt het
+    // hoofdvenster en faded het in.
     const finish = () => {
-      if (!splashWindow.isDestroyed()) {
-        splashWindow.webContents.executeJavaScript(`document.body.classList.add('leaving');`).catch(() => {});
-        setTimeout(() => {
-          if (!splashWindow.isDestroyed()) splashWindow.close();
-        }, SPLASH_FADE_MS);
+      if (splashWindow.isDestroyed()) {
+        showMainWindow();
+        return;
       }
+      splashWindow.webContents.executeJavaScript(`document.body.classList.add('leaving');`).catch(() => {});
+      setTimeout(() => {
+        if (!splashWindow.isDestroyed()) splashWindow.close();
+        showMainWindow();
+      }, SPLASH_FADE_MS);
+    };
+
+    const showMainWindow = () => {
       if (!mainWindow.isDestroyed()) {
         mainWindow.setOpacity(0);
         mainWindow.maximize();
