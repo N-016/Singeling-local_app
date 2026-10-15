@@ -2,6 +2,29 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.2.0] - 2026-10-15
+
+### Toegevoegd
+- Donkere modus: aan/uit met de contrastknop in de tabbalk. De pagina's en de tabbalk kleuren mee.
+- De navigatiebalk links volgt nu licht/donker: lichtgrijs in de lichte modus, donkergrijs in de donkere modus (was altijd zwart).
+- Taboverzicht met een voorbeeld van elk open tabblad, en tabgroepen: sla een set tabbladen op en open ze later in één keer.
+- Zoomniveau zichtbaar in de tabbalk zodra je in- of uitzoomt.
+- Nieuwe rondleiding door de app, plus een korte rondleiding "Nieuw in deze versie" na een update.
+- Instelling "Melding 'Niet geklokt op een order' tonen" (standaard uit). "Afwezig" en het blok "Geklokt op" blijven altijd zichtbaar.
+
+### Gewijzigd
+- Vernieuwde tabbalk in Singeling-stijl: rechte tabs met een oranje streepje bij de actieve tab, goudgeel voor vastgezette tabs.
+- Geen Windows-titelbalk meer: de tabbalk is de titelbalk, met eigen knoppen voor minimaliseren, maximaliseren en sluiten.
+- Instellingen openen nu schermvullend, met een menu aan de linkerkant.
+- Vloeiende animaties bij het wisselen van tabblad, het wisselen tussen licht en donker, en bij minimaliseren, terughalen en sluiten van de app.
+- Nieuw laadscherm bij het opstarten.
+- In de changelog staat de nieuwste versie nu bovenaan.
+- Een losgetrokken tabblad (een tab uit de tabbalk slepen) heeft nu een eigen balk met terug, vooruit, vernieuwen en vensterknoppen. Links en knoppen in dat venster openen in dat venster zelf.
+
+### Opgelost
+- "Dashboard Klokken" in de navigatie opende niet.
+- Knoppen in een losgetrokken venster openden in het hoofdvenster.
+
 ## [1.1.4] - 2026-10-14
 
 ### Gewijzigd
