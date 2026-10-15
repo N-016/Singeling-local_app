@@ -830,6 +830,20 @@
       letter-spacing: 0.04em;
     }
 
+    /* "bèta" naast het versienummer als er een bètaversie draait. */
+    .beta-badge {
+      display: inline-block;
+      margin-left: 2px;
+      padding: 1px 6px;
+      border: 1px solid var(--accent);
+      border-radius: 3px;
+      color: var(--accent);
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
     .settings-content {
       position: relative;
       flex: 1;
@@ -2438,7 +2452,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
         Terug
       </button>
-      <div class="settings-nav-footer">Singeling App <span id="settings-version"></span></div>
+      <div class="settings-nav-footer">Singeling App <span id="settings-version"></span> <span id="settings-beta-badge" class="beta-badge hidden">bèta</span></div>
     </nav>
     <div class="settings-content">
     <button id="settings-close" class="settings-close" type="button" title="Sluiten (Esc)" aria-label="Sluiten">
@@ -2482,6 +2496,13 @@
       </div>
       <p id="check-updates-status" class="settings-hint"></p>
       <p class="settings-hint">De app controleert ook automatisch elke dag op updates. Vind hij er een, dan zie je een melding in beeld plus een bolletje bij dit instellingen-icoon; herstart de app om te updaten.</p>
+      <label class="general-toggle">
+        <span class="toggle-text">
+          Bèta-versies ontvangen
+          <span class="settings-hint">Krijg nieuwe functies eerder, voordat ze voor iedereen uitkomen. Een bèta is nog niet helemaal getest en kan fouten bevatten. Zet je dit uit, dan blijf je op je huidige versie tot de volgende gewone versie uitkomt.</span>
+        </span>
+        <input type="checkbox" class="switch" id="beta-updates-checkbox">
+      </label>
     </div>
 
     <div class="settings-section hidden" data-section="zoom">
@@ -3848,6 +3869,10 @@
         updateZoomLabel(settings.zoomFactor);
         renderStartTabs(settings.startTabs);
         document.getElementById('settings-version').textContent = settings.appVersion ? `v${settings.appVersion}` : '';
+        // Bètaversie (bv. 1.3.0-beta.1): label erbij, zodat je bij een melding
+        // meteen ziet dat iemand op een bèta zit.
+        document.getElementById('settings-beta-badge').classList.toggle('hidden', !String(settings.appVersion || '').includes('-'));
+        betaUpdatesCheckbox.checked = !!settings.betaUpdates;
         openAllLinksNewTabCheckbox.checked = !!settings.openAllLinksInNewTab;
         blockCtrlBCheckbox.checked = !!settings.blockCtrlB;
         showNotClockedCheckbox.checked = !!settings.showNotClockedBar;
@@ -3924,6 +3949,11 @@
 
     blockCtrlBCheckbox.addEventListener('change', () => {
       window.electronAPI.setBlockCtrlB(blockCtrlBCheckbox.checked);
+    });
+
+    const betaUpdatesCheckbox = document.getElementById('beta-updates-checkbox');
+    betaUpdatesCheckbox.addEventListener('change', () => {
+      window.electronAPI.setBetaUpdates(betaUpdatesCheckbox.checked);
     });
 
     const showNotClockedCheckbox = document.getElementById('show-not-clocked-checkbox');

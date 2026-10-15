@@ -11,6 +11,7 @@ Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuw
 - Zoomniveau zichtbaar in de tabbalk zodra je in- of uitzoomt.
 - Nieuwe rondleiding door de app, plus een korte rondleiding "Nieuw in deze versie" na een update.
 - Instelling "Melding 'Niet geklokt op een order' tonen" (standaard uit). "Afwezig" en het blok "Geklokt op" blijven altijd zichtbaar.
+- Instelling "Bèta-versies ontvangen" onder Updates (standaard uit): krijg nieuwe functies eerder, voordat ze voor iedereen uitkomen.
 
 ### Gewijzigd
 - Vernieuwde tabbalk in Singeling-stijl: rechte tabs met een oranje streepje bij de actieve tab, goudgeel voor vastgezette tabs.

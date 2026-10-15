@@ -52,6 +52,10 @@ let pendingCheckIsInteractive = true;
 let dailyUpdateCheckScheduled = false;
 const DAILY_UPDATE_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
 
+// Draait er een bètaversie (bv. 1.3.0-beta.1)? Dan staan bèta-updates
+// standaard aan, zodat iemand die een bèta installeert ook de volgende krijgt.
+const RUNNING_PRERELEASE = app.getVersion().includes('-');
+
 // Instellingen worden per Windows-gebruiker opgeslagen (userData-map), zodat
 // iedereen zijn eigen zoomniveau en starttabs heeft.
 let appSettings = {
@@ -64,7 +68,8 @@ let appSettings = {
   showOnboarding: true,
   blockCtrlB: false,
   showNotClockedBar: false, // melding "Niet geklokt op een order" (subtiel) tonen; standaard uit
-  darkMode: false
+  darkMode: false,
+  betaUpdates: RUNNING_PRERELEASE // ook bètaversies (GitHub pre-releases) als update aanbieden
 };
 
 function getSettingsPath() {
@@ -85,7 +90,8 @@ function loadSettings() {
       showOnboarding: typeof parsed.showOnboarding === 'boolean' ? parsed.showOnboarding : true,
       blockCtrlB: typeof parsed.blockCtrlB === 'boolean' ? parsed.blockCtrlB : false,
       showNotClockedBar: typeof parsed.showNotClockedBar === 'boolean' ? parsed.showNotClockedBar : false,
-      darkMode: typeof parsed.darkMode === 'boolean' ? parsed.darkMode : false
+      darkMode: typeof parsed.darkMode === 'boolean' ? parsed.darkMode : false,
+      betaUpdates: typeof parsed.betaUpdates === 'boolean' ? parsed.betaUpdates : RUNNING_PRERELEASE
     };
   } catch {
     // Nog geen instellingenbestand of het is ongeldig; standaardwaarden blijven staan.
@@ -185,18 +191,26 @@ function getLatestChangelogEntry() {
     const content = fs.readFileSync(path.join(__dirname, 'CHANGELOG.md'), 'utf-8').replace(/\r\n/g, '\n');
     const sections = content.split(/\n(?=## )/).filter(section => section.startsWith('## '));
     if (sections.length === 0) return content.trim();
+    // Ook bètaversies (## [1.3.0-beta.1]). Bij dezelfde x.y.z is de gewone
+    // versie nieuwer dan de bèta's ervan; bèta's onderling op nummer.
     const versionOf = (section) => {
-      const match = section.match(/^## \[(\d+)\.(\d+)\.(\d+)\]/);
-      return match ? match.slice(1).map(Number) : [-1, -1, -1];
+      const match = section.match(/^## \[(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?\]/);
+      return match
+        ? { parts: match.slice(1, 4).map(Number), pre: match[4] || null }
+        : { parts: [-1, -1, -1], pre: null };
     };
-    const newest = sections.reduce((best, section) => {
-      const a = versionOf(section);
-      const b = versionOf(best);
+    const compare = (a, b) => {
       for (let i = 0; i < 3; i++) {
-        if (a[i] !== b[i]) return a[i] > b[i] ? section : best;
+        if (a.parts[i] !== b.parts[i]) return a.parts[i] - b.parts[i];
       }
-      return best;
-    });
+      if (a.pre === b.pre) return 0;
+      if (a.pre === null) return 1;
+      if (b.pre === null) return -1;
+      return a.pre.localeCompare(b.pre, undefined, { numeric: true });
+    };
+    const newest = sections.reduce((best, section) => (
+      compare(versionOf(section), versionOf(best)) > 0 ? section : best
+    ));
     return newest.trim();
   } catch (error) {
     return `Changelog kon niet worden geladen: ${error.message}`;
@@ -294,9 +308,21 @@ function closeUpdateProgress() {
   }
 }
 
+// Bèta-updates: een bèta is een GitHub-release met "Set as a pre-release" en
+// een versie als 1.3.0-beta.1. Zonder deze instelling vraagt de updater
+// GitHub om de "laatste release", en daar slaat GitHub pre-releases altijd
+// over. Mét de instelling telt de nieuwste release, bèta of niet.
+// Nooit terug naar een oudere versie: wie de instelling uitzet terwijl hij op
+// een bèta zit, blijft daarop tot de volgende gewone versie (die is nieuwer).
+function applyUpdateChannel() {
+  autoUpdater.allowPrerelease = !!appSettings.betaUpdates;
+  autoUpdater.allowDowngrade = false;
+}
+
 function setupAutoUpdater() {
   if (!app.isPackaged) return Promise.resolve(false);
 
+  applyUpdateChannel();
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.logger = {
@@ -341,11 +367,16 @@ function setupAutoUpdater() {
     if (updateDialogOpen || !mainWindow || mainWindow.isDestroyed()) return;
     updateDialogOpen = true;
 
+    const isBeta = String(updateInfo.version).includes('-');
     const result = await dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: 'Update beschikbaar',
-      message: `Er is een nieuwe versie beschikbaar: v${updateInfo.version}.`,
-      detail: 'Wil je deze update nu downloaden?',
+      message: isBeta
+        ? `Er is een nieuwe bètaversie beschikbaar: v${updateInfo.version}.`
+        : `Er is een nieuwe versie beschikbaar: v${updateInfo.version}.`,
+      detail: isBeta
+        ? 'Je krijgt deze omdat "Bèta-versies ontvangen" aanstaat. Een bèta is nog niet helemaal getest. Wil je deze update nu downloaden?'
+        : 'Wil je deze update nu downloaden?',
       buttons: ['Nu downloaden', 'Niet nu'],
       defaultId: 0,
       cancelId: 1,
@@ -1853,11 +1884,22 @@ ipcMain.handle('get-settings', (event) => {
     blockCtrlB: appSettings.blockCtrlB,
     showNotClockedBar: appSettings.showNotClockedBar,
     darkMode: appSettings.darkMode,
+    betaUpdates: appSettings.betaUpdates,
     customWindowControls: CUSTOM_WINDOW_CONTROLS,
     appVersion: app.getVersion(),
     windowMaximized: mainWindow.isMaximized(),
     updateVersion: updateAvailableInfo ? updateAvailableInfo.version : null
   };
+});
+ipcMain.on('set-beta-updates', (event, value) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.betaUpdates = !!value;
+  saveSettings();
+  if (!app.isPackaged) return;
+  applyUpdateChannel();
+  // Meteen stil opnieuw kijken, zodat het update-bolletje klopt met de
+  // nieuwe instelling (bv. een bèta die nu wel/niet meer telt).
+  checkForUpdatesInBackground();
 });
 ipcMain.on('set-block-ctrl-b', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
