@@ -466,7 +466,11 @@ ipcMain.on('update-notice-install', (event) => {
       return;
     }
     logUpdater('Installeren bevestigd, app wordt opnieuw gestart');
-    autoUpdater.quitAndInstall();
+    // Stil installeren (geen installatievensters, de installer krijgt /S) en
+    // daarna vanzelf weer opstarten. Zonder deze opties toont de updater de
+    // begeleide installer (oneClick: false) met "Volgende/Installeren".
+    // Kan zonder beheerdersrechten: de app staat per gebruiker (perMachine: false).
+    autoUpdater.quitAndInstall(true, true);
   } else {
     downloadPendingUpdate();
   }
