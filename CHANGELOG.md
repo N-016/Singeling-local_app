@@ -2,6 +2,23 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.2.3] - 2026-10-15
+
+### Toegevoegd
+- **Leescomfort: zachtere kleuren** (standaard aan). Minder fel contrast, prettiger voor je ogen: licht wordt rustig zachtgrijs in plaats van fel wit, donker wordt donkergrijs in plaats van bijna zwart. Uit te zetten via Instellingen > Weergave.
+- **Licht/donker automatisch wisselen** (Instellingen > Weergave): volgens Windows, op vaste tijden, of met zonsopkomst en -ondergang. De knop in de tabbalk wisselt dan tijdelijk, tot het volgende omslagmoment.
+- **Link openen**: met het kompas in de tabbalk (of Ctrl+L) plak je een link uit het productiesysteem en open je die in een nieuw tabblad. Alleen links binnen het productiesysteem werken.
+- **Scherm tijdens het bijwerken**: tijdens het installeren van een update staat "Singeling App wordt bijgewerkt" in beeld, tot de nieuwe versie is opgestart.
+- **Nieuw Singeling-logo** op het laadscherm, het welkomstscherm en in de instellingen.
+
+### Gewijzigd
+- Instellingen hebben een eigen onderdeel **Weergave** voor licht/donker, leescomfort en de melding "Niet geklokt op een order".
+- Het welkomstscherm is rustiger: "Welkom bij de Singeling App". Kom je een fout tegen of mis je iets, dan verwijst het naar het kevertje bovenin.
+- In de zachtere kleuren springen de kolommen en kaarten van bijvoorbeeld het QRM-bord duidelijk van elkaar af.
+
+### Opgelost
+- Het scherm om licht/donker en de melding "Niet geklokt op een order" te kiezen kwam bij elke start terug. Het verschijnt nu alleen de eerste keer.
+
 ## [1.2.3-beta.4] - 2026-10-15
 
 Bètaversie: alleen voor wie "Bèta-versies ontvangen" aan heeft staan.
