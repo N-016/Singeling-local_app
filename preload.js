@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const incomingChannels = ['tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-settings-panel', 'show-changelog-notice', 'update-badge-changed'];
+const incomingChannels = ['tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed'];
 
 contextBridge.exposeInMainWorld('electronAPI', {
   switchTab: (tabId) => ipcRenderer.send('switch-tab', tabId),
@@ -22,10 +22,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setOpenAllLinksInNewTab: (value) => ipcRenderer.send('set-open-all-links-in-new-tab', value),
   setShowOnboarding: (value) => ipcRenderer.send('set-show-onboarding', value),
   setBlockCtrlB: (value) => ipcRenderer.send('set-block-ctrl-b', value),
+  setShowNotClockedBar: (value) => ipcRenderer.send('set-show-not-clocked-bar', value),
   setDarkMode: (value) => ipcRenderer.send('set-dark-mode', value),
+  windowControl: (action) => ipcRenderer.send('window-control', action),
+  getTabThumbnails: () => ipcRenderer.invoke('get-tab-thumbnails'),
+  notifyTabOverviewOpened: () => ipcRenderer.send('tab-overview-opened'),
+  notifyTabOverviewClosed: () => ipcRenderer.send('tab-overview-closed'),
   checkForUpdatesNow: () => ipcRenderer.invoke('check-for-updates-now'),
   getChangelog: () => ipcRenderer.invoke('get-changelog'),
+  notifyChangelogNoticeOpened: () => ipcRenderer.send('changelog-notice-opened'),
   notifyChangelogNoticeClosed: () => ipcRenderer.send('changelog-notice-closed'),
+  markWhatsNewSeen: (ids) => ipcRenderer.send('mark-whats-new-seen', ids),
   zoomIn: () => ipcRenderer.send('zoom-in'),
   zoomOut: () => ipcRenderer.send('zoom-out'),
   zoomReset: () => ipcRenderer.send('zoom-reset'),
