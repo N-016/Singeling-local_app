@@ -1653,6 +1653,25 @@ ipcMain.on('copy-to-clipboard', (event, text) => {
   clipboard.writeText(text);
 });
 
+const SPLASH_FADE_MS = 280;
+const MAIN_WINDOW_FADE_MS = 320;
+
+// Laat een venster van doorzichtig naar volledig zichtbaar gaan (ease-out).
+// Werkt via de vensterdoorzichtigheid van Windows, dus inclusief de
+// tabinhoud (WebContentsViews) die de HTML zelf niet kan animeren.
+function fadeInWindow(win, duration) {
+  const start = Date.now();
+  const timer = setInterval(() => {
+    if (win.isDestroyed()) {
+      clearInterval(timer);
+      return;
+    }
+    const progress = Math.min(1, (Date.now() - start) / duration);
+    win.setOpacity(1 - Math.pow(1 - progress, 3));
+    if (progress === 1) clearInterval(timer);
+  }, 16);
+}
+
 function createWindow() {
   const splashWindow = new BrowserWindow({
     width: 420,
@@ -1737,11 +1756,21 @@ function createWindow() {
     const minimumSplashTime = 5000;
     const remainingTime = minimumSplashTime - elapsedTime;
 
+    // Overgang splash -> app: het splash-scherm krimpt en faded weg (CSS in
+    // splash.html) terwijl het hoofdvenster eronder tegelijk invaded.
     const finish = () => {
-      if (!splashWindow.isDestroyed()) splashWindow.close();
+      if (!splashWindow.isDestroyed()) {
+        splashWindow.webContents.executeJavaScript(`document.body.classList.add('leaving');`).catch(() => {});
+        setTimeout(() => {
+          if (!splashWindow.isDestroyed()) splashWindow.close();
+        }, SPLASH_FADE_MS);
+      }
       if (!mainWindow.isDestroyed()) {
+        mainWindow.setOpacity(0);
         mainWindow.maximize();
         mainWindow.show();
+        fadeInWindow(mainWindow, MAIN_WINDOW_FADE_MS);
+        mainWindow.webContents.send('window-shown');
         // Geen zichtbare "controleren op updates"-melding meer: de controle
         // loopt gewoon stil op de achtergrond (een gevonden update toont
         // alsnog zijn eigen dialoog, zie setupAutoUpdater).

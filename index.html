@@ -5,12 +5,81 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
   <title>Singeling App</title>
   <style>
+    /* Kleuren van de app-chrome (tabbalk, instellingen, meldingen). Donker is
+       de standaard; met de class "theme-light" op <html> (donkere modus uit)
+       wordt alles licht. De waarden komen uit het Singeling-design van de
+       webapp zelf, zodat de tabbalk naadloos aansluit op de pagina eronder. */
+    :root {
+      color-scheme: dark;
+      --accent: #ff5100;
+      --accent-hover: #ff7a33;
+      --accent-strong: #c73b00;
+      --pin: #6fa1bd;
+      --app-bg: #14161a;
+      --bar-bg: #0f1115;
+      --bar-border: #23272e;
+      --surface: #1e2127;
+      --surface-raised: #262a31;
+      --field-bg: rgba(0, 0, 0, 0.25);
+      --border: rgba(255, 255, 255, 0.1);
+      --border-strong: rgba(255, 255, 255, 0.2);
+      --hover: rgba(255, 255, 255, 0.06);
+      --hover-strong: rgba(255, 255, 255, 0.12);
+      --text: #f4f5f6;
+      --text-2: #c5c9cf;
+      --text-muted: #9da3ac;
+      --text-faint: #5f6670;
+      --overlay: rgba(8, 9, 11, 0.72);
+      --shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+      --panel-bg: rgba(30, 33, 39, 0.72);
+      --backdrop:
+        radial-gradient(circle at 88% 4%, rgba(255, 110, 40, 0.3), transparent 40%),
+        radial-gradient(circle at 60% 0%, rgba(255, 81, 0, 0.16), transparent 45%),
+        radial-gradient(circle at 12% 92%, rgba(255, 81, 0, 0.08), transparent 50%),
+        linear-gradient(155deg, #1e2127 0%, #14161a 60%, #1a1512 100%);
+      --ease: cubic-bezier(0.2, 0, 0, 1);
+      --radius: 5px;
+    }
+
+    html.theme-light {
+      color-scheme: light;
+      --pin: #2e6c8e;
+      --app-bg: #f7f8f9;
+      --bar-bg: #ffffff;
+      --bar-border: #dfe2e6;
+      --surface: #ffffff;
+      --surface-raised: #f0f2f4;
+      --field-bg: #f7f8f9;
+      --border: #dfe2e6;
+      --border-strong: #c5c9cf;
+      --hover: rgba(22, 24, 29, 0.05);
+      --hover-strong: rgba(22, 24, 29, 0.09);
+      --text: #16181d;
+      --text-2: #32363c;
+      --text-muted: #6b7178;
+      --text-faint: #9aa0a8;
+      --overlay: rgba(22, 24, 29, 0.45);
+      --shadow: 0 16px 40px rgba(22, 24, 29, 0.16);
+      --panel-bg: rgba(255, 255, 255, 0.8);
+      --backdrop:
+        radial-gradient(circle at 88% 4%, rgba(255, 110, 40, 0.18), transparent 40%),
+        radial-gradient(circle at 60% 0%, rgba(255, 81, 0, 0.08), transparent 45%),
+        radial-gradient(circle at 12% 92%, rgba(46, 108, 142, 0.08), transparent 50%),
+        linear-gradient(155deg, #ffffff 0%, #f7f8f9 60%, #f3efec 100%);
+    }
+
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #1e1e1e;
-      color: #fff;
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      background: var(--app-bg);
+      color: var(--text);
       overflow: hidden;
+      transition: background-color 0.25s var(--ease), color 0.25s var(--ease);
+    }
+
+    button,
+    input {
+      font-family: inherit;
     }
 
     .hidden {
@@ -23,80 +92,153 @@
       height: 100vh;
     }
 
-    #tab-bar {
-      display: flex;
-      background: #000000;
-      height: 38px;
-      align-items: center;
-      border-bottom: 1px solid #3c3c3c;
-      -webkit-app-region: drag; /* Maakt de tabbar sleepbaar voor het venster */
-    }
+    /* ---------- Tabbalk ---------- */
 
-    #tab-scroll {
+    #tab-bar {
+      box-sizing: border-box;
       display: flex;
       align-items: center;
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
+      gap: 2px;
+      height: 38px; /* = TABBAR_HEIGHT in main.js */
+      padding: 0 6px;
+      background: var(--bar-bg);
+      border-bottom: 1px solid var(--bar-border);
+      transition: background-color 0.25s var(--ease), border-color 0.25s var(--ease);
+      -webkit-app-region: drag; /* Maakt de tabbar sleepbaar voor het venster */
     }
 
     #navigation-buttons {
       display: flex;
       align-items: center;
+      gap: 2px;
       flex: 0 0 auto;
       -webkit-app-region: no-drag;
     }
 
-    .navigation-button {
+    .navigation-button,
+    .tab-scroll-button,
+    #new-tab-btn {
       flex: 0 0 30px;
+      width: 30px;
       height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
       border: 0;
-      color: #aaa;
-      background: #000;
-      font-size: 18px;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text-muted);
       cursor: pointer;
       -webkit-app-region: no-drag;
+      transition: background-color 0.15s var(--ease), color 0.15s var(--ease), transform 0.12s var(--ease);
     }
 
-    .navigation-button:hover {
-      color: #fff;
-      background: #292929;
+    .navigation-button:hover,
+    .tab-scroll-button:hover,
+    #new-tab-btn:hover {
+      color: var(--text);
+      background: var(--hover);
+    }
+
+    .navigation-button:active:not(:disabled),
+    .tab-scroll-button:active,
+    #new-tab-btn:active {
+      transform: scale(0.88);
     }
 
     .navigation-button:disabled {
-      color: #555;
+      color: var(--text-faint);
+      background: transparent;
       cursor: not-allowed;
     }
 
     .navigation-button.enabled {
-      color: #ff5e00;
+      color: var(--accent);
     }
 
-    #share-link-btn {
-      color: #ff5e00;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .navigation-button svg,
+    .tab-scroll-button svg,
+    #new-tab-btn svg {
+      transition: transform 0.25s var(--ease);
     }
 
-    #share-link-btn:hover {
-      color: #ff7a33;
-      background: #292929;
+    /* Korte bevestigingsanimaties bij het uitvoeren van een knop (de class
+       wordt in het script gezet en na afloop weer weggehaald). */
+    [data-action="back"].fired svg { animation: nudge-left 0.3s var(--ease); }
+    [data-action="forward"].fired svg { animation: nudge-right 0.3s var(--ease); }
+    [data-action="reload"].fired svg { animation: spin 0.55s var(--ease); }
+    #share-link-btn.fired svg { animation: pop 0.35s var(--ease); }
+
+    #new-tab-btn:hover svg {
+      transform: rotate(90deg);
+    }
+
+    #share-link-btn,
+    #dark-mode-btn,
+    #settings-btn {
+      color: var(--accent);
+    }
+
+    #share-link-btn:hover,
+    #dark-mode-btn:hover,
+    #settings-btn:hover {
+      color: var(--accent-hover);
+      background: var(--hover);
+    }
+
+    /* Contrast-icoon (halfgevulde cirkel); bij donkere modus aan wisselt de
+       gevulde helft van kant, zodat je de stand ziet. */
+    #dark-mode-btn svg {
+      transition: transform 0.35s var(--ease);
+    }
+
+    #dark-mode-btn.active svg {
+      transform: rotate(180deg);
+    }
+
+    #settings-btn {
+      position: relative;
+    }
+
+    #settings-btn svg {
+      transition: transform 0.3s var(--ease);
+    }
+
+    #settings-btn.open {
+      background: var(--hover-strong);
+    }
+
+    #settings-btn.open svg {
+      transform: rotate(-45deg);
+    }
+
+    .update-badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ff3b30;
+      box-shadow: 0 0 0 2px var(--bar-bg);
+      animation: badge-in 0.4s var(--ease);
     }
 
     .copy-confirmation {
       position: fixed;
-      padding: 7px 14px;
-      background: #292929;
-      border: 1px solid #ff5e00;
-      border-radius: 6px;
-      color: #fff;
+      padding: 6px 12px;
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      color: var(--text);
       font-size: 12px;
       z-index: 20;
       pointer-events: none;
       opacity: 0;
-      transform: translateX(-4px);
-      transition: opacity 0.15s ease, transform 0.15s ease;
+      transform: translateX(-6px);
+      transition: opacity 0.18s var(--ease), transform 0.18s var(--ease);
       white-space: nowrap;
     }
 
@@ -104,6 +246,163 @@
       opacity: 1;
       transform: translateX(0);
     }
+
+    #tab-scroll {
+      display: flex;
+      align-self: stretch;
+      flex: 1;
+      min-width: 0;
+      margin-left: 6px;
+      overflow: hidden;
+    }
+
+    #tabs {
+      display: flex;
+      align-items: stretch;
+      min-width: max-content;
+      overflow: visible;
+      border-left: 1px solid var(--bar-border);
+    }
+
+    #tab-scroll-buttons {
+      display: flex;
+      align-items: center;
+      flex: 0 0 auto;
+      -webkit-app-region: no-drag;
+    }
+
+    /* Vierkante tabs over de volle hoogte van de balk. Het balkje links
+       (inset box-shadow) markeert de actieve tab, net als het actieve item in
+       het zijmenu van de webapp: oranje voor gewone tabs, staalblauw voor
+       vastgezette. De achtergrond is altijd dekkend (color-mix met de
+       balkkleur), omdat vastgezette tabs over scrollende tabs heen plakken. */
+    .tab {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex: 0 0 auto;
+      max-width: 200px;
+      padding: 0 8px 0 14px;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background-color: var(--bar-bg);
+      border-right: 1px solid var(--bar-border);
+      box-shadow: inset 2px 0 0 transparent;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+      transition:
+        background-color 0.18s var(--ease),
+        color 0.18s var(--ease),
+        box-shadow 0.18s var(--ease),
+        border-color 0.25s var(--ease);
+      animation: tab-in 0.24s var(--ease);
+    }
+
+    .tab:hover {
+      color: var(--text);
+      background-color: color-mix(in srgb, var(--text) 5%, var(--bar-bg));
+    }
+
+    .tab.active {
+      color: var(--text);
+      background-color: color-mix(in srgb, var(--accent) 13%, var(--bar-bg));
+      box-shadow: inset 2px 0 0 var(--accent);
+    }
+
+    .tab .tab-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tab.dragging {
+      opacity: 0.4;
+    }
+
+    .tab.closing {
+      width: 0 !important;
+      padding-left: 0;
+      padding-right: 0;
+      border-right-width: 0;
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+      transition: width 0.16s var(--ease), padding 0.16s var(--ease), opacity 0.12s var(--ease);
+    }
+
+    .tab-lock {
+      display: none;
+      flex-shrink: 0;
+      color: var(--pin);
+    }
+
+    /* Vastgezette tabs blijven zichtbaar aan de linkerkant, ook als je door
+       de rest van de tabbalk scrolt (zoals gepinde tabs in een browser). Ook
+       inactief houden ze een vaag staalblauw balkje, zodat je ze herkent. */
+    .tab.locked {
+      position: sticky;
+      z-index: 2;
+      background-color: color-mix(in srgb, var(--pin) 7%, var(--bar-bg));
+      box-shadow: inset 2px 0 0 color-mix(in srgb, var(--pin) 45%, transparent);
+    }
+
+    .tab.locked .tab-lock {
+      display: block;
+    }
+
+    .tab.locked:hover {
+      background-color: color-mix(in srgb, var(--pin) 12%, var(--bar-bg));
+    }
+
+    .tab.locked.active {
+      background-color: color-mix(in srgb, var(--pin) 18%, var(--bar-bg));
+      box-shadow: inset 2px 0 0 var(--pin);
+    }
+
+    /* Zachte schaduw rechts van de vastgezette groep, zodat zichtbaar is dat
+       losse tabs eronder doorschuiven. */
+    .tab.locked-last::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      right: -7px;
+      width: 6px;
+      background: linear-gradient(to right, rgba(0, 0, 0, 0.18), transparent);
+      pointer-events: none;
+    }
+
+    .tab-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      padding: 0;
+      border: none;
+      border-radius: 3px;
+      background: transparent;
+      color: var(--text-faint);
+      cursor: pointer;
+      opacity: 0.7;
+      transition: background-color 0.12s var(--ease), color 0.12s var(--ease), opacity 0.12s var(--ease);
+    }
+
+    .tab:hover .tab-close,
+    .tab.active .tab-close {
+      opacity: 1;
+      color: var(--text-muted);
+    }
+
+    .tab-close:hover {
+      background: var(--hover-strong);
+      color: var(--text) !important;
+    }
+
+    /* ---------- Updatebalk ---------- */
 
     /* Een volledige balk ONDER de tabbalk (i.p.v. een zwevend hoekje) - de
        tabinhoud is een native laag die altijd over de HTML-chrome heen
@@ -116,15 +415,17 @@
       left: 0;
       right: 0;
       height: 40px;
+      box-sizing: border-box;
       z-index: 15;
       display: flex;
       align-items: center;
       gap: 10px;
       padding: 0 14px;
-      background: #292929;
-      border-bottom: 1px solid #ff5e00;
-      color: #fff;
+      background: var(--surface);
+      border-bottom: 1px solid var(--accent);
+      color: var(--text);
       font-size: 13px;
+      animation: slide-down 0.25s var(--ease);
     }
 
     .update-banner.hidden {
@@ -145,217 +446,45 @@
 
     #update-banner-settings-btn {
       padding: 6px 12px;
-      background: #c94700;
+      background: var(--accent-strong);
       color: #fff;
       font-size: 12px;
+      transition: background-color 0.15s var(--ease);
     }
 
     #update-banner-settings-btn:hover {
-      background: #ff5e00;
+      background: var(--accent);
     }
 
     #update-banner-dismiss-btn {
       width: 22px;
       height: 22px;
       background: transparent;
-      color: #999;
+      color: var(--text-muted);
       font-size: 16px;
       line-height: 1;
     }
 
     #update-banner-dismiss-btn:hover {
-      color: #fff;
+      color: var(--text);
     }
 
-    #tabs {
-      display: flex;
-      align-items: center;
-      min-width: max-content;
-      overflow: visible;
-      padding-left: 8px;
-    }
+    /* ---------- Instellingenpaneel ---------- */
 
-    #tab-scroll-buttons {
-      display: flex;
-      align-items: center;
-      flex: 0 0 auto;
-      -webkit-app-region: no-drag;
-    }
-
-    .tab-scroll-button {
-      flex: 0 0 30px;
-      height: 30px;
-      border: 0;
-      color: #aaa;
-      background: #000;
-      font-size: 18px;
-      cursor: pointer;
-      -webkit-app-region: no-drag;
-    }
-
-    .tab-scroll-button:hover {
-      color: #fff;
-      background: #292929;
-    }
-
-    .tab {
-      display: flex;
-      align-items: center;
-      background: #4d4d4d;
-      padding: 0 12px;
-      height: 30px;
-      margin-right: 4px;
-      border-radius: 6px 6px 0 0;
-      font-size: 13px;
-      cursor: pointer;
-      -webkit-app-region: no-drag;
-      border: 1px solid transparent;
-      max-width: 180px;
-    }
-
-    .tab .tab-title {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .tab.dragging {
-      opacity: 0.4;
-    }
-
-    .tab.active {
-      background: #4d4d4d;
-      border-color: #919191;
-      border-bottom: 2px solid #ff5e00; /* Jouw branding kleur! */
-    }
-
-    .tab.locked .tab-title::before {
-      content: '\1F512 ';
-      font-size: 11px;
-    }
-
-    /* Vastgezette tabs blijven zichtbaar aan de linkerkant, ook als je door
-       de rest van de tabbalk scrolt (zoals gepinde tabs in een browser). De
-       schaduw/kader maakt meteen duidelijk dat dit tabblad "boven" de rest
-       zweeft. */
-    .tab.locked {
-      position: sticky;
-      z-index: 2;
-      background: #57503a;
-      border-color: rgba(255, 255, 255, 0.35);
-      box-shadow: 3px 0 10px rgba(0, 0, 0, 0.55);
-    }
-
-    /* Vult de marge naast de tab op met een effen blokje (i.p.v. een border,
-       die anders lelijk meebuigt met de afgeronde bovenhoek), zodat er geen
-       scrollende tab doorheen te zien is. */
-    .tab.locked::after {
-      content: '';
-      position: absolute;
-      /* position:absolute plaatst t.o.v. de PADDING-box van de sticky ouder,
-         niet de border-box - zonder deze correctie overlapt dit blokje de
-         1px rand van de tab zelf, waardoor die rechts onzichtbaar leek. */
-      top: -1px;
-      right: -5px;
-      width: 4px;
-      height: calc(100% + 2px);
-      background: #000;
-      pointer-events: none;
-    }
-
-    .tab-close {
-      background: transparent;
-      border: none;
-      color: #aaa;
-      font-size: 14px;
-      margin-left: 8px;
-      cursor: pointer;
-      padding: 0 4px;
-      border-radius: 4px;
-      flex-shrink: 0;
-    }
-
-    .tab-close:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
-    }
-
-    #new-tab-btn {
-      background: transparent;
-      border: none;
-      color: #aaa;
-      font-size: 18px;
-      width: 30px;
-      height: 30px;
-      cursor: pointer;
-      -webkit-app-region: no-drag;
-      border-radius: 4px;
-      flex-shrink: 0;
-    }
-
-    #new-tab-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
-    }
-
-    #dark-mode-btn {
-      flex-shrink: 0;
-      color: #ff5e00;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    #dark-mode-btn:hover {
-      color: #ff7a33;
-      background: #292929;
-    }
-
-    /* Contrast-icoon (halfgevulde cirkel); bij donkere modus aan wisselt de
-       gevulde helft van kant, zodat je de stand ziet. */
-    #dark-mode-btn svg {
-      transition: transform 0.2s ease;
-    }
-
-    #dark-mode-btn.active svg {
-      transform: rotate(180deg);
-    }
-
-    #settings-btn {
-      position: relative;
-      flex-shrink: 0;
-      color: #ff5e00;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    #settings-btn:hover {
-      color: #ff7a33;
-      background: #292929;
-    }
-
-    .update-badge {
-      position: absolute;
-      top: 4px;
-      right: 4px;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #ff3b30;
-      box-shadow: 0 0 0 1px #000;
-    }
-
+    /* Open/dicht gaat in twee stappen (zie openSettingsPanel): eerst .hidden
+       eraf, dan .open erop, zodat de overgang vanaf de beginstand speelt. */
     .settings-backdrop {
       position: fixed;
       inset: 0;
       z-index: 24;
-      background:
-        radial-gradient(circle at 88% 4%, rgba(255, 126, 51, 0.35), transparent 40%),
-        radial-gradient(circle at 60% 0%, rgba(255, 94, 0, 0.18), transparent 45%),
-        radial-gradient(circle at 12% 92%, rgba(255, 94, 0, 0.1), transparent 50%),
-        linear-gradient(155deg, #24242a 0%, #1a1a1e 60%, #1c1714 100%);
+      background: var(--backdrop);
+      opacity: 0;
+      transition: opacity 0.2s var(--ease);
       -webkit-app-region: no-drag;
+    }
+
+    .settings-backdrop.open {
+      opacity: 1;
     }
 
     .settings-backdrop.hidden {
@@ -364,20 +493,29 @@
 
     .settings-panel {
       position: fixed;
-      top: 42px;
+      top: 44px;
       right: 8px;
-      width: 280px;
+      width: 290px;
       max-height: calc(100vh - 60px);
       overflow-y: auto;
-      background: rgba(41, 41, 41, 0.5);
+      background: var(--panel-bg);
       backdrop-filter: blur(28px) saturate(160%);
       -webkit-backdrop-filter: blur(28px) saturate(160%);
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      border: 1px solid var(--border);
       border-radius: 8px;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+      box-shadow: var(--shadow);
       z-index: 25;
       padding: 14px 16px;
+      opacity: 0;
+      transform: translateY(-8px) scale(0.98);
+      transform-origin: top right;
+      transition: opacity 0.18s var(--ease), transform 0.18s var(--ease);
       -webkit-app-region: no-drag;
+    }
+
+    .settings-panel.open {
+      opacity: 1;
+      transform: none;
     }
 
     .settings-panel.hidden {
@@ -387,21 +525,22 @@
     .settings-section + .settings-section {
       margin-top: 18px;
       padding-top: 18px;
-      border-top: 1px solid #3c3c3c;
+      border-top: 1px solid var(--border);
     }
 
     .settings-section h3 {
       margin: 0 0 10px;
-      font-size: 13px;
-      color: #d4d4d4;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-2);
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.06em;
     }
 
     .settings-hint {
       margin: 8px 0 0;
       font-size: 12px;
-      color: #999;
+      color: var(--text-muted);
       line-height: 1.4;
     }
 
@@ -414,22 +553,31 @@
     .zoom-controls button {
       min-width: 30px;
       height: 28px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      border: 1px solid var(--border);
       border-radius: 4px;
-      background: rgba(255, 255, 255, 0.07);
-      color: #fff;
+      background: var(--hover);
+      color: var(--text);
       font-size: 14px;
       cursor: pointer;
+      transition: background-color 0.15s var(--ease), transform 0.12s var(--ease);
     }
 
     .zoom-controls button:hover {
-      background: rgba(255, 255, 255, 0.14);
+      background: var(--hover-strong);
+    }
+
+    .zoom-controls button:active {
+      transform: scale(0.94);
     }
 
     #zoom-level {
       flex: 1;
       text-align: center;
       font-size: 13px;
+    }
+
+    #zoom-level.bump {
+      animation: pop 0.25s var(--ease);
     }
 
     #start-tabs-list {
@@ -446,10 +594,11 @@
       flex-direction: column;
       gap: 6px;
       padding: 6px 8px;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: var(--hover);
+      border: 1px solid var(--border);
       border-radius: 4px;
       font-size: 13px;
+      animation: fade-up 0.2s var(--ease);
     }
 
     .start-tab-row {
@@ -470,14 +619,14 @@
       align-items: center;
       gap: 6px;
       font-size: 12px;
-      color: #ccc;
+      color: var(--text-2);
       cursor: pointer;
     }
 
     .start-tab-lock input {
       width: 13px;
       height: 13px;
-      accent-color: #ff5e00;
+      accent-color: var(--accent);
       cursor: pointer;
     }
 
@@ -485,7 +634,7 @@
       flex-shrink: 0;
       border: none;
       background: transparent;
-      color: #aaa;
+      color: var(--text-muted);
       font-size: 14px;
       cursor: pointer;
       padding: 0 4px;
@@ -493,8 +642,8 @@
     }
 
     .start-tab-remove:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
+      background: var(--hover-strong);
+      color: var(--text);
     }
 
     #start-tabs-empty.hidden {
@@ -509,28 +658,34 @@
 
     .general-actions button {
       padding: 8px 10px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      border: 1px solid var(--border);
       border-radius: 4px;
-      background: rgba(255, 255, 255, 0.07);
-      color: #fff;
+      background: var(--hover);
+      color: var(--text);
       font-size: 13px;
       cursor: pointer;
       text-align: left;
+      transition: background-color 0.15s var(--ease), transform 0.12s var(--ease);
     }
 
     .general-actions button:hover {
-      background: rgba(255, 255, 255, 0.14);
+      background: var(--hover-strong);
+    }
+
+    .general-actions button:active:not(:disabled) {
+      transform: scale(0.98);
     }
 
     /* Trekt de aandacht naar een gevonden update, ook als je de melding
        eerder al had weggeklikt. */
     .general-actions button.attention {
-      border-color: #ff5e00;
-      background: #c94700;
+      border-color: var(--accent);
+      background: var(--accent-strong);
+      color: #fff;
     }
 
     .general-actions button.attention:hover {
-      background: #ff5e00;
+      background: var(--accent);
     }
 
     .general-toggle {
@@ -539,83 +694,15 @@
       gap: 8px;
       margin-top: 10px;
       font-size: 13px;
-      color: #d4d4d4;
+      color: var(--text-2);
       cursor: pointer;
     }
 
     .general-toggle input {
       width: 14px;
       height: 14px;
-      accent-color: #ff5e00;
+      accent-color: var(--accent);
       cursor: pointer;
-    }
-
-    #changelog-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 30;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      background: rgba(0, 0, 0, 0.78);
-      -webkit-app-region: no-drag;
-    }
-
-    #changelog-overlay.hidden {
-      display: none;
-    }
-
-    .changelog-panel {
-      width: min(560px, 100%);
-      max-height: 80vh;
-      display: flex;
-      flex-direction: column;
-      background: #292929;
-      border: 1px solid #5a5a5a;
-      border-radius: 8px;
-      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
-      overflow: hidden;
-    }
-
-    .changelog-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px;
-      border-bottom: 1px solid #3c3c3c;
-    }
-
-    .changelog-header h2 {
-      margin: 0;
-      font-size: 18px;
-    }
-
-    #changelog-close {
-      border: none;
-      background: transparent;
-      color: #aaa;
-      font-size: 20px;
-      cursor: pointer;
-      padding: 0 4px;
-      border-radius: 4px;
-    }
-
-    #changelog-close:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
-    }
-
-    .changelog-content {
-      margin: 0;
-      padding: 20px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 13px;
-      line-height: 1.6;
-      color: #d4d4d4;
     }
 
     .settings-tabs {
@@ -627,22 +714,27 @@
     .settings-tab-btn {
       flex: 1;
       padding: 6px 8px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      border: 1px solid var(--border);
       border-radius: 4px;
-      background: rgba(255, 255, 255, 0.07);
-      color: #ccc;
+      background: var(--hover);
+      color: var(--text-2);
       font-size: 12px;
       cursor: pointer;
+      transition: background-color 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
     }
 
     .settings-tab-btn:hover {
-      background: rgba(255, 255, 255, 0.14);
+      background: var(--hover-strong);
     }
 
     .settings-tab-btn.active {
-      background: #c94700;
-      border-color: #ff5e00;
+      background: var(--accent-strong);
+      border-color: var(--accent);
       color: #fff;
+    }
+
+    .settings-section-body:not(.hidden) {
+      animation: fade-up 0.2s var(--ease);
     }
 
     #tab-groups-list {
@@ -659,9 +751,10 @@
       flex-direction: column;
       gap: 6px;
       padding: 8px;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: var(--hover);
+      border: 1px solid var(--border);
       border-radius: 4px;
+      animation: fade-up 0.2s var(--ease);
     }
 
     .tab-group-header {
@@ -673,39 +766,45 @@
     .tab-group-name {
       flex: 1;
       min-width: 0;
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: var(--field-bg);
+      border: 1px solid var(--border);
       border-radius: 4px;
-      color: #fff;
+      color: var(--text);
       font-size: 13px;
       padding: 4px 6px;
+      transition: border-color 0.15s var(--ease);
     }
 
     .tab-group-name:focus {
       outline: none;
-      border-color: #ff5e00;
+      border-color: var(--accent);
     }
 
     .tab-group-open {
       flex-shrink: 0;
       padding: 4px 8px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      border: 1px solid var(--border);
       border-radius: 4px;
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
+      background: var(--hover-strong);
+      color: var(--text);
       font-size: 12px;
       cursor: pointer;
+      transition: background-color 0.15s var(--ease), transform 0.12s var(--ease);
     }
 
     .tab-group-open:hover {
-      background: rgba(255, 255, 255, 0.18);
+      background: var(--border-strong);
+    }
+
+    .tab-group-open:active {
+      transform: scale(0.95);
     }
 
     .tab-group-delete {
       flex-shrink: 0;
       border: none;
       background: transparent;
-      color: #aaa;
+      color: var(--text-muted);
       font-size: 14px;
       cursor: pointer;
       padding: 0 4px;
@@ -713,8 +812,8 @@
     }
 
     .tab-group-delete:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
+      background: var(--hover-strong);
+      color: var(--text);
     }
 
     .tab-group-urls {
@@ -732,10 +831,10 @@
       justify-content: space-between;
       gap: 8px;
       padding: 4px 8px;
-      background: rgba(0, 0, 0, 0.2);
+      background: var(--field-bg);
       border-radius: 4px;
       font-size: 12px;
-      color: #ccc;
+      color: var(--text-2);
     }
 
     .tab-group-url-label {
@@ -748,7 +847,7 @@
       flex-shrink: 0;
       border: none;
       background: transparent;
-      color: #aaa;
+      color: var(--text-muted);
       font-size: 13px;
       cursor: pointer;
       padding: 0 4px;
@@ -756,14 +855,86 @@
     }
 
     .tab-group-url-remove:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
+      background: var(--hover-strong);
+      color: var(--text);
     }
 
     #view-container {
       flex: 1;
       position: relative;
-      background: #1e1e1e;
+      background: var(--app-bg);
+    }
+
+    /* ---------- Changelog, welkomstmelding en rondleiding ---------- */
+
+    #changelog-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: var(--overlay);
+      animation: fade-in 0.2s var(--ease);
+      -webkit-app-region: no-drag;
+    }
+
+    #changelog-overlay.hidden {
+      display: none;
+    }
+
+    .changelog-panel {
+      width: min(560px, 100%);
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      animation: pop-in 0.26s var(--ease);
+    }
+
+    .changelog-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .changelog-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    #changelog-close {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0 4px;
+      border-radius: 4px;
+    }
+
+    #changelog-close:hover {
+      background: var(--hover-strong);
+      color: var(--text);
+    }
+
+    .changelog-content {
+      margin: 0;
+      padding: 20px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-2);
     }
 
     #beta-notice {
@@ -774,7 +945,7 @@
       align-items: center;
       justify-content: center;
       padding: 24px;
-      background: rgba(0, 0, 0, 0.78);
+      background: var(--overlay);
       -webkit-app-region: no-drag;
     }
 
@@ -784,11 +955,12 @@
 
     .notice-panel {
       width: min(520px, 100%);
+      box-sizing: border-box;
       padding: 28px;
-      background: #292929;
-      border: 1px solid #5a5a5a;
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 8px;
-      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+      box-shadow: var(--shadow);
     }
 
     .notice-panel h1 {
@@ -798,14 +970,14 @@
 
     .notice-panel p {
       margin: 0 0 24px;
-      color: #d4d4d4;
+      color: var(--text-2);
       line-height: 1.5;
     }
 
     .notice-panel p.notice-footnote {
       margin: 16px 0 0;
       font-size: 12px;
-      color: #999;
+      color: var(--text-muted);
       line-height: 1.4;
     }
 
@@ -818,25 +990,35 @@
     .notice-actions button {
       min-width: 150px;
       padding: 10px 16px;
-      border: 1px solid #777;
+      border: 1px solid var(--border-strong);
       border-radius: 4px;
-      color: #fff;
-      background: #3d3d3d;
+      color: var(--text);
+      background: var(--surface-raised);
       font-size: 14px;
       cursor: pointer;
+      transition: background-color 0.15s var(--ease), transform 0.12s var(--ease);
     }
 
     .notice-actions button:hover:not(:disabled) {
-      background: #505050;
+      background: var(--hover-strong);
+    }
+
+    .notice-actions button:active:not(:disabled) {
+      transform: scale(0.97);
     }
 
     .notice-actions #accept-beta:enabled {
-      border-color: #ff5e00;
-      background: #c94700;
+      border-color: var(--accent);
+      background: var(--accent-strong);
+      color: #fff;
+    }
+
+    .notice-actions #accept-beta:enabled:hover {
+      background: var(--accent);
     }
 
     .notice-actions button:disabled {
-      color: #999;
+      color: var(--text-faint);
       cursor: not-allowed;
     }
 
@@ -855,7 +1037,7 @@
       align-items: center;
       gap: 8px;
       margin: -4px 0 20px;
-      color: #d4d4d4;
+      color: var(--text-2);
       font-size: 13px;
       cursor: pointer;
     }
@@ -863,7 +1045,7 @@
     .onboarding-toggle input {
       width: 15px;
       height: 15px;
-      accent-color: #ff5e00;
+      accent-color: var(--accent);
       cursor: pointer;
     }
 
@@ -887,21 +1069,23 @@
     .onboarding-spotlight {
       position: fixed;
       border-radius: 8px;
-      border: 2px solid #ff5e00;
+      border: 2px solid var(--accent);
       box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
       pointer-events: none;
-      transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+      transition: top 0.3s var(--ease), left 0.3s var(--ease), width 0.3s var(--ease), height 0.3s var(--ease);
     }
 
     .onboarding-tooltip {
       position: fixed;
       width: min(320px, calc(100vw - 32px));
+      box-sizing: border-box;
       padding: 18px 20px;
-      background: #292929;
-      border: 1px solid #5a5a5a;
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 8px;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
-      transition: top 0.25s ease, left 0.25s ease;
+      box-shadow: var(--shadow);
+      transition: top 0.3s var(--ease), left 0.3s var(--ease);
+      animation: pop-in 0.26s var(--ease);
     }
 
     .onboarding-tooltip::before {
@@ -911,9 +1095,9 @@
       left: 28px;
       width: 14px;
       height: 14px;
-      background: #292929;
-      border-left: 1px solid #5a5a5a;
-      border-top: 1px solid #5a5a5a;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      border-top: 1px solid var(--border);
       transform: rotate(45deg);
     }
 
@@ -924,7 +1108,7 @@
 
     .onboarding-tooltip p {
       margin: 0 0 16px;
-      color: #d4d4d4;
+      color: var(--text-2);
       font-size: 13px;
       line-height: 1.5;
     }
@@ -938,7 +1122,7 @@
 
     #onboarding-progress {
       font-size: 12px;
-      color: #999;
+      color: var(--text-muted);
     }
 
     .onboarding-buttons {
@@ -948,32 +1132,137 @@
 
     .onboarding-buttons button {
       padding: 6px 14px;
-      border: 1px solid #777;
+      border: 1px solid var(--border-strong);
       border-radius: 4px;
-      color: #fff;
-      background: #3d3d3d;
+      color: var(--text);
+      background: var(--surface-raised);
       font-size: 13px;
       cursor: pointer;
+      transition: background-color 0.15s var(--ease);
     }
 
     .onboarding-buttons button:hover {
-      background: #505050;
+      background: var(--hover-strong);
     }
 
     #onboarding-next {
-      border-color: #ff5e00;
-      background: #c94700;
+      border-color: var(--accent);
+      background: var(--accent-strong);
+      color: #fff;
     }
-  </style>
+
+    #onboarding-next:hover {
+      background: var(--accent);
+    }
+
+    /* ---------- Intro na het splash-scherm ---------- */
+
+    /* main.js stuurt 'window-shown' zodra het venster na het splash-scherm
+       verschijnt; dan schuiven de onderdelen van de tabbalk kort na elkaar
+       in beeld en springt de welkomstmelding naar voren. */
+    body.intro #tab-bar > * {
+      animation: intro-in 0.45s var(--ease) both;
+    }
+
+    body.intro #tab-bar > :nth-child(2) { animation-delay: 0.04s; }
+    body.intro #tab-bar > :nth-child(3) { animation-delay: 0.08s; }
+    body.intro #tab-bar > :nth-child(4) { animation-delay: 0.12s; }
+    body.intro #tab-bar > :nth-child(5) { animation-delay: 0.16s; }
+    body.intro #tab-bar > :nth-child(6) { animation-delay: 0.2s; }
+    body.intro #tab-bar > :nth-child(7) { animation-delay: 0.24s; }
+
+    body.intro #beta-notice:not(.hidden) .notice-panel {
+      animation: intro-pop 0.45s 0.15s var(--ease) both;
+    }
+
+    /* ---------- Keyframes ---------- */
+
+    @keyframes tab-in {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @keyframes intro-in {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @keyframes intro-pop {
+      from { opacity: 0; transform: translateY(12px) scale(0.97); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @keyframes pop-in {
+      from { opacity: 0; transform: translateY(8px) scale(0.97); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @keyframes slide-down {
+      from { opacity: 0; transform: translateY(-100%); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @keyframes badge-in {
+      0% { transform: scale(0); }
+      60% { transform: scale(1.35); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes pop {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.25); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes nudge-left {
+      0%, 100% { transform: none; }
+      40% { transform: translateX(-3px); }
+    }
+
+    @keyframes nudge-right {
+      0%, 100% { transform: none; }
+      40% { transform: translateX(3px); }
+    }
+
+    /* Windows-instelling "Animatie-effecten" uit -> geen beweging. */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-delay: 0s !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+</style>
 </head>
 <body>
 
   <div id="app-container">
     <div id="tab-bar">
       <div id="navigation-buttons">
-        <button class="navigation-button" type="button" title="Ga terug" aria-label="Ga terug" data-action="back">&#8592;</button>
-        <button class="navigation-button" type="button" title="Ga vooruit" aria-label="Ga vooruit" data-action="forward">&#8594;</button>
-        <button class="navigation-button" type="button" title="Pagina vernieuwen" aria-label="Pagina vernieuwen" data-action="reload">&#8635;</button>
+        <button class="navigation-button" type="button" title="Ga terug" aria-label="Ga terug" data-action="back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+        </button>
+        <button class="navigation-button" type="button" title="Ga vooruit" aria-label="Ga vooruit" data-action="forward">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+        <button class="navigation-button" type="button" title="Pagina vernieuwen" aria-label="Pagina vernieuwen" data-action="reload">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+        </button>
       </div>
       <button class="navigation-button" type="button" id="share-link-btn" title="Kopieer link om te delen" aria-label="Kopieer link om te delen">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -985,10 +1274,16 @@
         <div id="tabs"></div>
       </div>
       <div id="tab-scroll-buttons">
-        <button id="scroll-left" class="tab-scroll-button" type="button" title="Scroll tabs naar links">&#9664;</button>
-        <button id="scroll-right" class="tab-scroll-button" type="button" title="Scroll tabs naar rechts">&#9654;</button>
+        <button id="scroll-left" class="tab-scroll-button" type="button" title="Scroll tabs naar links" aria-label="Scroll tabs naar links">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <button id="scroll-right" class="tab-scroll-button" type="button" title="Scroll tabs naar rechts" aria-label="Scroll tabs naar rechts">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
       </div>
-      <button id="new-tab-btn">+</button>
+      <button id="new-tab-btn" type="button" title="Nieuw tabblad" aria-label="Nieuw tabblad">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+      </button>
       <button id="dark-mode-btn" class="navigation-button" type="button" title="Donkere modus aanzetten" aria-label="Donkere modus" aria-pressed="false">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="9"/>
@@ -1144,8 +1439,23 @@
       }
     });
 
+    // Speelt de korte bevestigingsanimatie van een knop af (zie .fired in de
+    // CSS). Eerst weghalen + reflow, zodat snel achter elkaar klikken de
+    // animatie telkens opnieuw start.
+    function playFired(button) {
+      button.classList.remove('fired');
+      void button.offsetWidth;
+      button.classList.add('fired');
+    }
+
+    document.addEventListener('animationend', (event) => {
+      const button = event.target.closest && event.target.closest('.fired');
+      if (button) button.classList.remove('fired');
+    });
+
     document.querySelectorAll('[data-action]').forEach(button => {
       button.addEventListener('click', () => {
+        playFired(button);
         window.electronAPI.navigateActiveTab(button.dataset.action);
       });
     });
@@ -1166,6 +1476,7 @@
       if (!url) return;
 
       window.electronAPI.copyToClipboard(url);
+      playFired(shareLinkBtn);
 
       // Blijf binnen de 38px hoge tabbalk: de tabinhoud eronder is een aparte
       // native laag die altijd over de pagina heen tekent, dus een tooltip
@@ -1271,7 +1582,7 @@
 
       if (step.requiresSettingsOpen) {
         onboardingOverlay.classList.add('above-settings');
-        if (settingsPanel.classList.contains('hidden')) {
+        if (!settingsOpen) {
           await openSettingsPanel();
           settingsOpenedByOnboarding = true;
         }
@@ -1379,32 +1690,23 @@
     // de opgetelde breedte van de vastgezette tabs die ervoor staan (losse
     // tabs tellen niet mee, die scrollen er gewoon onderdoor).
     function updateLockedTabPositions() {
-      const children = [...tabsContainer.children];
+      const children = [...tabsContainer.children].filter(tab => !tab.classList.contains('closing'));
       const lockedInOrder = children.filter(tab => tab.classList.contains('locked'));
+      const lastLocked = lockedInOrder[lockedInOrder.length - 1];
       let cumulativeLeft = 0;
 
       children.forEach(tab => {
+        // De laatste vastgezette tab krijgt rechts een zachte schaduw, zodat
+        // zichtbaar is dat losse tabs eronder doorschuiven.
+        tab.classList.toggle('locked-last', tab === lastLocked);
+
         if (!tab.classList.contains('locked')) {
           tab.style.left = '';
-          tab.style.borderRadius = '';
           return;
         }
 
         tab.style.left = `${cumulativeLeft}px`;
-        cumulativeLeft += tab.offsetWidth + 4; // 4px = margin-right van .tab
-
-        // Bij meerdere vastgezette tabs op een rij moeten alleen de buitenste
-        // hoeken van die groep afgerond zijn (net als bij vastgezette tabs in
-        // een browser); de tabs ertussenin krijgen rechte hoeken.
-        if (lockedInOrder.length <= 1) {
-          tab.style.borderRadius = '';
-        } else if (tab === lockedInOrder[0]) {
-          tab.style.borderRadius = '6px 0 0 0';
-        } else if (tab === lockedInOrder[lockedInOrder.length - 1]) {
-          tab.style.borderRadius = '0 6px 0 0';
-        } else {
-          tab.style.borderRadius = '0';
-        }
+        cumulativeLeft += tab.offsetWidth; // tabs sluiten zonder marge op elkaar aan
       });
     }
 
@@ -1464,6 +1766,10 @@
       }
     }
 
+    const TAB_LOCK_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+    const TAB_CLOSE_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+    const TAB_CLOSE_ANIMATION_MS = 170;
+
     // main.js heeft een nieuwe tab (WebContentsView) aangemaakt
     window.electronAPI.on('tab-created', ({ tabId, url }) => {
       const tab = document.createElement('div');
@@ -1476,10 +1782,16 @@
       const tabTitle = document.createElement('span');
       tabTitle.className = 'tab-title';
       tabTitle.textContent = formatTabTitle(url);
+      // Vaste SVG-iconen (geen gebruikersinvoer), dus innerHTML is hier veilig.
+      const tabLock = document.createElement('span');
+      tabLock.className = 'tab-lock';
+      tabLock.innerHTML = TAB_LOCK_ICON;
       const tabClose = document.createElement('button');
       tabClose.className = 'tab-close';
-      tabClose.textContent = '×';
-      tab.append(tabTitle, tabClose);
+      tabClose.type = 'button';
+      tabClose.title = 'Tab sluiten';
+      tabClose.innerHTML = TAB_CLOSE_ICON;
+      tab.append(tabLock, tabTitle, tabClose);
 
       // Tab verslepen om de volgorde te wijzigen
       tab.addEventListener('dragstart', (event) => {
@@ -1558,8 +1870,16 @@
     window.electronAPI.on('tab-closed', (tabId) => {
       const tab = tabElements.get(tabId);
       if (tab) {
-        tab.remove();
         tabElements.delete(tabId);
+        // Inklappen naar breedte 0 (zie .tab.closing): eerst de huidige
+        // breedte vastzetten, anders valt er niets te animeren.
+        tab.style.width = `${tab.offsetWidth}px`;
+        void tab.offsetWidth;
+        tab.classList.add('closing');
+        setTimeout(() => {
+          tab.remove();
+          updateLockedTabPositions();
+        }, TAB_CLOSE_ANIMATION_MS);
       }
       lockedTabIds.delete(tabId);
       tabUrls.delete(tabId);
@@ -1595,6 +1915,9 @@
     const settingsSectionStart = document.getElementById('settings-section-start');
     const settingsSectionGroups = document.getElementById('settings-section-groups');
     const settingsTabButtons = document.querySelectorAll('.settings-tab-btn');
+    const SETTINGS_ANIMATION_MS = 180;
+    let settingsOpen = false;
+    let settingsHideTimer = null;
 
     function updateZoomLabel(factor) {
       zoomLevelLabel.textContent = `${Math.round(factor * 100)}%`;
@@ -1732,22 +2055,44 @@
         blockCtrlBCheckbox.checked = !!settings.blockCtrlB;
         applyUpdateStatusUI(!!settings.updateVersion, settings.updateVersion);
       }
+      clearTimeout(settingsHideTimer);
+      const wasOpen = settingsOpen;
+      settingsOpen = true;
+      settingsBtn.classList.add('open');
       settingsBackdrop.classList.remove('hidden');
       settingsPanel.classList.remove('hidden');
       window.electronAPI.notifySettingsPanelOpened();
+      // Reflow, zodat de overgang vanaf de beginstand (doorzichtig, iets
+      // omhoog) start in plaats van direct de eindstand te tonen.
+      void settingsPanel.offsetWidth;
+      settingsBackdrop.classList.add('open');
+      settingsPanel.classList.add('open');
+      // Wacht tot het paneel op zijn plek staat: de rondleiding meet direct
+      // hierna de positie van onderdelen in het paneel.
+      if (!wasOpen) await new Promise(resolve => setTimeout(resolve, SETTINGS_ANIMATION_MS));
     }
 
+    // Eerst uitfaden, pas daarna verbergen en main.js laten weten dat de
+    // tabinhoud terug mag (anders verspringt de pagina er al overheen).
     function closeSettingsPanel() {
-      settingsBackdrop.classList.add('hidden');
-      settingsPanel.classList.add('hidden');
-      window.electronAPI.notifySettingsPanelClosed();
+      if (!settingsOpen) return;
+      settingsOpen = false;
+      settingsBtn.classList.remove('open');
+      settingsBackdrop.classList.remove('open');
+      settingsPanel.classList.remove('open');
+      clearTimeout(settingsHideTimer);
+      settingsHideTimer = setTimeout(() => {
+        settingsBackdrop.classList.add('hidden');
+        settingsPanel.classList.add('hidden');
+        window.electronAPI.notifySettingsPanelClosed();
+      }, SETTINGS_ANIMATION_MS);
     }
 
     // De tabinhoud is een aparte native laag die altijd over deze pagina heen
     // tekent, dus moet main.js 'm tijdelijk wegklikken zolang dit paneel open staat.
     settingsBtn.addEventListener('click', async (event) => {
       event.stopPropagation();
-      if (settingsPanel.classList.contains('hidden')) {
+      if (!settingsOpen) {
         await openSettingsPanel();
       } else {
         closeSettingsPanel();
@@ -1755,7 +2100,7 @@
     });
 
     document.addEventListener('click', (event) => {
-      if (settingsPanel.classList.contains('hidden')) return;
+      if (!settingsOpen) return;
       if (settingsPanel.contains(event.target) || event.target === settingsBtn) return;
       if (onboardingOverlay.contains(event.target)) return;
       closeSettingsPanel();
@@ -1782,7 +2127,10 @@
     // Donkere modus: losse knop in de tabbalk naast de instellingenknop.
     const darkModeBtn = document.getElementById('dark-mode-btn');
 
+    // De tabbalk en de rest van de chrome volgen dezelfde keuze als de
+    // pagina's (zie de theme-light-variabelen in de CSS).
     function renderDarkModeButton(enabled) {
+      document.documentElement.classList.toggle('theme-light', !enabled);
       darkModeBtn.classList.toggle('active', enabled);
       darkModeBtn.setAttribute('aria-pressed', String(enabled));
       darkModeBtn.title = enabled ? 'Donkere modus uitzetten' : 'Donkere modus aanzetten';
@@ -1847,7 +2195,7 @@
 
     updateBannerSettingsBtn.addEventListener('click', async () => {
       hideUpdateBanner();
-      if (settingsPanel.classList.contains('hidden')) await openSettingsPanel();
+      if (!settingsOpen) await openSettingsPanel();
     });
 
     checkUpdatesBtn.addEventListener('click', async () => {
@@ -1907,7 +2255,20 @@
     zoomOutBtn.addEventListener('click', () => window.electronAPI.zoomOut());
     zoomResetBtn.addEventListener('click', () => window.electronAPI.zoomReset());
 
-    window.electronAPI.on('zoom-changed', (factor) => updateZoomLabel(factor));
+    window.electronAPI.on('zoom-changed', (factor) => {
+      updateZoomLabel(factor);
+      zoomLevelLabel.classList.remove('bump');
+      void zoomLevelLabel.offsetWidth;
+      zoomLevelLabel.classList.add('bump');
+    });
+
+    // Het venster verschijnt pas na het splash-scherm (main.js faded het in);
+    // dan pas de intro-animatie starten, anders is die al afgelopen terwijl
+    // het venster nog verborgen was.
+    window.electronAPI.on('window-shown', () => {
+      document.body.classList.add('intro');
+      setTimeout(() => document.body.classList.remove('intro'), 1200);
+    });
     window.electronAPI.on('start-tabs-changed', (startTabs) => renderStartTabs(startTabs));
     window.electronAPI.on('tab-groups-changed', (tabGroups) => renderTabGroups(tabGroups));
 
