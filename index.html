@@ -298,6 +298,29 @@
       color: #fff;
     }
 
+    #dark-mode-btn {
+      flex-shrink: 0;
+      color: #ff5e00;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #dark-mode-btn:hover {
+      color: #ff7a33;
+      background: #292929;
+    }
+
+    /* Contrast-icoon (halfgevulde cirkel); bij donkere modus aan wisselt de
+       gevulde helft van kant, zodat je de stand ziet. */
+    #dark-mode-btn svg {
+      transition: transform 0.2s ease;
+    }
+
+    #dark-mode-btn.active svg {
+      transform: rotate(180deg);
+    }
+
     #settings-btn {
       position: relative;
       flex-shrink: 0;
@@ -966,6 +989,12 @@
         <button id="scroll-right" class="tab-scroll-button" type="button" title="Scroll tabs naar rechts">&#9654;</button>
       </div>
       <button id="new-tab-btn">+</button>
+      <button id="dark-mode-btn" class="navigation-button" type="button" title="Donkere modus aanzetten" aria-label="Donkere modus" aria-pressed="false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>
+        </svg>
+      </button>
       <button id="settings-btn" class="navigation-button" type="button" title="Instellingen" aria-label="Instellingen">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
@@ -1001,8 +1030,7 @@
         <input type="checkbox" id="block-ctrl-b-checkbox">
         Ctrl+B blokkeren
       </label>
-      <p class="settings-hint">Voorkomt dat Ctrl+B (bedoeld om vetgedrukt te typen) de zijbalk van de pagina in-/uitklapt.</p>
-    </div>
+      <p class="settings-hint">Voorkomt dat Ctrl+B (bedoeld om vetgedrukt te typen) de zijbalk van de pagina in-/uitklapt.</p>    </div>
 
     <div class="settings-section">
       <h3>Updates</h3>
@@ -1749,6 +1777,25 @@
 
     blockCtrlBCheckbox.addEventListener('change', () => {
       window.electronAPI.setBlockCtrlB(blockCtrlBCheckbox.checked);
+    });
+
+    // Donkere modus: losse knop in de tabbalk naast de instellingenknop.
+    const darkModeBtn = document.getElementById('dark-mode-btn');
+
+    function renderDarkModeButton(enabled) {
+      darkModeBtn.classList.toggle('active', enabled);
+      darkModeBtn.setAttribute('aria-pressed', String(enabled));
+      darkModeBtn.title = enabled ? 'Donkere modus uitzetten' : 'Donkere modus aanzetten';
+    }
+
+    darkModeBtn.addEventListener('click', () => {
+      const enabled = !darkModeBtn.classList.contains('active');
+      renderDarkModeButton(enabled);
+      window.electronAPI.setDarkMode(enabled);
+    });
+
+    window.electronAPI.getSettings().then(settings => {
+      if (settings) renderDarkModeButton(!!settings.darkMode);
     });
 
     const checkUpdatesBtn = document.getElementById('check-updates-btn');
