@@ -473,20 +473,80 @@ function handleUpdateAvailable(updateInfo) {
   else showUpdateNotice();
 }
 
+// Tijdens het installeren is de app helemaal dicht (anders kan de installer
+// de bestanden niet vervangen), dus ook het laadscherm. Zonder iets in beeld
+// lijkt het alsof de app kapot is. Daarom een los venstertje
+// (update-window.ps1, via Windows' eigen PowerShell) dat blijft staan tot de
+// nieuwe versie zichtbaar is opgestart. Het script en het logo gaan eerst naar
+// een tijdelijke map: de app-bestanden worden tijdens de installatie vervangen
+// (en zitten in app.asar, waar PowerShell niet bij kan).
+// Gestart via wscript: een direct (detached) gestarte PowerShell stopt meteen
+// zonder console, en een niet-detached proces sluit Windows mee af met de
+// app. wscript start PowerShell verborgen en los van de app.
+// Resolvet zodra het venstertje in beeld is (of na een paar seconden toch).
+function showUpdatingWindow(version, { maxSeconds = 180, processName = 'Singeling App' } = {}) {
+  return new Promise((resolve) => {
+    try {
+      const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'singeling-update-'));
+      const scriptPath = path.join(dir, 'update-window.ps1');
+      const logoPath = path.join(dir, 'logo.png');
+      const marker = path.join(dir, 'shown');
+      const launcherPath = path.join(dir, 'start.vbs');
+      fs.writeFileSync(scriptPath, fs.readFileSync(path.join(__dirname, 'update-window.ps1')));
+      fs.writeFileSync(logoPath, fs.readFileSync(path.join(__dirname, 'assets/logo.png')));
+      // In VBScript is "" een aanhalingsteken binnen een string.
+      const quoted = (value) => `""${String(value).replace(/"/g, '')}""`;
+      const args = [
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', quoted(scriptPath),
+        '-OldPid', String(process.pid),
+        '-Version', quoted(version || ''),
+        '-Dark', appSettings.darkMode ? '1' : '0',
+        '-LogoPath', quoted(logoPath),
+        '-Marker', quoted(marker),
+        '-MaxSeconds', String(maxSeconds),
+        '-ProcessName', quoted(processName)
+      ];
+      fs.writeFileSync(launcherPath, `CreateObject("WScript.Shell").Run "powershell.exe ${args.join(' ')}", 0, False\r\n`);
+      const child = require('child_process').spawn('wscript.exe', ['//nologo', '//B', launcherPath], {
+        detached: true, stdio: 'ignore', windowsHide: true
+      });
+      child.on('error', () => resolve(false));
+      child.unref();
+      const started = Date.now();
+      const poll = setInterval(() => {
+        if (fs.existsSync(marker) || Date.now() - started > 5000) {
+          clearInterval(poll);
+          resolve(fs.existsSync(marker));
+        }
+      }, 100);
+    } catch (error) {
+      logUpdater('Venstertje tijdens updaten kon niet starten', error);
+      resolve(false);
+    }
+  });
+}
+
 // Hoofdknop: "Nu updaten" (download starten), "Opnieuw proberen" of, als hij
 // klaar is, installeren en herstarten.
-ipcMain.on('update-notice-install', (event) => {
+let installingUpdate = false;
+
+ipcMain.on('update-notice-install', async (event) => {
   if (event.sender !== mainWindow.webContents || !pendingUpdate) return;
   if (pendingUpdate.downloaded) {
+    if (installingUpdate) return;
+    installingUpdate = true;
     if (TEST_UPDATE_MODE) {
-      // Test: niet echt herstarten, alleen de melding sluiten.
+      // Test: het venstertje 8 seconden laten zien, niet echt herstarten.
       logUpdater('TEST: zou nu installeren en herstarten');
+      await showUpdatingWindow(pendingUpdate.version, { maxSeconds: 8, processName: 'bestaat-niet' });
       hideUpdateNotice();
       mainWindow.webContents.send('update-notice-hide');
       pendingUpdate = null;
+      installingUpdate = false;
       return;
     }
     logUpdater('Installeren bevestigd, app wordt opnieuw gestart');
+    await showUpdatingWindow(pendingUpdate.version);
     // Stil installeren (geen installatievensters, de installer krijgt /S) en
     // daarna vanzelf weer opstarten. Zonder deze opties toont de updater de
     // begeleide installer (oneClick: false) met "Volgende/Installeren".
