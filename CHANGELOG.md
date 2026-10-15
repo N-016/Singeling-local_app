@@ -2,6 +2,17 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.2.3-beta.3] - 2026-10-15
+
+Bètaversie: alleen voor wie "Bèta-versies ontvangen" aan heeft staan.
+
+### Gewijzigd
+- Nieuw Singeling-logo ("Singeling – Geen las te lastig!") op het laadscherm, het welkomstscherm, onderin het instellingenmenu en in het scherm tijdens het bijwerken.
+- Het welkomstscherm is rustiger: "Welkom bij de Singeling App", met de keuze voor de rondleiding en de Start-knop.
+
+### Opgelost
+- Het scherm om licht/donker en de melding "Niet geklokt op een order" te kiezen kwam bij elke start terug. Het verschijnt nu alleen de eerste keer.
+
 ## [1.2.3-beta.2] - 2026-10-15
 
 Bètaversie: alleen voor wie "Bèta-versies ontvangen" aan heeft staan.
