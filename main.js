@@ -1256,6 +1256,9 @@ const CURTAIN_SWITCH_DELAY_MS = 60;
 const CURTAIN_NEW_TAB_SETTLE_MS = 100;
 const CURTAIN_NEW_TAB_MAX_WAIT_MS = 1500;
 const CURTAIN_FADE_MS = 250;
+// Wisselen tussen licht en donker: rustiger dan een tabwissel.
+const CURTAIN_THEME_DELAY_MS = 120;
+const CURTAIN_THEME_FADE_MS = 600;
 const LIGHT_MODE_BACKGROUND = '#f6f7f9'; // = --background van de lichte app (210 17% 97%)
 const CURTAIN_HTML = `<!doctype html><html><body style="margin:0;overflow:hidden">
 <div id="c" style="position:fixed;inset:0"></div>
@@ -1289,7 +1292,10 @@ function createCurtain() {
   curtain.setBounds({ x: 0, y: 0, width: 0, height: 0 });
 }
 
-function coverActiveView(view) {
+// color: kleur van het gordijn (standaard het huidige thema; bij omschakelen
+// van licht/donker juist de oude kleur, zodat het nieuwe thema eronder
+// tevoorschijn komt). revealDelay/fadeMs overschrijven de tabwissel-tijden.
+function coverActiveView(view, { color = curtainColor(), revealDelay = CURTAIN_SWITCH_DELAY_MS, fadeMs = CURTAIN_FADE_MS, waitForLoad = true } = {}) {
   if (!curtain || curtain.webContents.isDestroyed()) return;
   // Tabinhoud is dan toch verborgen (zie applyActiveTabBounds).
   if (onboardingActive || settingsPanelOpen || changelogNoticeOpen) return;
@@ -1297,34 +1303,33 @@ function coverActiveView(view) {
   if (systemPreferences.getAnimationSettings().prefersReducedMotion) return;
 
   clearTimeout(curtainTimer);
-  const color = curtainColor();
   curtain.setBackgroundColor(color);
   curtain.webContents.executeJavaScript(`cover(${JSON.stringify(color)});`).catch(() => {});
   mainWindow.contentView.addChildView(curtain); // opnieuw toevoegen = bovenop leggen
   curtain.setBounds(getViewBounds());
 
-  if (view.webContents.isLoading()) {
+  if (waitForLoad && view.webContents.isLoading()) {
     // Nieuwe of ladende tab: wegfaden zodra de pagina er staat (dom-ready in
     // attachNavigationHandlers), met een maximum zodat je nooit blijft wachten.
     curtainWaitingFor = view;
     curtainTimer = setTimeout(revealCurtain, CURTAIN_NEW_TAB_MAX_WAIT_MS);
   } else {
     curtainWaitingFor = null;
-    curtainTimer = setTimeout(revealCurtain, CURTAIN_SWITCH_DELAY_MS);
+    curtainTimer = setTimeout(() => revealCurtain(fadeMs), revealDelay);
   }
 }
 
-function revealCurtain() {
+function revealCurtain(fadeMs = CURTAIN_FADE_MS) {
   clearTimeout(curtainTimer);
   curtainWaitingFor = null;
   if (!curtain || curtain.webContents.isDestroyed()) return;
   curtain.setBackgroundColor('#00000000');
-  curtain.webContents.executeJavaScript(`reveal(${CURTAIN_FADE_MS});`).catch(() => {});
+  curtain.webContents.executeJavaScript(`reveal(${fadeMs});`).catch(() => {});
   curtainTimer = setTimeout(() => {
     if (curtain.webContents.isDestroyed()) return;
     curtain.setBounds({ x: 0, y: 0, width: 0, height: 0 });
     curtain.setBackgroundColor(curtainColor());
-  }, CURTAIN_FADE_MS + 40);
+  }, fadeMs + 40);
 }
 
 function closeTab(tabId) {
@@ -1652,8 +1657,20 @@ ipcMain.on('set-block-ctrl-b', (event, value) => {
 });
 ipcMain.on('set-dark-mode', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
+  // Eerst het gordijn in de oude kleur over de actieve tab, dan pas het
+  // thema wisselen: zo komt het nieuwe thema er rustig onder vandaan in
+  // plaats van in één klap om te springen.
+  const previousColor = curtainColor();
   appSettings.darkMode = !!value;
   saveSettings();
+  if (activeTabId && tabs.has(activeTabId)) {
+    coverActiveView(tabs.get(activeTabId), {
+      color: previousColor,
+      revealDelay: CURTAIN_THEME_DELAY_MS,
+      fadeMs: CURTAIN_THEME_FADE_MS,
+      waitForLoad: false
+    });
+  }
   // Direct effect voor al open tabs, zonder herladen.
   for (const view of tabs.values()) applyDarkMode(view);
 });

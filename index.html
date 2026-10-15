@@ -1194,6 +1194,24 @@
       background: var(--accent);
     }
 
+    /* ---------- Wisselen licht/donker ---------- */
+
+    /* Tijdens het omschakelen lopen alle kleuren van de chrome in hetzelfde
+       tempo om als het gordijn over de pagina (CURTAIN_THEME_FADE_MS in
+       main.js), zodat alles in één beweging overgaat. */
+    @media (prefers-reduced-motion: no-preference) {
+      html.theme-switching *,
+      html.theme-switching *::before,
+      html.theme-switching *::after {
+        transition:
+          background-color 0.6s ease,
+          color 0.6s ease,
+          border-color 0.6s ease,
+          box-shadow 0.6s ease,
+          transform 0.6s var(--ease) !important;
+      }
+    }
+
     /* ---------- Intro na het splash-scherm ---------- */
 
     /* "Opstart"-stijl: onderdelen worden van links naar rechts ingetekend
@@ -2310,10 +2328,18 @@
       darkModeBtn.title = enabled ? 'Donkere modus uitzetten' : 'Donkere modus aanzetten';
     }
 
+    const THEME_SWITCH_MS = 600;
+    let themeSwitchTimer = null;
+
     darkModeBtn.addEventListener('click', () => {
       const enabled = !darkModeBtn.classList.contains('active');
+      clearTimeout(themeSwitchTimer);
+      document.documentElement.classList.add('theme-switching');
       renderDarkModeButton(enabled);
       window.electronAPI.setDarkMode(enabled);
+      themeSwitchTimer = setTimeout(() => {
+        document.documentElement.classList.remove('theme-switching');
+      }, THEME_SWITCH_MS + 100);
     });
 
     window.electronAPI.getSettings().then(settings => {
