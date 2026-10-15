@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setShowOnboarding: (value) => ipcRenderer.send('set-show-onboarding', value),
   setBlockCtrlB: (value) => ipcRenderer.send('set-block-ctrl-b', value),
   setShowNotClockedBar: (value) => ipcRenderer.send('set-show-not-clocked-bar', value),
+  setBetaUpdates: (value) => ipcRenderer.send('set-beta-updates', value),
   setDarkMode: (value) => ipcRenderer.send('set-dark-mode', value),
   windowControl: (action) => ipcRenderer.send('window-control', action),
   getTabThumbnails: () => ipcRenderer.invoke('get-tab-thumbnails'),
