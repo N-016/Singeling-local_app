@@ -490,6 +490,10 @@ function applyActiveTabBounds() {
 }
 
 function sendNavigationState(tabId) {
+  if (isDetachedTab(tabId)) {
+    sendDetachedState(tabId);
+    return;
+  }
   const view = tabs.get(tabId);
   if (!view || !mainWindow || mainWindow.isDestroyed()) return;
 
@@ -519,7 +523,7 @@ function sendNavigationState(tabId) {
 
 function openButtonInNewTab(view, button, parentTabId) {
   const url = view.webContents.getURL();
-  const newTabId = createTab(url, true, false, parentTabId);
+  const newTabId = openInNewTabFromTab(parentTabId, url);
   const newView = tabs.get(newTabId);
   if (!newView) return;
 
@@ -753,11 +757,11 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       closeIfStillBlank(view, tabId);
       return;
     }
-    if (lockedTabs.has(tabId) || appSettings.openAllLinksInNewTab) {
+    if (!isDetachedTab(tabId) && (lockedTabs.has(tabId) || appSettings.openAllLinksInNewTab)) {
       event.preventDefault();
       createTab(url, true, false, tabId);
     }
-    // Anders: laat de navigatie gewoon in dit tabblad plaatsvinden.
+    // Anders (of in een los venster): laat de navigatie gewoon hier plaatsvinden.
   });
 
   view.webContents.on('will-redirect', (event, url) => {
@@ -775,7 +779,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     // de geïnjecteerde ELECTRON_URL_UPDATE dat al, maar bij een volledige
     // paginalading (redirect, doorklik in een losse tab, herladen) bleef de
     // naam anders op de oude pagina staan.
-    if (mainWindow && !mainWindow.isDestroyed() && url && url !== 'about:blank') {
+    if (!isDetachedTab(tabId) && mainWindow && !mainWindow.isDestroyed() && url && url !== 'about:blank') {
       mainWindow.webContents.send('update-tab-url', { tabId, url });
     }
   });
@@ -790,11 +794,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       if (isAuthUrl(details.url)) {
         return { action: 'allow' };
       }
-      if (!isInternalUrl(details.url)) {
-        openExternalSafe(details.url);
-      } else {
-        createTab(details.url, true, false, tabId);
-      }
+      openLinkFromTab(tabId, view, details.url);
       return { action: 'deny' };
     }
 
@@ -817,6 +817,9 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
         parentTabs.set(newTabId, tabId);
         mainWindow.webContents.send('tab-created', { tabId: newTabId, url: 'about:blank' });
         switchTab(newTabId);
+        // Nooit zelf een los venster openen: vanuit een los venster komt de
+        // nieuwe tab in het hoofdvenster, en dat halen we naar voren.
+        if (isDetachedTab(tabId)) mainWindow.focus();
         return newView.webContents;
       }
     };
@@ -833,16 +836,17 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       if (!['http:', 'https:'].includes(linkProtocol)) return;
 
       const external = !isInternalUrl(params.linkURL);
+      const newTabLabel = isDetachedTab(tabId) ? 'Link openen in nieuw tabblad (hoofdvenster)' : 'Link openen in nieuw tabblad';
       const menu = Menu.buildFromTemplate([
         {
-          label: external ? 'Link openen in browser' : 'Link openen in nieuw tabblad',
+          label: external ? 'Link openen in browser' : newTabLabel,
           click: () => {
             if (external) openExternalSafe(params.linkURL);
-            else createTab(params.linkURL, true, false, tabId);
+            else openInNewTabFromTab(tabId, params.linkURL);
           }
         }
       ]);
-      menu.popup({ window: mainWindow, x: params.x, y: params.y });
+      popupTabMenu(menu, tabId, params.x, params.y);
       return;
     }
 
@@ -852,7 +856,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       if (params.editFlags.canCopy) editItems.push({ label: 'Kopiëren', role: 'copy' });
       if (params.editFlags.canPaste) editItems.push({ label: 'Plakken', role: 'paste' });
       if (editItems.length > 0) {
-        Menu.buildFromTemplate(editItems).popup({ window: mainWindow, x: params.x, y: params.y });
+        popupTabMenu(Menu.buildFromTemplate(editItems), tabId, params.x, params.y);
         return;
       }
     }
@@ -861,7 +865,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       const menuItems = [];
       if (button) {
         menuItems.push({
-          label: 'Knop openen in nieuw tabblad',
+          label: isDetachedTab(tabId) ? 'Knop openen in nieuw tabblad (hoofdvenster)' : 'Knop openen in nieuw tabblad',
           click: () => openButtonInNewTab(view, button, tabId)
         });
       } else {
@@ -875,13 +879,13 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
         click: () => view.webContents.reload()
       });
 
-      const menu = Menu.buildFromTemplate(menuItems);
-      menu.popup({ window: mainWindow, x: params.x, y: params.y });
+      popupTabMenu(Menu.buildFromTemplate(menuItems), tabId, params.x, params.y);
     }).catch(() => {});
   });
 
   view.webContents.on('page-title-updated', (event, title) => {
-    mainWindow.webContents.send('update-tab-title', { tabId, title });
+    if (isDetachedTab(tabId)) sendDetachedState(tabId);
+    else mainWindow.webContents.send('update-tab-title', { tabId, title });
   });
 
   // Vang SPA route-wijzigingen (pushState/replaceState) af in de webview
@@ -896,6 +900,8 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       // 2x (of vaker) werd geopend. Bij een echte volledige herlaadbeurt is
       // window weer schoon, dus dan installeert dit zich gewoon opnieuw.
       window.__electronForceNewTab = ${appSettings.openAllLinksInNewTab};
+      // Los venster (geen tabbalk): links en knoppen blijven in dit venster.
+      window.__electronDetached = ${isDetachedTab(tabId)};
       if (!window.__electronHandlersInstalled) {
         window.__electronHandlersInstalled = true;
 
@@ -944,7 +950,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             const fromLaunchPad = type === 'pushState' &&
               Date.now() - (window.__electronLaunchPadAt || 0) < 2000;
             if (fromLaunchPad && isRealNavigation) window.__electronLaunchPadAt = 0;
-            if (isRealNavigation && !isBreadcrumbBack && (fromRowClick || fromNewTabAction || fromLaunchPad || window.__electronTabLocked || window.__electronForceNewTab)) {
+            if (!window.__electronDetached && isRealNavigation && !isBreadcrumbBack && (fromRowClick || fromNewTabAction || fromLaunchPad || window.__electronTabLocked || window.__electronForceNewTab)) {
               console.log('ELECTRON_LOCKED_NAVIGATE:' + nextUrl.href);
               return;
             }
@@ -1108,16 +1114,22 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
               const destPath = destination.pathname.endsWith('/')
                 ? destination.pathname.slice(0, -1)
                 : destination.pathname;
+              // De startpagina (/) telt nooit als "terug": elk pad begint
+              // met /, dus anders werd bv. "Dashboard Klokken" (link naar /)
+              // in de navigatie altijd als terugknop gezien en nooit geopend.
               isBreadcrumbBack = destination.origin === window.location.origin &&
+                destPath !== '' &&
                 destPath !== currentPath &&
                 currentPath.startsWith(destPath) &&
-                (currentPath[destPath.length] === '/' || destPath === '');
+                currentPath[destPath.length] === '/';
             } catch {
               isBreadcrumbBack = false;
             }
           }
 
-          if (isBackButton || isBreadcrumbBack) {
+          // In een los venster is er geen brontab om naar terug te gaan; daar
+          // navigeert een breadcrumb-link dus gewoon (zie hieronder).
+          if (isBackButton || (isBreadcrumbBack && !window.__electronDetached)) {
             // Terugknoppen (en breadcrumb-achtige "terug naar de lijst"-links)
             // zijn een uitzondering op "alle links in nieuwe tab": die moeten
             // gewoon terugnavigeren, niet iets nieuws openen.
@@ -1127,7 +1139,9 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             return;
           }
 
-          if (!isLink) return;
+          // In een los venster gewone links door de site zelf laten afhandelen
+          // (dan blijven ze in dit venster).
+          if (!isLink || window.__electronDetached) return;
           const link = clickable;
           if (link.target === '_blank' || link.hasAttribute('download')) return;
 
@@ -1153,15 +1167,12 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     if (message.startsWith('ELECTRON_LINK_CLICK:')) {
       const url = message.replace('ELECTRON_LINK_CLICK:', '');
       if (isAuthUrl(url)) view.webContents.loadURL(url);
-      else if (!isInternalUrl(url)) openExternalSafe(url);
-      else createTab(url, true, false, tabId);
+      else openLinkFromTab(tabId, view, url);
       return;
     }
 
     if (message.startsWith('ELECTRON_LOCKED_NAVIGATE:')) {
-      const url = message.replace('ELECTRON_LOCKED_NAVIGATE:', '');
-      if (!isInternalUrl(url)) openExternalSafe(url);
-      else createTab(url, true, false, tabId);
+      openLinkFromTab(tabId, view, message.replace('ELECTRON_LOCKED_NAVIGATE:', ''));
       return;
     }
 
@@ -1194,6 +1205,10 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     }
 
     if (message.startsWith('ELECTRON_URL_UPDATE:')) {
+      if (isDetachedTab(tabId)) {
+        sendDetachedState(tabId);
+        return;
+      }
       const newUrl = message.replace('ELECTRON_URL_UPDATE:', '');
       mainWindow.webContents.send('update-tab-url', { tabId, url: newUrl });
       return;
@@ -1464,11 +1479,98 @@ function closeOtherTabs(tabId) {
 // tabbalk-administratie, alsof hij gesloten is - alleen blijft de webContents
 // zelf in leven, nu in het nieuwe venster.
 //
-// Bewuste beperking: links die normaal een NIEUWE tab zouden openen (bv. een
-// vergrendelde tab, of de "alles in nieuwe tab"-instelling) komen vanuit een
-// losgetrokken venster gewoon weer in het hoofdvenster terecht - createTab()
-// is nog steeds overal aan mainWindow gekoppeld. Alleen gewone in-place
-// navigatie binnen het losgetrokken venster blijft daarin plaatsvinden.
+// Zo'n venster heeft geen eigen tabbalk, alleen een smalle balk met terug,
+// vooruit, vernieuwen en de paginatitel (detached.html). Links en knoppen die
+// normaal een nieuwe tab openen, openen daarom in het venster zelf. Alleen de
+// expliciete keuze "... in nieuw tabblad" (rechtermuisknop) en knoppen die een
+// leeg venster openen (bv. PDF-preview) gaan naar het hoofdvenster.
+// Bewust: de app opent zelf nooit een los venster; dat doet alleen de
+// gebruiker door een tab uit de balk te slepen.
+const DETACHED_BAR_HEIGHT = TABBAR_HEIGHT;
+
+function isDetachedTab(tabId) {
+  return detachedWindows.has(tabId);
+}
+
+// Het venster waar een tab in zit (voor bv. rechtermuisknop-menu's).
+function ownerWindowOf(tabId) {
+  const detached = detachedWindows.get(tabId);
+  return detached ? detached.window : mainWindow;
+}
+
+// Menu tonen in het venster van de tab. In het hoofdvenster op de
+// opgegeven plek (zoals altijd); in een los venster bij de muis.
+function popupTabMenu(menu, tabId, x, y) {
+  if (isDetachedTab(tabId)) menu.popup({ window: ownerWindowOf(tabId) });
+  else menu.popup({ window: mainWindow, x, y });
+}
+
+// Een link of knop die normaal een nieuwe tab opent.
+function openLinkFromTab(tabId, view, url) {
+  if (!isInternalUrl(url)) {
+    openExternalSafe(url);
+  } else if (isDetachedTab(tabId)) {
+    view.webContents.loadURL(url);
+  } else {
+    createTab(url, true, false, tabId);
+  }
+}
+
+// Expliciet "in nieuw tabblad": vanuit een los venster in het hoofdvenster.
+function openInNewTabFromTab(tabId, url) {
+  const newTabId = createTab(url, true, false, tabId);
+  if (newTabId && isDetachedTab(tabId) && mainWindow && !mainWindow.isDestroyed()) mainWindow.focus();
+  return newTabId;
+}
+
+function sendDetachedState(tabId) {
+  const detached = detachedWindows.get(tabId);
+  if (!detached || detached.window.isDestroyed() || detached.view.webContents.isDestroyed()) return;
+  const { webContents } = detached.view;
+  let canGoBack = false;
+  let canGoForward = false;
+  try {
+    canGoBack = findOtherPageIndex(webContents.navigationHistory, -1) !== -1;
+    canGoForward = findOtherPageIndex(webContents.navigationHistory, 1) !== -1;
+  } catch {
+    // Geschiedenis nog niet beschikbaar.
+  }
+  const title = webContents.getTitle();
+  detached.window.setTitle(title ? `${title} - Singeling App` : 'Singeling App');
+  detached.window.webContents.send('detached-state', { canGoBack, canGoForward, title });
+  webContents.executeJavaScript(`window.__electronCanGoBack = ${canGoBack};`).catch(() => {});
+}
+
+// [tabId, { window, view }] van het losse venster waar de balk bij hoort.
+function detachedEntryForBar(sender) {
+  return [...detachedWindows.entries()]
+    .find(([, detached]) => !detached.window.isDestroyed() && detached.window.webContents === sender);
+}
+
+ipcMain.on('detached-window-control', (event, action) => {
+  const entry = detachedEntryForBar(event.sender);
+  if (!entry) return;
+  const { window: detachedWindow } = entry[1];
+  if (action === 'minimize') detachedWindow.minimize();
+  else if (action === 'toggle-maximize') detachedWindow.isMaximized() ? detachedWindow.unmaximize() : detachedWindow.maximize();
+  else if (action === 'close') detachedWindow.close();
+});
+
+ipcMain.on('detached-navigate', (event, action) => {
+  const entry = detachedEntryForBar(event.sender);
+  if (!entry) return;
+  const [tabId, { view }] = entry;
+  const history = view.webContents.navigationHistory;
+  const index = action === 'back' ? findOtherPageIndex(history, -1)
+    : action === 'forward' ? findOtherPageIndex(history, 1) : -1;
+  if (index !== -1) {
+    internalNavigations.add(tabId);
+    history.goToIndex(index);
+  } else if (action === 'reload') {
+    view.webContents.reload();
+  }
+});
+
 function detachTab(tabId, screenX, screenY) {
   const view = tabs.get(tabId);
   if (!view) return;
@@ -1531,22 +1633,49 @@ function createDetachedWindow(view, tabId, screenX, screenY) {
     y,
     title: 'Singeling App',
     icon: path.join(__dirname, 'assets/icon.ico'),
+    autoHideMenuBar: true,
+    // Geen Windows-titelbalk: de balk (detached.html) is de titelbalk, met
+    // dezelfde eigen vensterknoppen als het hoofdvenster.
+    titleBarStyle: 'hidden',
+    backgroundColor: appSettings.darkMode ? '#0f1115' : '#ffffff',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true
+      sandbox: true,
+      preload: path.join(__dirname, 'detached-preload.js')
     }
   });
 
-  detachedWindow.contentView.addChildView(view);
-  view.setBounds({ x: 0, y: 0, width, height });
-
-  detachedWindow.on('resize', () => {
-    const bounds = detachedWindow.getContentBounds();
-    view.setBounds({ x: 0, y: 0, width: bounds.width, height: bounds.height });
+  // Het venster zelf toont de smalle balk (detached.html); de pagina komt
+  // daaronder.
+  detachedWindow.on('page-title-updated', (event) => event.preventDefault());
+  detachedWindow.loadFile(path.join(__dirname, 'detached.html'), {
+    query: { theme: appSettings.darkMode ? 'dark' : 'light' }
   });
+  detachedWindow.webContents.once('did-finish-load', () => sendNavigationState(tabId));
+
+  detachedWindow.contentView.addChildView(view);
+  const layoutView = () => {
+    const bounds = detachedWindow.getContentBounds();
+    view.setBounds({
+      x: 0,
+      y: DETACHED_BAR_HEIGHT,
+      width: bounds.width,
+      height: Math.max(0, bounds.height - DETACHED_BAR_HEIGHT)
+    });
+  };
+  layoutView();
+  detachedWindow.on('resize', layoutView);
+  const sendMaximized = () => {
+    if (!detachedWindow.isDestroyed()) detachedWindow.webContents.send('detached-maximized', detachedWindow.isMaximized());
+  };
+  detachedWindow.on('maximize', sendMaximized);
+  detachedWindow.on('unmaximize', sendMaximized);
 
   detachedWindows.set(tabId, { window: detachedWindow, view });
+  // Vanaf nu blijven links en knoppen in dit venster (zie
+  // __electronDetached in de pagina-scripts en openLinkFromTab).
+  view.webContents.executeJavaScript('window.__electronDetached = true;').catch(() => {});
 
   detachedWindow.on('closed', () => {
     detachedWindows.delete(tabId);
@@ -1739,8 +1868,9 @@ ipcMain.on('set-show-not-clocked-bar', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
   appSettings.showNotClockedBar = !!value;
   saveSettings();
-  // Direct effect voor al open tabs, zonder herladen.
+  // Direct effect voor al open tabs (ook in losse vensters), zonder herladen.
   for (const view of tabs.values()) applyPageTweaks(view);
+  for (const { view } of detachedWindows.values()) applyPageTweaks(view);
 });
 ipcMain.on('set-dark-mode', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
@@ -1760,8 +1890,15 @@ ipcMain.on('set-dark-mode', (event, value) => {
       waitForLoad: false
     });
   }
-  // Direct effect voor al open tabs, zonder herladen.
+  // Direct effect voor al open tabs, zonder herladen. Ook in losse vensters.
   for (const view of tabs.values()) applyDarkMode(view);
+  for (const detached of detachedWindows.values()) {
+    applyDarkMode(detached.view);
+    if (!detached.window.isDestroyed()) {
+      detached.window.setBackgroundColor(appSettings.darkMode ? '#0f1115' : '#ffffff');
+      detached.window.webContents.send('detached-theme', appSettings.darkMode);
+    }
+  }
 });
 ipcMain.on('set-show-onboarding', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
