@@ -2,6 +2,11 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.2.2] - 2026-10-15
+
+### Gewijzigd
+- Updates installeren zichzelf nu: na "Nu installeren en herstarten" hoef je niet meer door de installatievensters heen. De app sluit even af, werkt zichzelf bij en start daarna vanzelf opnieuw. (Bij deze update zie je de vensters nog één keer; vanaf de volgende gaat het vanzelf.)
+
 ## [1.2.1] - 2026-10-15
 
 ### Toegevoegd
