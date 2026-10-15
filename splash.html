@@ -7,8 +7,13 @@
         // main.js geeft het thema (?theme=light|dark) en de versie mee, zodat
         // het splash-scherm meteen in de juiste kleuren verschijnt.
         const splashParams = new URLSearchParams(location.search);
-        if (splashParams.get('theme') === 'light') {
+        // 'soft' = zachtgrijze weergave (leescomfort): licht, maar gedempt.
+        if (['light', 'soft'].includes(splashParams.get('theme'))) {
             document.documentElement.classList.add('theme-light');
+        }
+        // 'dark-soft' = donker met leescomfort (donkergrijs).
+        if (['soft', 'dark-soft'].includes(splashParams.get('theme'))) {
+            document.documentElement.classList.add('theme-soft');
         }
     </script>
     <style>
@@ -32,6 +37,24 @@
             --text-faint: #9aa0a8;
             --track: #eef0f2;
             --shadow: 0 24px 60px rgba(22, 24, 29, 0.22);
+        }
+
+        html.theme-soft:not(.theme-light) {
+            --bg: #2a2d33;
+            --border: rgba(255, 255, 255, 0.1);
+            --text: #dfe1e4;
+            --text-muted: #9a9fa7;
+            --text-faint: #6c727b;
+            --track: rgba(255, 255, 255, 0.1);
+        }
+
+        html.theme-light.theme-soft {
+            --bg: #efefec;
+            --border: #cdcdc8;
+            --text: #2b2d31;
+            --text-muted: #62666c;
+            --text-faint: #8a8e94;
+            --track: #dcdcd8;
         }
 
         * {

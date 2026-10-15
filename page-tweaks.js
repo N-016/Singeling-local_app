@@ -85,6 +85,24 @@ const PAGE_TWEAKS_CSS = `
   html:not(.dark) .sg-app .navg .sub {
     border-left-color: #d5d9de;
   }
+
+  /* Zachtgrijze weergave (soft-mode.js): zijbalk iets dieper grijs dan de
+     pagina, zodat hij zich blijft onderscheiden. Na de lichte regels hierboven
+     (zelfde specificiteit), dus deze wint. */
+  html.sg-soft .sg-app .side {
+    background: #dcdcd8;
+    border-right-color: #cdcdc8;
+  }
+
+  html.sg-soft .sg-app .navg .sub {
+    border-left-color: #c9c9c4;
+  }
+
+  /* Leescomfort in donker: zijbalk donkergrijs, net iets lichter dan de pagina. */
+  html.dark.sg-soft-dark .sg-app .side {
+    background: #2a2d33;
+    border-right-color: rgba(255, 255, 255, 0.08);
+  }
 `;
 
 module.exports = { PAGE_TWEAKS_CSS };

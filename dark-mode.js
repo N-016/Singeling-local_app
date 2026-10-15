@@ -159,4 +159,5 @@ const PAPER_RULES = `
 
 const DARK_MODE_CSS = SINGELING_VARIABLES + SINGELING_COMPONENTS + tailwindColorRules() + PAPER_RULES;
 
-module.exports = { DARK_MODE_BACKGROUND, DARK_MODE_CSS };
+// WHITE_SURFACES en PAPER worden ook gebruikt door soft-mode.js.
+module.exports = { DARK_MODE_BACKGROUND, DARK_MODE_CSS, WHITE_SURFACES, PAPER };

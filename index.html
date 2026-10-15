@@ -71,6 +71,58 @@
         linear-gradient(155deg, #ffffff 0%, #f7f8f9 60%, #f3efec 100%);
     }
 
+    /* Leescomfort in donker (Instellingen > Algemeen > Leescomfort):
+       donkergrijs i.p.v. bijna zwart, en iets minder felle tekst. Zelfde
+       kleuren als soft-mode.js (sg-soft-dark) voor de pagina's. */
+    html.theme-soft:not(.theme-light) {
+      --app-bg: #23262a;
+      --bar-bg: #1f2226;
+      --bar-border: #3a3f47;
+      --tab-bg: #262a2f;
+      --surface: #2a2d33;
+      --surface-raised: #32363d;
+      --field-bg: rgba(0, 0, 0, 0.18);
+      --border: rgba(255, 255, 255, 0.1);
+      --border-strong: rgba(255, 255, 255, 0.18);
+      --text: #dfe1e4;
+      --text-2: #c2c6cc;
+      --text-muted: #9a9fa7;
+      --text-faint: #6c727b;
+      --overlay: rgba(12, 13, 15, 0.6);
+      --panel-bg: rgba(42, 45, 51, 0.75);
+      --backdrop:
+        radial-gradient(circle at 88% 4%, rgba(255, 110, 40, 0.2), transparent 40%),
+        radial-gradient(circle at 60% 0%, rgba(255, 81, 0, 0.1), transparent 45%),
+        linear-gradient(155deg, #2a2d33 0%, #23262a 60%, #27231f 100%);
+    }
+
+    /* Leescomfort in licht: zachtgrijs i.p.v. fel wit, met minder contrast.
+       Zelfde kleuren als soft-mode.js (sg-soft) voor de pagina's. */
+    html.theme-light.theme-soft {
+      --app-bg: #e6e6e3;
+      --bar-bg: #e1e1de;
+      --bar-border: #cdcdc8;
+      --tab-bg: #e1e1de;
+      --surface: #efefec;
+      --surface-raised: #e4e4e0;
+      --field-bg: #e6e6e3;
+      --border: #cdcdc8;
+      --border-strong: #b6b6b1;
+      --hover: rgba(43, 45, 49, 0.05);
+      --hover-strong: rgba(43, 45, 49, 0.09);
+      --text: #2b2d31;
+      --text-2: #45484e;
+      --text-muted: #62666c;
+      --text-faint: #8a8e94;
+      --overlay: rgba(43, 45, 49, 0.4);
+      --shadow: 0 16px 40px rgba(43, 45, 49, 0.14);
+      --panel-bg: rgba(239, 239, 236, 0.85);
+      --backdrop:
+        radial-gradient(circle at 88% 4%, rgba(255, 110, 40, 0.12), transparent 40%),
+        radial-gradient(circle at 60% 0%, rgba(255, 81, 0, 0.05), transparent 45%),
+        linear-gradient(155deg, #efefec 0%, #e6e6e3 60%, #e4e0dc 100%);
+    }
+
     body {
       margin: 0;
       font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
@@ -2858,6 +2910,13 @@
           <span id="theme-sun-info" class="settings-hint"></span>
         </div>
       </div>
+      <label id="soft-colors-row" class="general-toggle">
+        <span class="toggle-text">
+          Leescomfort: zachtere kleuren
+          <span class="settings-hint">Minder fel contrast, prettiger voor je ogen bij lang lezen. Licht wordt rustig zachtgrijs in plaats van fel wit; donker wordt donkergrijs in plaats van bijna zwart.</span>
+        </span>
+        <input type="checkbox" class="switch" id="soft-colors-checkbox">
+      </label>
       <div id="show-not-clocked-row" class="general-choice">
         <span class="toggle-text">
           Melding "Niet geklokt op een order"
@@ -3151,7 +3210,7 @@
     // staat preferencesChosen in de instellingen.
     const PREFERENCES_STEP = {
       choices: true,
-      title: 'Nog twee keuzes',
+      title: 'Nog een paar keuzes',
       text: 'Kies hoe je de app wilt hebben. Je kunt dit later altijd aanpassen in de instellingen.'
     };
     let preferencesChosen = true; // pas na getSettings bekend
@@ -3186,6 +3245,11 @@
       const themeGroup = addQuestion('Weergave');
       buildChoiceGroup(themeGroup, THEME_CHOICES, darkModeBtn.classList.contains('active') ? 'dark' : 'light',
         value => setThemeDirect(value === 'dark'));
+
+      const softGroup = addQuestion('Leescomfort', null,
+        'Zachter = minder fel contrast: zachtgrijs in licht, donkergrijs in donker.');
+      buildChoiceGroup(softGroup, SOFT_COLOR_CHOICES, softColors ? 'zachter' : 'gewoon',
+        value => setSoftColors(value === 'zachter'));
 
       addQuestion('Melding "Niet geklokt op een order"', 'not-clocked',
         'Aan = de oranje balk bovenaan de pagina. Subtiel = een rustige regel. Uit = niet tonen. "Afwezig" blijft altijd zichtbaar.');
@@ -3280,7 +3344,7 @@
         },
         {
           ...PREFERENCES_STEP,
-          title: 'Klaar! Nog twee keuzes',
+          title: 'Klaar! Nog een paar keuzes',
           text: 'Je bent er klaar voor. Kies nog hoe je de app wilt hebben; dit en de rondleiding vind je later terug in de instellingen.'
         }
       ]
@@ -4397,6 +4461,7 @@
         blockCtrlBCheckbox.checked = !!settings.blockCtrlB;
         renderNotClockedChoice(settings.notClockedMode);
         renderThemeSchedule(settings);
+        softColorsCheckbox.checked = !!settings.softColors;
         applyUpdateStatusUI(!!settings.updateVersion, settings.updateVersion);
       }
       clearTimeout(settingsHideTimer);
@@ -4486,6 +4551,10 @@
     const THEME_CHOICES = [
       { value: 'light', label: 'Licht' },
       { value: 'dark', label: 'Donker' }
+    ];
+    const SOFT_COLOR_CHOICES = [
+      { value: 'gewoon', label: 'Gewoon' },
+      { value: 'zachter', label: 'Zachter' }
     ];
     let notClockedMode = 'aan';
 
@@ -4629,6 +4698,28 @@
       }, THEME_SWITCH_MS + 100);
     });
 
+    // Leescomfort: zachtere kleuren (html.theme-soft; in licht zachtgrijs, in
+    // donker donkergrijs). main.js zet dezelfde stand op de pagina's
+    // (soft-mode.js).
+    const softColorsCheckbox = document.getElementById('soft-colors-checkbox');
+    let softColors = true; // standaard aan (zie main.js); getSettings zet de echte stand
+
+    function setSoftColors(enabled, { save = true } = {}) {
+      softColors = !!enabled;
+      softColorsCheckbox.checked = softColors;
+      if (save) {
+        clearTimeout(themeSwitchTimer);
+        document.documentElement.classList.add('theme-switching');
+        themeSwitchTimer = setTimeout(() => {
+          document.documentElement.classList.remove('theme-switching');
+        }, THEME_SWITCH_MS + 100);
+        window.electronAPI.setSoftColors(softColors);
+      }
+      document.documentElement.classList.toggle('theme-soft', softColors);
+    }
+
+    softColorsCheckbox.addEventListener('change', () => setSoftColors(softColorsCheckbox.checked));
+
     // Automatisch gewisseld (tijden, zon of Windows, zie main.js): de tabbalk
     // gaat mee, met dezelfde overgang als bij een klik.
     window.electronAPI.on('dark-mode-changed', (enabled) => {
@@ -4644,6 +4735,7 @@
     window.electronAPI.getSettings().then(settings => {
       if (!settings) return;
       renderDarkModeButton(!!settings.darkMode);
+      setSoftColors(!!settings.softColors, { save: false });
       updateZoomLabel(settings.zoomFactor);
       document.documentElement.classList.toggle('custom-window-controls', !!settings.customWindowControls);
       renderMaximizeButton(!!settings.windowMaximized);
