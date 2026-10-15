@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, Menu, clipboard, shell, screen, session, systemPreferences } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, Menu, clipboard, shell, screen, session, systemPreferences, nativeTheme } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
@@ -74,7 +74,12 @@ let appSettings = {
   notClockedMode: 'aan', // melding "Niet geklokt op een order": 'aan' (oranje balk), 'subtiel' of 'uit'
   preferencesChosen: false, // keuzescherm (thema + klokmelding) al gezien
   darkMode: false,
-  betaUpdates: RUNNING_PRERELEASE // ook bètaversies (GitHub pre-releases) als update aanbieden
+  betaUpdates: RUNNING_PRERELEASE, // ook bètaversies (GitHub pre-releases) als update aanbieden
+  // Licht/donker automatisch (zie "Licht/donker automatisch"):
+  // 'handmatig' | 'systeem' | 'tijden' | 'zon'
+  themeMode: 'handmatig',
+  themeTimes: { dark: '18:00', light: '07:00' }, // bij 'tijden'
+  themeSunOffset: 0 // bij 'zon': minuten later (+) of eerder (-) dan zon op/onder
 };
 
 function getSettingsPath() {
@@ -90,6 +95,19 @@ function notClockedModeFrom(parsed) {
   if (NOT_CLOCKED_MODES.includes(parsed.notClockedMode)) return parsed.notClockedMode;
   if (typeof parsed.showNotClockedBar === 'boolean') return parsed.showNotClockedBar ? 'subtiel' : 'uit';
   return 'aan';
+}
+
+const THEME_MODES = ['handmatig', 'systeem', 'tijden', 'zon'];
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function validThemeTimes(times) {
+  const dark = times && TIME_PATTERN.test(times.dark) ? times.dark : '18:00';
+  const light = times && TIME_PATTERN.test(times.light) ? times.light : '07:00';
+  return { dark, light };
+}
+
+function validSunOffset(offset) {
+  return Number.isFinite(offset) ? Math.max(-120, Math.min(120, Math.round(offset))) : 0;
 }
 
 function loadSettings() {
@@ -112,7 +130,10 @@ function loadSettings() {
       notClockedMode: notClockedModeFrom(parsed),
       preferencesChosen: typeof parsed.preferencesChosen === 'boolean' ? parsed.preferencesChosen : false,
       darkMode: typeof parsed.darkMode === 'boolean' ? parsed.darkMode : false,
-      betaUpdates: typeof parsed.betaUpdates === 'boolean' ? parsed.betaUpdates : RUNNING_PRERELEASE
+      betaUpdates: typeof parsed.betaUpdates === 'boolean' ? parsed.betaUpdates : RUNNING_PRERELEASE,
+      themeMode: THEME_MODES.includes(parsed.themeMode) ? parsed.themeMode : 'handmatig',
+      themeTimes: validThemeTimes(parsed.themeTimes),
+      themeSunOffset: validSunOffset(parsed.themeSunOffset)
     };
     if (!zoomResetDone) saveSettings();
   } catch {
@@ -2121,6 +2142,9 @@ ipcMain.handle('get-settings', (event) => {
     blockCtrlB: appSettings.blockCtrlB,
     notClockedMode: appSettings.notClockedMode,
     darkMode: appSettings.darkMode,
+    themeMode: appSettings.themeMode,
+    themeTimes: appSettings.themeTimes,
+    themeSunOffset: appSettings.themeSunOffset,
     betaUpdates: appSettings.betaUpdates,
     customWindowControls: CUSTOM_WINDOW_CONTROLS,
     appVersion: app.getVersion(),
@@ -2151,8 +2175,184 @@ ipcMain.on('set-not-clocked-mode', (event, mode) => {
   for (const view of tabs.values()) applyPageTweaks(view);
   for (const { view } of detachedWindows.values()) applyPageTweaks(view);
 });
+// ---------- Licht/donker automatisch ----------
+//
+// Naast handmatig (de knop in de tabbalk) kan het thema automatisch wisselen:
+//   - 'systeem': volgt de Windows-instelling (licht/donker voor apps)
+//   - 'tijden':  donker tussen twee vaste tijden (bv. 18:00 - 07:00)
+//   - 'zon':     donker na zonsondergang tot zonsopkomst, met een
+//                verschuiving in minuten. Zon op/onder wordt hier berekend
+//                voor Singeling in Wormerveer (geen internet nodig).
+// De knop in de tabbalk werkt dan als tijdelijke uitzondering: die geldt tot
+// het volgende omslagmoment (of tot Windows wisselt), daarna neemt de
+// automatische stand het weer over.
+const SUN_LOCATION = { lat: 52.49, lon: 4.79 }; // Wormerveer
+let themeOverride = null; // { dark, until: Date | null }
+
+// Zonsopkomst/-ondergang (UTC-tijdstippen als Date) op de kalenderdag van
+// "date" ("Almanac for Computers"-methode, nauwkeurig tot op een paar minuten).
+function sunTimes(date, { lat, lon } = SUN_LOCATION) {
+  const rad = Math.PI / 180;
+  const dayStart = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayOfYear = Math.round((dayStart - Date.UTC(date.getFullYear(), 0, 0)) / 86400000);
+  const lngHour = lon / 15;
+  const calc = (rising) => {
+    const t = dayOfYear + ((rising ? 6 : 18) - lngHour) / 24;
+    const M = 0.9856 * t - 3.289;
+    const L = ((M + 1.916 * Math.sin(M * rad) + 0.020 * Math.sin(2 * M * rad) + 282.634) % 360 + 360) % 360;
+    let RA = ((Math.atan(0.91764 * Math.tan(L * rad)) / rad) % 360 + 360) % 360;
+    RA = (RA + Math.floor(L / 90) * 90 - Math.floor(RA / 90) * 90) / 15;
+    const sinDec = 0.39782 * Math.sin(L * rad);
+    const cosDec = Math.cos(Math.asin(sinDec));
+    const cosH = (Math.cos(90.833 * rad) - sinDec * Math.sin(lat * rad)) / (cosDec * Math.cos(lat * rad));
+    if (cosH > 1 || cosH < -1) return null; // poolnacht/-dag (niet in Nederland)
+    const H = (rising ? 360 - Math.acos(cosH) / rad : Math.acos(cosH) / rad) / 15;
+    const UT = (((H + RA - 0.06571 * t - 6.622 - lngHour) % 24) + 24) % 24;
+    return new Date(dayStart + UT * 3600000);
+  };
+  return { sunrise: calc(true), sunset: calc(false) };
+}
+
+function atTime(date, hhmm) {
+  const [hours, minutes] = hhmm.split(':').map(Number);
+  const result = new Date(date);
+  result.setHours(hours, minutes, 0, 0);
+  return result;
+}
+
+function addDays(date, days) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+// Wanneer licht en donker vandaag (en morgen) beginnen volgens de instelling.
+function themeMoments(now) {
+  if (appSettings.themeMode === 'tijden') {
+    const moments = [];
+    for (const day of [0, 1]) {
+      const base = addDays(now, day);
+      moments.push({ at: atTime(base, appSettings.themeTimes.light), dark: false });
+      moments.push({ at: atTime(base, appSettings.themeTimes.dark), dark: true });
+    }
+    return moments;
+  }
+  const offsetMs = appSettings.themeSunOffset * 60000;
+  const moments = [];
+  for (const day of [-1, 0, 1]) {
+    const { sunrise, sunset } = sunTimes(addDays(now, day));
+    if (sunrise) moments.push({ at: new Date(sunrise.getTime() + offsetMs), dark: false });
+    if (sunset) moments.push({ at: new Date(sunset.getTime() + offsetMs), dark: true });
+  }
+  return moments;
+}
+
+// { dark, nextChange } volgens de automatische stand, of null bij handmatig.
+function scheduledTheme(now = new Date()) {
+  if (appSettings.themeMode === 'handmatig') return null;
+  if (appSettings.themeMode === 'systeem') return { dark: nativeTheme.shouldUseDarkColors, nextChange: null };
+  const moments = themeMoments(now).sort((a, b) => a.at - b.at);
+  // Stand van het laatste moment vóór nu; bij 'tijden' kan dat gisteren zijn
+  // (bv. donker vanaf 18:00 en het is nu 03:00): dan geldt het laatste van
+  // vandaag teruggerekend, d.w.z. de stand van het laatste moment van de dag.
+  const past = moments.filter(moment => moment.at <= now);
+  const current = past.length > 0 ? past[past.length - 1] : moments[moments.length - 1];
+  const next = moments.find(moment => moment.at > now) || null;
+  return { dark: current.dark, nextChange: next ? next.at : null };
+}
+
+// Thema daadwerkelijk omzetten (met het gordijn), en de tabbalk bijwerken.
+function setDarkModeValue(value) {
+  if (!!value === appSettings.darkMode) return;
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    appSettings.darkMode = !!value;
+    saveSettings();
+    return;
+  }
+  applyDarkModeChange(!!value);
+  mainWindow.webContents.send('dark-mode-changed', appSettings.darkMode);
+}
+
+// Controle (elke minuut, bij een wijziging van de instelling en als Windows
+// van thema wisselt): zet het thema op de automatische stand, tenzij de
+// knop in de tabbalk tijdelijk iets anders heeft gekozen.
+function applyThemeSchedule() {
+  const now = new Date();
+  const scheduled = scheduledTheme(now);
+  if (!scheduled) {
+    themeOverride = null;
+    return;
+  }
+  if (themeOverride && themeOverride.until && now >= themeOverride.until) themeOverride = null;
+  setDarkModeValue(themeOverride ? themeOverride.dark : scheduled.dark);
+}
+
+// Bij het opstarten (vóór het venster er is): meteen het juiste thema, zonder
+// animatie. Daarna elke minuut controleren.
+let themeScheduleStarted = false;
+
+function startThemeSchedule() {
+  if (themeScheduleStarted) return;
+  themeScheduleStarted = true;
+  const scheduled = scheduledTheme();
+  if (scheduled && scheduled.dark !== appSettings.darkMode) {
+    appSettings.darkMode = scheduled.dark;
+    saveSettings();
+  }
+  setInterval(applyThemeSchedule, 60 * 1000);
+  nativeTheme.on('updated', () => {
+    if (appSettings.themeMode !== 'systeem') return;
+    themeOverride = null; // Windows wisselt: dat telt weer
+    applyThemeSchedule();
+  });
+}
+
+function formatClock(date) {
+  return date ? date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : '–';
+}
+
+// Voor het instellingenscherm: wanneer het vandaag licht/donker wordt.
+function themeScheduleInfo() {
+  const { sunrise, sunset } = sunTimes(new Date());
+  const offsetMs = appSettings.themeSunOffset * 60000;
+  const scheduled = scheduledTheme();
+  return {
+    sunrise: formatClock(sunrise),
+    sunset: formatClock(sunset),
+    lightFrom: formatClock(sunrise && new Date(sunrise.getTime() + offsetMs)),
+    darkFrom: formatClock(sunset && new Date(sunset.getTime() + offsetMs)),
+    nextChange: scheduled && scheduled.nextChange ? formatClock(scheduled.nextChange) : null,
+    overridden: !!themeOverride
+  };
+}
+
+ipcMain.handle('get-theme-schedule-info', (event) => {
+  if (event.sender !== mainWindow.webContents) return null;
+  return themeScheduleInfo();
+});
+
+ipcMain.on('set-theme-schedule', (event, { mode, times, sunOffset } = {}) => {
+  if (event.sender !== mainWindow.webContents || !THEME_MODES.includes(mode)) return;
+  appSettings.themeMode = mode;
+  if (times) appSettings.themeTimes = validThemeTimes(times);
+  if (sunOffset !== undefined) appSettings.themeSunOffset = validSunOffset(Number(sunOffset));
+  saveSettings();
+  themeOverride = null;
+  applyThemeSchedule();
+});
+
 ipcMain.on('set-dark-mode', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
+  // Bij een automatische stand: tijdelijke uitzondering tot het volgende
+  // omslagmoment (bij 'systeem' tot Windows wisselt).
+  const scheduled = scheduledTheme();
+  if (scheduled) {
+    themeOverride = scheduled.dark === !!value ? null : { dark: !!value, until: scheduled.nextChange };
+  }
+  applyDarkModeChange(!!value);
+});
+
+function applyDarkModeChange(value) {
   // Eerst het gordijn in de oude kleur over de actieve tab, dan pas het
   // thema wisselen: zo komt het nieuwe thema er rustig onder vandaan in
   // plaats van in één klap om te springen.
@@ -2178,7 +2378,8 @@ ipcMain.on('set-dark-mode', (event, value) => {
       detached.window.webContents.send('detached-theme', appSettings.darkMode);
     }
   }
-});
+}
+
 ipcMain.on('set-show-onboarding', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
   appSettings.showOnboarding = !!value;
@@ -2788,6 +2989,8 @@ function waitForFullWidthLayout(maxWaitMs = 800) {
 }
 
 function createWindow() {
+  // Eerst het automatische licht/donker, zodat ook het laadscherm klopt.
+  startThemeSchedule();
   const splashWindow = new BrowserWindow({
     width: 420,
     height: 320,
