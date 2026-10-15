@@ -1,7 +1,7 @@
 {
   "name": "snglngapp",
   "productName": "Singeling App",
-  "version": "1.2.3-beta.2",
+  "version": "1.2.3-beta.3",
   "description": "",
   "main": "main.js",
   "scripts": {
