@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:">
   <title>Singeling App</title>
   <style>
     /* Kleuren van de app-chrome (tabbalk, instellingen, meldingen). Donker is
@@ -219,6 +219,66 @@
 
     #settings-btn.open svg {
       transform: rotate(-45deg);
+    }
+
+    /* ---------- Zoomindicator in de tabbalk ---------- */
+
+    /* − 100% + als één blokje. Het percentage is oranje zodra de zoom niet
+       op 100% staat; klikken erop zet hem terug. */
+    #tabbar-zoom {
+      display: inline-flex;
+      align-items: stretch;
+      flex-shrink: 0;
+      height: 26px;
+      margin: 0 4px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      -webkit-app-region: no-drag;
+    }
+
+    .tabbar-zoom-btn,
+    #tabbar-zoom-level {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
+    }
+
+    .tabbar-zoom-btn {
+      width: 24px;
+    }
+
+    .tabbar-zoom-btn:hover,
+    #tabbar-zoom-level:hover {
+      background: var(--hover-strong);
+      color: var(--text);
+    }
+
+    .tabbar-zoom-btn:active svg {
+      transform: scale(0.8);
+    }
+
+    #tabbar-zoom-level {
+      min-width: 42px;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      font-size: 11.5px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #tabbar-zoom-level.changed {
+      color: var(--accent);
+    }
+
+    #tabbar-zoom-level.bump {
+      animation: pop 0.25s var(--ease);
     }
 
     /* ---------- Eigen vensterknoppen (CUSTOM_WINDOW_CONTROLS) ---------- */
@@ -593,117 +653,467 @@
       color: var(--text);
     }
 
-    /* ---------- Instellingenpaneel ---------- */
+    /* ---------- Instellingenscherm ---------- */
 
-    /* Open/dicht gaat in twee stappen (zie openSettingsPanel): eerst .hidden
-       eraf, dan .open erop, zodat de overgang vanaf de beginstand speelt. */
-    .settings-backdrop {
-      position: fixed;
-      inset: 0;
-      z-index: 24;
-      background: var(--backdrop);
-      opacity: 0;
-      transition: opacity 0.2s var(--ease);
-      -webkit-app-region: no-drag;
-    }
-
-    .settings-backdrop.open {
-      opacity: 1;
-    }
-
-    .settings-backdrop.hidden {
-      display: none;
-    }
-
+    /* Volledig scherm onder de tabbalk (net als het taboverzicht), met links
+       een navigatie per onderdeel en rechts de inhoud van het gekozen
+       onderdeel. Open/dicht gaat in twee stappen (zie openSettingsPanel):
+       eerst .hidden eraf, dan .open erop, zodat de overgang vanaf de
+       beginstand speelt. De tabbalk blijft zichtbaar en bruikbaar. */
     .settings-panel {
       position: fixed;
-      top: 44px;
-      right: 8px;
-      width: 290px;
-      max-height: calc(100vh - 60px);
-      overflow-y: auto;
-      background: var(--panel-bg);
-      backdrop-filter: blur(28px) saturate(160%);
-      -webkit-backdrop-filter: blur(28px) saturate(160%);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
+      top: 38px;
+      left: 0;
+      right: 0;
+      bottom: 0;
       z-index: 25;
-      padding: 14px 16px;
+      display: flex;
+      background: var(--app-bg);
       opacity: 0;
-      transform: translateY(-8px) scale(0.98);
-      transform-origin: top right;
-      transition: opacity 0.18s var(--ease), transform 0.18s var(--ease);
+      transition: opacity 0.22s var(--ease);
       -webkit-app-region: no-drag;
     }
 
     .settings-panel.open {
       opacity: 1;
-      transform: none;
     }
 
     .settings-panel.hidden {
       display: none;
     }
 
-    .settings-section + .settings-section {
-      margin-top: 18px;
-      padding-top: 18px;
-      border-top: 1px solid var(--border);
+    .settings-nav {
+      flex: 0 0 240px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 22px 12px 16px;
+      background: var(--surface);
+      border-right: 1px solid var(--bar-border);
+      transform: translateX(-16px);
+      transition: transform 0.32s var(--ease);
+    }
+
+    .settings-panel.open .settings-nav {
+      transform: none;
+    }
+
+    .settings-nav h2 {
+      margin: 0 10px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-2);
+    }
+
+    /* Navigatie-item in de stijl van de tabs: oranje balkje links bij het
+       actieve onderdeel, dat bij wisselen opengroeit. */
+    .settings-nav-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px 9px 12px;
+      border: 0;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      text-align: left;
+      cursor: pointer;
+      transition: background-color 0.18s var(--ease), color 0.18s var(--ease);
+    }
+
+    .settings-panel.open .settings-nav-item {
+      animation: fade-up 0.3s var(--ease) both;
+    }
+
+    .settings-panel.open .settings-nav-item:nth-of-type(2) { animation-delay: 0.04s; }
+    .settings-panel.open .settings-nav-item:nth-of-type(3) { animation-delay: 0.08s; }
+    .settings-panel.open .settings-nav-item:nth-of-type(4) { animation-delay: 0.12s; }
+
+    .settings-nav-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 6px;
+      bottom: 6px;
+      width: 2px;
+      background: var(--accent);
+      transform: scaleY(0);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .settings-nav-item svg {
+      flex-shrink: 0;
+    }
+
+    .settings-nav-item:hover {
+      color: var(--text);
+      background: var(--hover);
+    }
+
+    .settings-nav-item.active {
+      color: var(--text);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+    }
+
+    .settings-nav-item.active::before {
+      transform: scaleY(1);
+    }
+
+    .settings-nav-item.active svg {
+      color: var(--accent);
+    }
+
+    .nav-meta {
+      margin-left: auto;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-faint);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .nav-dot {
+      margin-left: auto;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ff3b30;
+      animation: badge-in 0.4s var(--ease);
+    }
+
+    .nav-dot.hidden {
+      display: none;
+    }
+
+    /* Terug-knop onderin de navigatie; sluit het instellingenscherm. */
+    .settings-back {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: auto;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-raised);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease), color 0.15s var(--ease);
+    }
+
+    .settings-back svg {
+      transition: transform 0.2s var(--ease);
+    }
+
+    .settings-back:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .settings-back:hover svg {
+      transform: translateX(-3px);
+    }
+
+    .settings-back:active {
+      transform: scale(0.98);
+    }
+
+    .settings-nav-footer {
+      padding: 10px 10px 0;
+      font-size: 11px;
+      color: var(--text-faint);
+      letter-spacing: 0.04em;
+    }
+
+    .settings-content {
+      position: relative;
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 40px 40px;
+    }
+
+    .settings-close {
+      position: absolute;
+      top: 18px;
+      right: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border: 0;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background-color 0.15s var(--ease), color 0.15s var(--ease), transform 0.25s var(--ease);
+    }
+
+    .settings-close:hover {
+      background: var(--hover-strong);
+      color: var(--text);
+      transform: rotate(90deg);
+    }
+
+    /* Eén onderdeel tegelijk; bij wisselen faded het nieuwe in. */
+    .settings-section {
+      max-width: 620px;
+    }
+
+    .settings-section.hidden {
+      display: none;
+    }
+
+    .settings-panel.open .settings-section:not(.hidden) {
+      animation: fade-up 0.3s var(--ease) both;
     }
 
     .settings-section h3 {
-      margin: 0 0 10px;
-      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 4px;
+      font-size: 20px;
       font-weight: 600;
-      color: var(--text-2);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
+      color: var(--text);
+    }
+
+    .settings-section h3::before {
+      content: '';
+      width: 3px;
+      height: 18px;
+      background: var(--accent);
+    }
+
+    .settings-intro {
+      margin: 0 0 20px 13px;
+      font-size: 13px;
+      color: var(--text-muted);
     }
 
     .settings-hint {
       margin: 8px 0 0;
       font-size: 12px;
       color: var(--text-muted);
-      line-height: 1.4;
+      line-height: 1.45;
     }
 
-    .zoom-controls {
+    /* Actieknoppen als rijen met een pijltje rechts. */
+    .general-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .general-actions button {
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-raised);
+      color: var(--text);
+      font-size: 13px;
+      text-align: left;
+      cursor: pointer;
+      transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease), transform 0.12s var(--ease);
+    }
+
+    .general-actions button::after {
+      content: '';
+      flex-shrink: 0;
+      width: 6px;
+      height: 6px;
+      margin-right: 3px;
+      border-top: 1.5px solid var(--text-muted);
+      border-right: 1.5px solid var(--text-muted);
+      transform: rotate(45deg);
+      transition: transform 0.2s var(--ease), border-color 0.15s var(--ease);
+    }
+
+    .general-actions button:hover {
+      border-color: var(--border-strong);
+      background: var(--hover-strong);
+    }
+
+    .general-actions button:hover::after {
+      border-color: var(--accent);
+      transform: translateX(3px) rotate(45deg);
+    }
+
+    .general-actions button:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .general-actions button:disabled {
+      opacity: 0.6;
+      cursor: progress;
+    }
+
+    /* Trekt de aandacht naar een gevonden update, ook als je de melding
+       eerder al had weggeklikt. */
+    .general-actions button.attention {
+      border-color: var(--accent);
+      background: var(--accent-strong);
+      color: #fff;
+    }
+
+    .general-actions button.attention::after {
+      border-color: #fff;
+    }
+
+    .general-actions button.attention:hover {
+      background: var(--accent);
+    }
+
+    /* Instelling met schuifschakelaar: tekst + uitleg links, schakelaar
+       rechts; de hele rij is klikbaar. */
+    .general-toggle {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-top: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease);
+    }
+
+    .general-toggle:hover {
+      background: var(--hover);
+      border-color: var(--border-strong);
+    }
+
+    .toggle-text {
+      display: flex;
+      flex-direction: column;
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.35;
+    }
+
+    .toggle-text .settings-hint {
+      margin-top: 4px;
+    }
+
+    /* Schuifschakelaar (oranje als hij aan staat). */
+    input.switch {
+      appearance: none;
+      position: relative;
+      flex-shrink: 0;
+      width: 34px;
+      height: 20px;
+      margin: 0;
+      border-radius: 999px;
+      background: var(--border-strong);
+      cursor: pointer;
+      transition: background-color 0.25s var(--ease);
+    }
+
+    input.switch::before {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      transition: transform 0.25s var(--ease);
+    }
+
+    input.switch:checked {
+      background: var(--accent);
+    }
+
+    input.switch:checked::before {
+      transform: translateX(14px);
+    }
+
+    input.switch:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    input.switch-small {
+      width: 28px;
+      height: 16px;
+    }
+
+    input.switch-small::before {
+      width: 12px;
+      height: 12px;
+    }
+
+    input.switch-small:checked::before {
+      transform: translateX(12px);
+    }
+
+    /* Zoomen als één blok: − 100% + | Reset */
+    .zoom-controls {
+      display: flex;
+      align-items: stretch;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
     }
 
     .zoom-controls button {
-      min-width: 30px;
-      height: 28px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: var(--hover);
+      min-width: 40px;
+      height: 34px;
+      border: 0;
+      background: var(--surface-raised);
       color: var(--text);
-      font-size: 14px;
+      font-size: 15px;
       cursor: pointer;
-      transition: background-color 0.15s var(--ease), transform 0.12s var(--ease);
+      transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
     }
 
     .zoom-controls button:hover {
       background: var(--hover-strong);
+      color: var(--accent);
     }
 
+    .zoom-controls button:active svg,
     .zoom-controls button:active {
-      transform: scale(0.94);
+      transform: none;
+    }
+
+    #zoom-reset-btn {
+      padding: 0 14px;
+      border-left: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 500;
     }
 
     #zoom-level {
       flex: 1;
-      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 13px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
     }
 
     #zoom-level.bump {
       animation: pop 0.25s var(--ease);
     }
 
+    /* Starttabs: rij per tab, zoals de tabs in een tabgroep. */
     #start-tabs-list {
       list-style: none;
       margin: 0;
@@ -716,13 +1126,18 @@
     .start-tab-item {
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      padding: 6px 8px;
-      background: var(--hover);
+      gap: 8px;
+      padding: 9px 10px 9px 12px;
       border: 1px solid var(--border);
-      border-radius: 4px;
+      border-left: 2px solid var(--accent);
+      border-radius: var(--radius);
       font-size: 13px;
       animation: fade-up 0.2s var(--ease);
+      transition: background-color 0.15s var(--ease);
+    }
+
+    .start-tab-item:hover {
+      background: var(--hover);
     }
 
     .start-tab-row {
@@ -736,33 +1151,33 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      font-weight: 500;
     }
 
     .start-tab-lock {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       font-size: 12px;
-      color: var(--text-2);
-      cursor: pointer;
-    }
-
-    .start-tab-lock input {
-      width: 13px;
-      height: 13px;
-      accent-color: var(--accent);
+      color: var(--text-muted);
       cursor: pointer;
     }
 
     .start-tab-remove {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      padding: 0;
       border: none;
-      background: transparent;
-      color: var(--text-muted);
-      font-size: 14px;
-      cursor: pointer;
-      padding: 0 4px;
       border-radius: 4px;
+      background: transparent;
+      color: var(--text-faint);
+      font-size: 15px;
+      cursor: pointer;
+      transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
     }
 
     .start-tab-remove:hover {
@@ -772,215 +1187,6 @@
 
     #start-tabs-empty.hidden {
       display: none;
-    }
-
-    .general-actions {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .general-actions button {
-      padding: 8px 10px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: var(--hover);
-      color: var(--text);
-      font-size: 13px;
-      cursor: pointer;
-      text-align: left;
-      transition: background-color 0.15s var(--ease), transform 0.12s var(--ease);
-    }
-
-    .general-actions button:hover {
-      background: var(--hover-strong);
-    }
-
-    .general-actions button:active:not(:disabled) {
-      transform: scale(0.98);
-    }
-
-    /* Trekt de aandacht naar een gevonden update, ook als je de melding
-       eerder al had weggeklikt. */
-    .general-actions button.attention {
-      border-color: var(--accent);
-      background: var(--accent-strong);
-      color: #fff;
-    }
-
-    .general-actions button.attention:hover {
-      background: var(--accent);
-    }
-
-    .general-toggle {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 10px;
-      font-size: 13px;
-      color: var(--text-2);
-      cursor: pointer;
-    }
-
-    .general-toggle input {
-      width: 14px;
-      height: 14px;
-      accent-color: var(--accent);
-      cursor: pointer;
-    }
-
-    .settings-tabs {
-      display: flex;
-      gap: 4px;
-      margin-bottom: 12px;
-    }
-
-    .settings-tab-btn {
-      flex: 1;
-      padding: 6px 8px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: var(--hover);
-      color: var(--text-2);
-      font-size: 12px;
-      cursor: pointer;
-      transition: background-color 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
-    }
-
-    .settings-tab-btn:hover {
-      background: var(--hover-strong);
-    }
-
-    .settings-tab-btn.active {
-      background: var(--accent-strong);
-      border-color: var(--accent);
-      color: #fff;
-    }
-
-    .settings-section-body:not(.hidden) {
-      animation: fade-up 0.2s var(--ease);
-    }
-
-    #tab-groups-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .tab-group-item {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      padding: 8px;
-      background: var(--hover);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      animation: fade-up 0.2s var(--ease);
-    }
-
-    .tab-group-header {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .tab-group-name {
-      flex: 1;
-      min-width: 0;
-      background: var(--field-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--text);
-      font-size: 13px;
-      padding: 4px 6px;
-      transition: border-color 0.15s var(--ease);
-    }
-
-    .tab-group-name:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-
-    .tab-group-open {
-      flex-shrink: 0;
-      padding: 4px 8px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: var(--hover-strong);
-      color: var(--text);
-      font-size: 12px;
-      cursor: pointer;
-      transition: background-color 0.15s var(--ease), transform 0.12s var(--ease);
-    }
-
-    .tab-group-open:hover {
-      background: var(--border-strong);
-    }
-
-    .tab-group-open:active {
-      transform: scale(0.95);
-    }
-
-    .tab-group-delete {
-      flex-shrink: 0;
-      border: none;
-      background: transparent;
-      color: var(--text-muted);
-      font-size: 14px;
-      cursor: pointer;
-      padding: 0 4px;
-      border-radius: 4px;
-    }
-
-    .tab-group-delete:hover {
-      background: var(--hover-strong);
-      color: var(--text);
-    }
-
-    .tab-group-urls {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .tab-group-urls li {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 4px 8px;
-      background: var(--field-bg);
-      border-radius: 4px;
-      font-size: 12px;
-      color: var(--text-2);
-    }
-
-    .tab-group-url-label {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .tab-group-url-remove {
-      flex-shrink: 0;
-      border: none;
-      background: transparent;
-      color: var(--text-muted);
-      font-size: 13px;
-      cursor: pointer;
-      padding: 0 4px;
-      border-radius: 4px;
-    }
-
-    .tab-group-url-remove:hover {
-      background: var(--hover-strong);
-      color: var(--text);
     }
 
     #view-container {
@@ -1279,6 +1485,460 @@
       background: var(--accent);
     }
 
+    /* ---------- Taboverzicht ---------- */
+
+    /* Over het hele venster onder de tabbalk; de tabinhoud (native laag)
+       verbergt main.js zolang dit open is (tab-overview-opened). */
+    #tab-overview {
+      position: fixed;
+      top: 38px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 23;
+      display: flex;
+      flex-direction: column;
+      background: var(--app-bg);
+      opacity: 0;
+      transition: opacity 0.2s var(--ease);
+      -webkit-app-region: no-drag;
+    }
+
+    #tab-overview.open {
+      opacity: 1;
+    }
+
+    #tab-overview.hidden {
+      display: none;
+    }
+
+    .tab-overview-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 22px 32px 6px;
+    }
+
+    .tab-overview-header h2 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-2);
+    }
+
+    .overview-count {
+      margin-left: 6px;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: var(--hover-strong);
+      color: var(--text-muted);
+      font-size: 11px;
+      letter-spacing: 0;
+    }
+
+    #tab-overview-search {
+      margin-left: auto;
+      width: 280px;
+      padding: 7px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+      transition: border-color 0.15s var(--ease);
+    }
+
+    #tab-overview-search:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    #tab-overview-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border: 0;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
+    }
+
+    #tab-overview-close:hover {
+      background: var(--hover-strong);
+      color: var(--text);
+    }
+
+    #tab-overview-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 32px 32px;
+    }
+
+    .overview-section + .overview-section {
+      margin-top: 28px;
+    }
+
+    .overview-section-title {
+      margin: 10px 0 14px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    #tab-overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    .overview-hint {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .overview-hint.hidden {
+      display: none;
+    }
+
+    /* ---- Tabgroepen in het overzicht ---- */
+
+    #overview-groups {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 16px;
+    }
+
+    .overview-group {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+      transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+      animation: card-in 0.35s var(--ease) both;
+      animation-delay: calc(var(--card-i, 0) * 25ms);
+    }
+
+    /* Oranje balkje links, zoals bij de tabs. */
+    .overview-group::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--accent);
+    }
+
+    .overview-group:hover {
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow);
+    }
+
+    .overview-group.filtered-out {
+      display: none;
+    }
+
+    .overview-group-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 10px 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .overview-group-icon {
+      flex-shrink: 0;
+      color: var(--accent);
+    }
+
+    /* Naam: ziet eruit als gewone tekst, wordt bij klikken een invoerveld. */
+    .overview-group-name {
+      flex: 1;
+      min-width: 0;
+      padding: 4px 6px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      transition: border-color 0.15s var(--ease), background-color 0.15s var(--ease);
+    }
+
+    .overview-group-name:hover {
+      border-color: var(--border);
+    }
+
+    .overview-group-name:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--field-bg);
+    }
+
+    .overview-group-open {
+      flex-shrink: 0;
+      padding: 5px 12px;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      background: var(--accent-strong);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.15s var(--ease), transform 0.12s var(--ease);
+    }
+
+    .overview-group-open:hover {
+      background: var(--accent);
+    }
+
+    .overview-group-open:active {
+      transform: scale(0.95);
+    }
+
+    .overview-group-open:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .overview-group-delete,
+    .overview-group-url-remove {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-faint);
+      cursor: pointer;
+      transition: background-color 0.15s var(--ease), color 0.15s var(--ease), opacity 0.15s var(--ease);
+    }
+
+    .overview-group-delete:hover {
+      background: color-mix(in srgb, #d93a2b 15%, transparent);
+      color: #d93a2b;
+    }
+
+    .overview-group-urls {
+      list-style: none;
+      margin: 0;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .overview-group-urls li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 4px 3px 8px;
+      border-radius: 4px;
+      font-size: 12.5px;
+      color: var(--text-2);
+      transition: background-color 0.15s var(--ease);
+    }
+
+    .overview-group-urls li:hover {
+      background: var(--hover);
+    }
+
+    .overview-group-url-label {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .overview-group-url-remove {
+      width: 22px;
+      height: 22px;
+      opacity: 0;
+    }
+
+    .overview-group-urls li:hover .overview-group-url-remove {
+      opacity: 1;
+    }
+
+    .overview-group-url-remove:hover {
+      background: var(--hover-strong);
+      color: var(--text);
+    }
+
+    .overview-group-urls li.overview-group-empty {
+      color: var(--text-faint);
+      font-style: italic;
+    }
+
+    /* Kaart per tab: voorbeeld + naam. Het balkje links volgt de tabbalk:
+       oranje voor de actieve tab, goudgeel voor vastgezette. */
+    .overview-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+      transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), border-color 0.2s var(--ease), opacity 0.2s var(--ease);
+      animation: card-in 0.35s var(--ease) both;
+      animation-delay: calc(var(--card-i, 0) * 25ms);
+    }
+
+    .overview-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow);
+    }
+
+    .overview-card.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+
+    .overview-card.locked {
+      border-color: color-mix(in srgb, var(--pin) 60%, var(--border));
+    }
+
+    .overview-card.locked.active {
+      border-color: var(--pin);
+      box-shadow: 0 0 0 1px var(--pin);
+    }
+
+    .overview-card.filtered-out {
+      display: none;
+    }
+
+    /* Gekozen kaart springt even naar voren terwijl het overzicht wegfaedt. */
+    .overview-card.chosen {
+      transform: scale(1.04);
+      border-color: var(--accent);
+      box-shadow: var(--shadow);
+    }
+
+    .overview-card.removing {
+      opacity: 0;
+      transform: scale(0.92);
+      pointer-events: none;
+    }
+
+    .overview-thumb {
+      position: relative;
+      aspect-ratio: 16 / 10;
+      background: var(--surface-raised);
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .overview-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top left;
+      display: block;
+    }
+
+    /* Nog geen voorbeeld (tab nooit in beeld geweest): grote beginletter. */
+    .overview-thumb-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 42px;
+      font-weight: 600;
+      color: var(--text-faint);
+      background:
+        radial-gradient(circle at 80% 10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+        var(--surface-raised);
+    }
+
+    .overview-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 8px 9px 12px;
+      min-width: 0;
+    }
+
+    .overview-footer .tab-lock {
+      display: none;
+      color: var(--pin);
+      flex-shrink: 0;
+    }
+
+    .overview-card.locked .overview-footer .tab-lock {
+      display: block;
+    }
+
+    .overview-title {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .overview-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-faint);
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s var(--ease), background-color 0.15s var(--ease), color 0.15s var(--ease);
+    }
+
+    .overview-card:hover .overview-close {
+      opacity: 1;
+    }
+
+    .overview-close:hover {
+      background: var(--hover-strong);
+      color: var(--text);
+    }
+
+    #tab-overview-btn.open {
+      color: var(--accent);
+      background: var(--hover-strong);
+    }
+
+    @keyframes card-in {
+      from { opacity: 0; transform: translateY(10px) scale(0.96); }
+      to { opacity: 1; transform: none; }
+    }
+
     /* ---------- Wisselen licht/donker ---------- */
 
     /* Tijdens het omschakelen lopen alle kleuren van de chrome in hetzelfde
@@ -1316,6 +1976,8 @@
     body.intro #tab-bar > :nth-child(6) { animation-delay: 0.3s; }
     body.intro #tab-bar > :nth-child(7) { animation-delay: 0.36s; }
     body.intro #tab-bar > :nth-child(8) { animation-delay: 0.42s; }
+    body.intro #tab-bar > :nth-child(9) { animation-delay: 0.48s; }
+    body.intro #tab-bar > :nth-child(10) { animation-delay: 0.54s; }
 
     /* Na "Start" in de welkomstmelding maakt main.js de starttabs aan; die
        worden dan één voor één ingetekend (--intro-i zet het script per tab). */
@@ -1520,6 +2182,18 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </button>
       </div>
+      <div id="tabbar-zoom" title="Zoomniveau van de pagina">
+        <button id="tabbar-zoom-out" class="tabbar-zoom-btn" type="button" title="Uitzoomen" aria-label="Uitzoomen">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+        </button>
+        <button id="tabbar-zoom-level" type="button" title="Terug naar 100%">100%</button>
+        <button id="tabbar-zoom-in" class="tabbar-zoom-btn" type="button" title="Inzoomen" aria-label="Inzoomen">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        </button>
+      </div>
+      <button id="tab-overview-btn" class="navigation-button" type="button" title="Overzicht van alle tabs" aria-label="Overzicht van alle tabs">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+      </button>
       <button id="new-tab-btn" type="button" title="Nieuw tabblad" aria-label="Nieuw tabblad">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
       </button>
@@ -1559,27 +2233,71 @@
     </div>
   </div>
 
-  <div id="settings-backdrop" class="settings-backdrop hidden"></div>
-  <div id="settings-panel" class="settings-panel hidden">
-    <div class="settings-section">
+  <section id="tab-overview" class="hidden" role="dialog" aria-modal="true" aria-label="Overzicht van alle tabs">
+    <div class="tab-overview-header">
+      <h2>Overzicht</h2>
+      <input id="tab-overview-search" type="search" placeholder="Zoek op naam of adres…" autocomplete="off" spellcheck="false">
+      <button id="tab-overview-close" type="button" title="Sluiten (Esc)" aria-label="Sluiten">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div id="tab-overview-body">
+      <section class="overview-section">
+        <h3 class="overview-section-title">Tabgroepen <span id="overview-groups-count" class="overview-count"></span></h3>
+        <div id="overview-groups"></div>
+        <p id="overview-groups-empty" class="overview-hint">Nog geen tabgroepen. Rechtsklik op een tab en kies "Toevoegen aan tabgroup".</p>
+      </section>
+      <section class="overview-section">
+        <h3 class="overview-section-title">Open tabs <span id="tab-overview-count" class="overview-count"></span></h3>
+        <div id="tab-overview-grid"></div>
+        <p id="tab-overview-empty" class="overview-hint hidden">Geen tabs gevonden.</p>
+      </section>
+    </div>
+  </section>
+
+  <div id="settings-panel" class="settings-panel hidden" role="dialog" aria-labelledby="settings-title">
+    <nav class="settings-nav">
+      <h2 id="settings-title">Instellingen</h2>
+      <button class="settings-nav-item active" type="button" data-section="general"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>Algemeen</button>
+      <button class="settings-nav-item" type="button" data-section="updates"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Updates<span id="settings-nav-update-dot" class="nav-dot hidden" title="Update beschikbaar"></span></button>
+      <button class="settings-nav-item" type="button" data-section="zoom"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>Zoomen<span id="settings-nav-zoom" class="nav-meta">100%</span></button>
+      <button class="settings-nav-item" type="button" data-section="start"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>Starttabs<span id="settings-nav-start-count" class="nav-meta"></span></button>
+      <button id="settings-back" class="settings-back" type="button" title="Terug naar de pagina (Esc)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+        Terug
+      </button>
+      <div class="settings-nav-footer">Singeling App <span id="settings-version"></span></div>
+    </nav>
+    <div class="settings-content">
+    <button id="settings-close" class="settings-close" type="button" title="Sluiten (Esc)" aria-label="Sluiten">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    </button>
+    <div class="settings-section" data-section="general">
       <h3>Algemeen</h3>
+      <p class="settings-intro">Rondleiding, changelog en hoe links en sneltoetsen zich gedragen.</p>
       <div class="general-actions">
         <button id="show-changelog-btn" type="button">Changelog bekijken</button>
         <button id="restart-onboarding-btn" type="button">Rondleiding opnieuw volgen</button>
       </div>
       <label class="general-toggle">
-        <input type="checkbox" id="open-all-links-new-tab-checkbox">
-        Alle links altijd in een nieuw tabblad openen
+        <span class="toggle-text">
+          Alle links altijd in een nieuw tabblad openen
+          <span class="settings-hint">Geldt voor alle tabs, ook niet-vastgezette. Externe links (buiten Singeling) blijven gewoon in je standaardbrowser openen.</span>
+        </span>
+        <input type="checkbox" class="switch" id="open-all-links-new-tab-checkbox">
       </label>
-      <p class="settings-hint">Geldt voor alle tabs, ook niet-vastgezette. Externe links (buiten Singeling) blijven gewoon in je standaardbrowser openen.</p>
       <label class="general-toggle">
-        <input type="checkbox" id="block-ctrl-b-checkbox">
-        Ctrl+B blokkeren
+        <span class="toggle-text">
+          Ctrl+B blokkeren
+          <span class="settings-hint">Voorkomt dat Ctrl+B (bedoeld om vetgedrukt te typen) de zijbalk van de pagina in-/uitklapt.</span>
+        </span>
+        <input type="checkbox" class="switch" id="block-ctrl-b-checkbox">
       </label>
-      <p class="settings-hint">Voorkomt dat Ctrl+B (bedoeld om vetgedrukt te typen) de zijbalk van de pagina in-/uitklapt.</p>    </div>
+    </div>
 
-    <div class="settings-section">
+    <div class="settings-section hidden" data-section="updates">
       <h3>Updates</h3>
+      <p class="settings-intro">Controleer of er een nieuwe versie van de app is.</p>
       <div class="general-actions">
         <button id="check-updates-btn" type="button">Nu zoeken naar updates</button>
       </div>
@@ -1587,8 +2305,9 @@
       <p class="settings-hint">De app controleert ook automatisch elke dag op updates. Vind hij er een, dan zie je een melding in beeld plus een bolletje bij dit instellingen-icoon; herstart de app om te updaten.</p>
     </div>
 
-    <div class="settings-section">
+    <div class="settings-section hidden" data-section="zoom">
       <h3>Zoomen</h3>
+      <p class="settings-intro">Hoe groot de pagina's in de tabs worden weergegeven. Ook rechtsboven in de tabbalk aan te passen.</p>
       <div class="zoom-controls">
         <button id="zoom-out-btn" type="button" aria-label="Uitzoomen">&minus;</button>
         <span id="zoom-level">100%</span>
@@ -1597,21 +2316,14 @@
       </div>
       <p class="settings-hint">Of houd Ctrl ingedrukt en scroll op een pagina.</p>
     </div>
-    <div class="settings-section">
-      <div class="settings-tabs">
-        <button class="settings-tab-btn active" type="button" data-section="start">Starttabs</button>
-        <button class="settings-tab-btn" type="button" data-section="groups">Tabgroepen</button>
-      </div>
-
-      <div id="settings-section-start" class="settings-section-body">
+    <div class="settings-section hidden" data-section="start">
+      <h3>Starttabs</h3>
+      <p class="settings-intro">Tabs die automatisch openen als je de app start.</p>
+      <div id="settings-section-start">
         <ul id="start-tabs-list"></ul>
         <p id="start-tabs-empty" class="settings-hint">Nog geen tabs. Rechtsklik op een tab en kies "Openen bij opstarten".</p>
       </div>
-
-      <div id="settings-section-groups" class="settings-section-body hidden">
-        <ul id="tab-groups-list"></ul>
-        <p id="tab-groups-empty" class="settings-hint">Nog geen tabgroepen. Rechtsklik op een tab en kies "Toevoegen aan tabgroup".</p>
-      </div>
+    </div>
     </div>
   </div>
 
@@ -1704,11 +2416,42 @@
       if (button) button.classList.remove('fired');
     });
 
+    // Staat het instellingenscherm of het taboverzicht open, dan sluit "terug"
+    // (tabbalk-knop of de terugknop van de muis) dat scherm, i.p.v. terug te
+    // gaan in de verborgen pagina of een tab te openen.
+    function closeOverlayScreen() {
+      if (tabOverviewOpen) {
+        closeTabOverview();
+        return true;
+      }
+      if (settingsOpen) {
+        closeSettingsPanel();
+        return true;
+      }
+      return false;
+    }
+
+    let lastCanGoBack = false;
+
+    function refreshBackButton() {
+      const backButton = document.querySelector('[data-action="back"]');
+      const overlayOpen = settingsOpen || tabOverviewOpen;
+      const enabled = lastCanGoBack || overlayOpen;
+      backButton.disabled = !enabled;
+      backButton.classList.toggle('enabled', enabled);
+      backButton.title = overlayOpen ? 'Terug naar de pagina' : 'Ga terug';
+    }
+
     document.querySelectorAll('[data-action]').forEach(button => {
       button.addEventListener('click', () => {
         playFired(button);
+        if (button.dataset.action === 'back' && closeOverlayScreen()) return;
         window.electronAPI.navigateActiveTab(button.dataset.action);
       });
+    });
+
+    document.addEventListener('mouseup', (event) => {
+      if (event.button === 3 && closeOverlayScreen()) event.preventDefault();
     });
 
     document.getElementById('scroll-left').addEventListener('click', () => {
@@ -1747,13 +2490,12 @@
     const acceptBeta = document.getElementById('accept-beta');
 
     window.electronAPI.on('navigation-state-changed', ({ canGoBack, canGoForward }) => {
-      const backButton = document.querySelector('[data-action="back"]');
       const forwardButton = document.querySelector('[data-action="forward"]');
       const refreshButton = document.querySelector('[data-action="reload"]');
 
-      backButton.disabled = !canGoBack;
+      lastCanGoBack = canGoBack;
+      refreshBackButton();
       forwardButton.disabled = !canGoForward;
-      backButton.classList.toggle('enabled', canGoBack);
       forwardButton.classList.toggle('enabled', canGoForward);
       refreshButton.disabled = false;
       refreshButton.classList.add('enabled');
@@ -1797,16 +2539,23 @@
         text: 'Sleep een tab ver genoeg onder de tabbalk uit en laat los: hij wordt dan een eigen los venster, dat je net als elk ander Windows-venster naar bijvoorbeeld een tweede scherm kunt verslepen.'
       },
       {
+        target: '#tab-overview-btn',
+        title: 'Taboverzicht en tabgroepen',
+        text: 'Klik hier om al je tabs in één oogopslag te zien, met een voorbeeld van elke pagina. Hier staan ook je tabgroepen: rechtsklik op een tab en kies "Toevoegen aan tabgroup" om er een te maken. In het overzicht hernoem je een groep, haal je tabs eruit of open je de hele groep in één keer.'
+      },
+      {
         target: '.general-actions',
         title: 'Instellingen: algemeen',
         text: 'Via het moersleutel-icoon kom je hier. Bekijk de changelog met alle wijzigingen, of start deze rondleiding op elk moment opnieuw.',
-        requiresSettingsOpen: true
+        requiresSettingsOpen: true,
+        settingsSection: 'general'
       },
       {
         target: '.zoom-controls',
         title: 'Zoomen',
-        text: 'Pas het zoomniveau aan met deze knoppen, of houd Ctrl ingedrukt en scroll op een pagina.',
-        requiresSettingsOpen: true
+        text: 'Pas het zoomniveau aan met deze knoppen, met het blokje rechtsboven in de tabbalk, of houd Ctrl ingedrukt en scroll op een pagina.',
+        requiresSettingsOpen: true,
+        settingsSection: 'zoom'
       },
       {
         target: '#settings-section-start',
@@ -1814,13 +2563,6 @@
         text: 'Rechtsklik op een tab en kies "Openen bij opstarten" om hem hier toe te voegen. Je kunt starttabs verwijderen of los vergrendelen.',
         requiresSettingsOpen: true,
         settingsSection: 'start'
-      },
-      {
-        target: '#settings-section-groups',
-        title: 'Tabgroepen',
-        text: 'Rechtsklik op een tab en kies "Toevoegen aan tabgroup" om een groep te maken. Hier hernoem je de groep, verwijder je tabs eruit, of open je de hele groep in één keer.',
-        requiresSettingsOpen: true,
-        settingsSection: 'groups'
       }
     ];
     let onboardingStepIndex = 0;
@@ -1941,6 +2683,274 @@
         startTabsIntro();
         window.electronAPI.acceptAppNotice();
       }, BETA_NOTICE_LEAVE_MS);
+    });
+
+    // ---------- Taboverzicht ----------
+    //
+    // Kaart per tab in de volgorde van de tabbalk. Voorbeelden komen uit
+    // main.js (gemaakt zolang een tab in beeld was); zonder voorbeeld een
+    // placeholder met de beginletter.
+    const tabOverview = document.getElementById('tab-overview');
+    const tabOverviewGrid = document.getElementById('tab-overview-grid');
+    const tabOverviewCount = document.getElementById('tab-overview-count');
+    const tabOverviewSearch = document.getElementById('tab-overview-search');
+    const tabOverviewEmpty = document.getElementById('tab-overview-empty');
+    const tabOverviewBtn = document.getElementById('tab-overview-btn');
+    const TAB_OVERVIEW_ANIMATION_MS = 200;
+    let tabOverviewOpen = false;
+    let tabOverviewHideTimer = null;
+
+    function buildOverviewCard(tab, index, thumbnails) {
+      const tabId = tab.dataset.tabId;
+      const title = tab.querySelector('.tab-title').textContent;
+      const url = tabUrls.get(tabId) || '';
+
+      const card = document.createElement('div');
+      card.className = 'overview-card';
+      card.classList.toggle('active', tabId === activeTabId);
+      card.classList.toggle('locked', tab.classList.contains('locked'));
+      card.dataset.tabId = tabId;
+      card.dataset.search = `${title} ${url}`.toLowerCase();
+      card.title = url;
+      card.style.setProperty('--card-i', Math.min(index, 20));
+
+      const thumb = document.createElement('div');
+      thumb.className = 'overview-thumb';
+      if (thumbnails[tabId]) {
+        const img = document.createElement('img');
+        img.src = thumbnails[tabId];
+        img.alt = '';
+        thumb.appendChild(img);
+      } else {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'overview-thumb-placeholder';
+        placeholder.textContent = (title.trim()[0] || '?').toUpperCase();
+        thumb.appendChild(placeholder);
+      }
+
+      const footer = document.createElement('div');
+      footer.className = 'overview-footer';
+      const lock = document.createElement('span');
+      lock.className = 'tab-lock';
+      lock.innerHTML = TAB_LOCK_ICON;
+      const titleEl = document.createElement('span');
+      titleEl.className = 'overview-title';
+      titleEl.textContent = title;
+      const closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'overview-close';
+      closeBtn.title = 'Tab sluiten';
+      closeBtn.innerHTML = TAB_CLOSE_ICON;
+      closeBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        window.electronAPI.closeTab(tabId);
+      });
+      footer.append(lock, titleEl, closeBtn);
+
+      card.append(thumb, footer);
+      card.addEventListener('click', () => closeTabOverview(tabId));
+      return card;
+    }
+
+    // ---- Tabgroepen (beheerd in het overzicht) ----
+    const overviewGroups = document.getElementById('overview-groups');
+    const overviewGroupsCount = document.getElementById('overview-groups-count');
+    const overviewGroupsEmpty = document.getElementById('overview-groups-empty');
+    const GROUP_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>';
+    const TRASH_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+
+    function buildOverviewGroup(group, index) {
+      const card = document.createElement('div');
+      card.className = 'overview-group';
+      card.dataset.groupId = group.id;
+      card.dataset.search = [group.name, ...group.urls.map(url => `${formatTabTitle(url)} ${url}`)].join(' ').toLowerCase();
+      card.style.setProperty('--card-i', Math.min(index, 20));
+
+      const header = document.createElement('div');
+      header.className = 'overview-group-header';
+
+      const icon = document.createElement('span');
+      icon.className = 'overview-group-icon';
+      icon.innerHTML = GROUP_ICON;
+
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'overview-group-name';
+      nameInput.value = group.name;
+      nameInput.title = 'Klik om de naam te wijzigen';
+      nameInput.addEventListener('change', () => window.electronAPI.renameTabGroup(group.id, nameInput.value));
+      // Enter = naam bevestigen (en niet de eerste zoektreffer openen).
+      nameInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') nameInput.blur();
+      });
+
+      const openBtn = document.createElement('button');
+      openBtn.type = 'button';
+      openBtn.className = 'overview-group-open';
+      openBtn.textContent = 'Openen';
+      openBtn.title = 'Open alle tabs uit deze groep';
+      openBtn.disabled = group.urls.length === 0;
+      openBtn.addEventListener('click', () => {
+        closeTabOverview();
+        window.electronAPI.openTabGroup(group.id);
+      });
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'overview-group-delete';
+      deleteBtn.title = 'Groep verwijderen';
+      deleteBtn.innerHTML = TRASH_ICON;
+      deleteBtn.addEventListener('click', () => window.electronAPI.removeTabGroup(group.id));
+
+      header.append(icon, nameInput, openBtn, deleteBtn);
+
+      const urlList = document.createElement('ul');
+      urlList.className = 'overview-group-urls';
+      group.urls.forEach((url, urlIndex) => {
+        const item = document.createElement('li');
+        const label = document.createElement('span');
+        label.className = 'overview-group-url-label';
+        label.textContent = formatTabTitle(url);
+        label.title = url;
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'overview-group-url-remove';
+        removeBtn.title = 'Uit groep halen';
+        removeBtn.innerHTML = TAB_CLOSE_ICON;
+        removeBtn.addEventListener('click', () => window.electronAPI.removeTabGroupUrl(group.id, urlIndex));
+        item.append(label, removeBtn);
+        urlList.appendChild(item);
+      });
+      if (group.urls.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'overview-group-empty';
+        empty.textContent = 'Nog geen tabs in deze groep';
+        urlList.appendChild(empty);
+      }
+
+      card.append(header, urlList);
+      return card;
+    }
+
+    function renderTabGroups(tabGroups) {
+      overviewGroups.innerHTML = '';
+      (tabGroups || []).forEach((group, index) => overviewGroups.appendChild(buildOverviewGroup(group, index)));
+      filterTabOverview();
+    }
+
+    function updateTabOverviewCount() {
+      const cards = tabOverviewGrid.querySelectorAll('.overview-card:not(.removing)');
+      const visible = [...cards].filter(card => !card.classList.contains('filtered-out'));
+      tabOverviewCount.textContent = cards.length;
+      tabOverviewEmpty.classList.toggle('hidden', visible.length > 0);
+
+      const groups = overviewGroups.querySelectorAll('.overview-group');
+      const visibleGroups = [...groups].filter(group => !group.classList.contains('filtered-out'));
+      overviewGroupsCount.textContent = groups.length;
+      overviewGroupsEmpty.textContent = groups.length === 0
+        ? 'Nog geen tabgroepen. Rechtsklik op een tab en kies "Toevoegen aan tabgroup".'
+        : 'Geen tabgroepen gevonden.';
+      overviewGroupsEmpty.classList.toggle('hidden', visibleGroups.length > 0);
+    }
+
+    function filterTabOverview() {
+      const query = tabOverviewSearch.value.trim().toLowerCase();
+      tabOverviewGrid.querySelectorAll('.overview-card').forEach(card => {
+        card.classList.toggle('filtered-out', !!query && !card.dataset.search.includes(query));
+      });
+      overviewGroups.querySelectorAll('.overview-group').forEach(card => {
+        card.classList.toggle('filtered-out', !!query && !card.dataset.search.includes(query));
+      });
+      updateTabOverviewCount();
+    }
+
+    async function openTabOverview() {
+      if (tabOverviewOpen) return;
+      if (settingsOpen) closeSettingsPanel();
+      clearTimeout(tabOverviewHideTimer);
+      // Eerst de voorbeelden ophalen: main.js maakt dan nog een verse van de
+      // actieve tab, die op dat moment nog in beeld is.
+      const [thumbnails, settings] = await Promise.all([
+        window.electronAPI.getTabThumbnails(),
+        window.electronAPI.getSettings()
+      ]);
+      tabOverviewOpen = true;
+      refreshBackButton();
+      renderTabGroups(settings ? settings.tabGroups : []);
+
+      tabOverviewGrid.innerHTML = '';
+      const openTabs = [...tabsContainer.children].filter(tab => !tab.classList.contains('closing'));
+      openTabs.forEach((tab, index) => tabOverviewGrid.appendChild(buildOverviewCard(tab, index, thumbnails || {})));
+      tabOverviewSearch.value = '';
+      filterTabOverview();
+
+      tabOverview.classList.remove('hidden');
+      window.electronAPI.notifyTabOverviewOpened();
+      void tabOverview.offsetWidth;
+      tabOverview.classList.add('open');
+      tabOverviewBtn.classList.add('open');
+      tabOverviewSearch.focus();
+      const activeCard = tabOverviewGrid.querySelector('.overview-card.active');
+      if (activeCard) activeCard.scrollIntoView({ block: 'nearest' });
+    }
+
+    // selectedTabId: tab om naartoe te gaan (of niets = terug naar de huidige).
+    function closeTabOverview(selectedTabId) {
+      if (!tabOverviewOpen) return;
+      tabOverviewOpen = false;
+      refreshBackButton();
+      tabOverviewBtn.classList.remove('open');
+      if (selectedTabId) {
+        const card = tabOverviewGrid.querySelector(`.overview-card[data-tab-id="${selectedTabId}"]`);
+        if (card) card.classList.add('chosen');
+        if (selectedTabId !== activeTabId) window.electronAPI.switchTab(selectedTabId);
+      }
+      tabOverview.classList.remove('open');
+      clearTimeout(tabOverviewHideTimer);
+      tabOverviewHideTimer = setTimeout(() => {
+        tabOverview.classList.add('hidden');
+        window.electronAPI.notifyTabOverviewClosed();
+      }, TAB_OVERVIEW_ANIMATION_MS);
+    }
+
+    tabOverviewBtn.addEventListener('click', () => {
+      if (tabOverviewOpen) closeTabOverview();
+      else openTabOverview();
+    });
+
+    document.getElementById('tab-overview-close').addEventListener('click', () => closeTabOverview());
+    tabOverviewSearch.addEventListener('input', filterTabOverview);
+
+    // Enter = eerste zichtbare treffer openen, Esc = overzicht sluiten.
+    tabOverviewSearch.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      const first = tabOverviewGrid.querySelector('.overview-card:not(.filtered-out):not(.removing)');
+      if (first) closeTabOverview(first.dataset.tabId);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      if (tabOverviewOpen) closeTabOverview();
+      else if (settingsOpen) closeSettingsPanel();
+    });
+
+    // Een tab die gesloten wordt terwijl het overzicht open is (bv. via het
+    // kruisje op een kaart) verdwijnt ook uit het overzicht.
+    window.electronAPI.on('tab-closed', (tabId) => {
+      if (!tabOverviewOpen) return;
+      const card = tabOverviewGrid.querySelector(`.overview-card[data-tab-id="${tabId}"]`);
+      if (!card) return;
+      card.classList.add('removing');
+      updateTabOverviewCount();
+      setTimeout(() => card.remove(), 200);
+    });
+
+    // Actieve tab kan wisselen terwijl het overzicht open is (bv. na het
+    // sluiten van de actieve tab); markering op de kaarten bijwerken.
+    window.electronAPI.on('tab-switched', (tabId) => {
+      tabOverviewGrid.querySelectorAll('.overview-card').forEach(card => {
+        card.classList.toggle('active', card.dataset.tabId === tabId);
+      });
     });
 
     // Starttabs-intro: tabs die binnen dit venster worden aangemaakt vallen
@@ -2108,9 +3118,11 @@
         window.electronAPI.showTabContextMenu(tabId, event.clientX, event.clientY);
       });
 
-      // Klik op de tab zelf -> wissel naar deze tab
+      // Klik op de tab zelf -> wissel naar deze tab (en sluit zo nodig het
+      // taboverzicht, dat anders de tabinhoud verborgen houdt)
       tab.addEventListener('click', () => {
-        window.electronAPI.switchTab(tabId);
+        if (tabOverviewOpen) closeTabOverview(tabId);
+        else window.electronAPI.switchTab(tabId);
       });
 
       // ** NIEUW: Sluit tab bij indrukken middelste muisknop (wiel) **
@@ -2187,33 +3199,55 @@
 
     // Gebruiker klikt op "+" -> vraag main.js om een nieuwe tab
     newTabBtn.addEventListener('click', () => {
+      if (tabOverviewOpen) closeTabOverview();
       window.electronAPI.requestNewTab();
     });
 
     // Instellingenmenu: zoomen en tabs die bij opstarten geopend worden
     const settingsBtn = document.getElementById('settings-btn');
     const settingsPanel = document.getElementById('settings-panel');
-    const settingsBackdrop = document.getElementById('settings-backdrop');
     const zoomLevelLabel = document.getElementById('zoom-level');
     const zoomInBtn = document.getElementById('zoom-in-btn');
     const zoomOutBtn = document.getElementById('zoom-out-btn');
     const zoomResetBtn = document.getElementById('zoom-reset-btn');
     const startTabsList = document.getElementById('start-tabs-list');
     const startTabsEmpty = document.getElementById('start-tabs-empty');
-    const tabGroupsList = document.getElementById('tab-groups-list');
-    const tabGroupsEmpty = document.getElementById('tab-groups-empty');
-    const settingsSectionStart = document.getElementById('settings-section-start');
-    const settingsSectionGroups = document.getElementById('settings-section-groups');
-    const settingsTabButtons = document.querySelectorAll('.settings-tab-btn');
-    const SETTINGS_ANIMATION_MS = 180;
+    const SETTINGS_ANIMATION_MS = 320;
     let settingsOpen = false;
     let settingsHideTimer = null;
 
+    // Zoompercentage staat op drie plekken: het zoomblok in de instellingen,
+    // de navigatie daarvan en de zoomindicator in de tabbalk.
+    const tabbarZoomLevel = document.getElementById('tabbar-zoom-level');
+    const settingsNavZoom = document.getElementById('settings-nav-zoom');
+
     function updateZoomLabel(factor) {
-      zoomLevelLabel.textContent = `${Math.round(factor * 100)}%`;
+      const percent = `${Math.round(factor * 100)}%`;
+      zoomLevelLabel.textContent = percent;
+      settingsNavZoom.textContent = percent;
+      tabbarZoomLevel.textContent = percent;
+      tabbarZoomLevel.classList.toggle('changed', Math.round(factor * 100) !== 100);
     }
 
+    document.getElementById('tabbar-zoom-out').addEventListener('click', () => window.electronAPI.zoomOut());
+    document.getElementById('tabbar-zoom-in').addEventListener('click', () => window.electronAPI.zoomIn());
+    tabbarZoomLevel.addEventListener('click', () => window.electronAPI.zoomReset());
+
+    // ---- Navigatie in het instellingenscherm ----
+    const settingsNavItems = document.querySelectorAll('.settings-nav-item');
+    const settingsSections = document.querySelectorAll('.settings-section[data-section]');
+
+    function setSettingsSection(section) {
+      settingsNavItems.forEach(item => item.classList.toggle('active', item.dataset.section === section));
+      settingsSections.forEach(el => el.classList.toggle('hidden', el.dataset.section !== section));
+    }
+
+    settingsNavItems.forEach(item => {
+      item.addEventListener('click', () => setSettingsSection(item.dataset.section));
+    });
+
     function renderStartTabs(startTabs) {
+      document.getElementById('settings-nav-start-count').textContent = startTabs.length || '';
       startTabsList.innerHTML = '';
       startTabsEmpty.classList.toggle('hidden', startTabs.length > 0);
 
@@ -2233,7 +3267,7 @@
         removeBtn.className = 'start-tab-remove';
         removeBtn.type = 'button';
         removeBtn.title = 'Verwijderen';
-        removeBtn.textContent = '×';
+        removeBtn.innerHTML = TAB_CLOSE_ICON;
         removeBtn.addEventListener('click', () => window.electronAPI.removeStartTab(index));
 
         row.appendChild(label);
@@ -2243,6 +3277,7 @@
         lockLabel.className = 'start-tab-lock';
         const lockCheckbox = document.createElement('input');
         lockCheckbox.type = 'checkbox';
+        lockCheckbox.className = 'switch switch-small';
         lockCheckbox.checked = !!tab.locked;
         lockCheckbox.addEventListener('change', () => {
           window.electronAPI.setStartTabLocked(index, lockCheckbox.checked);
@@ -2256,91 +3291,12 @@
       });
     }
 
-    function setSettingsSection(section) {
-      const showGroups = section === 'groups';
-      settingsSectionStart.classList.toggle('hidden', showGroups);
-      settingsSectionGroups.classList.toggle('hidden', !showGroups);
-      settingsTabButtons.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.section === section);
-      });
-    }
-
-    settingsTabButtons.forEach(btn => {
-      btn.addEventListener('click', () => setSettingsSection(btn.dataset.section));
-    });
-
-    function renderTabGroups(tabGroups) {
-      tabGroupsList.innerHTML = '';
-      tabGroupsEmpty.classList.toggle('hidden', tabGroups.length > 0);
-
-      tabGroups.forEach(group => {
-        const item = document.createElement('li');
-        item.className = 'tab-group-item';
-        item.dataset.groupId = group.id;
-
-        const header = document.createElement('div');
-        header.className = 'tab-group-header';
-
-        const nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.className = 'tab-group-name';
-        nameInput.value = group.name;
-        nameInput.addEventListener('change', () => {
-          window.electronAPI.renameTabGroup(group.id, nameInput.value);
-        });
-
-        const openBtn = document.createElement('button');
-        openBtn.type = 'button';
-        openBtn.className = 'tab-group-open';
-        openBtn.textContent = 'Openen';
-        openBtn.title = 'Open alle tabs uit deze groep';
-        openBtn.addEventListener('click', () => window.electronAPI.openTabGroup(group.id));
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.type = 'button';
-        deleteBtn.className = 'tab-group-delete';
-        deleteBtn.title = 'Groep verwijderen';
-        deleteBtn.textContent = '×';
-        deleteBtn.addEventListener('click', () => window.electronAPI.removeTabGroup(group.id));
-
-        header.appendChild(nameInput);
-        header.appendChild(openBtn);
-        header.appendChild(deleteBtn);
-
-        const urlList = document.createElement('ul');
-        urlList.className = 'tab-group-urls';
-        group.urls.forEach((url, urlIndex) => {
-          const urlItem = document.createElement('li');
-
-          const urlLabel = document.createElement('span');
-          urlLabel.className = 'tab-group-url-label';
-          urlLabel.textContent = formatTabTitle(url);
-          urlLabel.title = url;
-
-          const urlRemoveBtn = document.createElement('button');
-          urlRemoveBtn.type = 'button';
-          urlRemoveBtn.className = 'tab-group-url-remove';
-          urlRemoveBtn.title = 'Verwijderen uit groep';
-          urlRemoveBtn.textContent = '×';
-          urlRemoveBtn.addEventListener('click', () => window.electronAPI.removeTabGroupUrl(group.id, urlIndex));
-
-          urlItem.appendChild(urlLabel);
-          urlItem.appendChild(urlRemoveBtn);
-          urlList.appendChild(urlItem);
-        });
-
-        item.appendChild(header);
-        item.appendChild(urlList);
-        tabGroupsList.appendChild(item);
-      });
-    }
-
     async function openSettingsPanel() {
       const settings = await window.electronAPI.getSettings();
       if (settings) {
         updateZoomLabel(settings.zoomFactor);
         renderStartTabs(settings.startTabs);
-        renderTabGroups(settings.tabGroups);
+        document.getElementById('settings-version').textContent = settings.appVersion ? `v${settings.appVersion}` : '';
         openAllLinksNewTabCheckbox.checked = !!settings.openAllLinksInNewTab;
         blockCtrlBCheckbox.checked = !!settings.blockCtrlB;
         applyUpdateStatusUI(!!settings.updateVersion, settings.updateVersion);
@@ -2348,14 +3304,13 @@
       clearTimeout(settingsHideTimer);
       const wasOpen = settingsOpen;
       settingsOpen = true;
+      refreshBackButton();
       settingsBtn.classList.add('open');
-      settingsBackdrop.classList.remove('hidden');
       settingsPanel.classList.remove('hidden');
       window.electronAPI.notifySettingsPanelOpened();
       // Reflow, zodat de overgang vanaf de beginstand (doorzichtig, iets
       // omhoog) start in plaats van direct de eindstand te tonen.
       void settingsPanel.offsetWidth;
-      settingsBackdrop.classList.add('open');
       settingsPanel.classList.add('open');
       // Wacht tot het paneel op zijn plek staat: de rondleiding meet direct
       // hierna de positie van onderdelen in het paneel.
@@ -2367,12 +3322,11 @@
     function closeSettingsPanel() {
       if (!settingsOpen) return;
       settingsOpen = false;
+      refreshBackButton();
       settingsBtn.classList.remove('open');
-      settingsBackdrop.classList.remove('open');
       settingsPanel.classList.remove('open');
       clearTimeout(settingsHideTimer);
       settingsHideTimer = setTimeout(() => {
-        settingsBackdrop.classList.add('hidden');
         settingsPanel.classList.add('hidden');
         window.electronAPI.notifySettingsPanelClosed();
       }, SETTINGS_ANIMATION_MS);
@@ -2392,9 +3346,15 @@
     document.addEventListener('click', (event) => {
       if (!settingsOpen) return;
       if (settingsPanel.contains(event.target) || event.target === settingsBtn) return;
+      // Zoom- en licht/donker-knop in de tabbalk mogen het scherm open laten
+      // (handig om het effect direct in de instellingen te zien).
+      if (event.target.closest('#tabbar-zoom, #dark-mode-btn')) return;
       if (onboardingOverlay.contains(event.target)) return;
       closeSettingsPanel();
     });
+
+    document.getElementById('settings-close').addEventListener('click', () => closeSettingsPanel());
+    document.getElementById('settings-back').addEventListener('click', () => closeSettingsPanel());
 
     // Algemeen: changelog en rondleiding zijn losse acties, geen tabs
     const showChangelogBtn = document.getElementById('show-changelog-btn');
@@ -2443,6 +3403,7 @@
     window.electronAPI.getSettings().then(settings => {
       if (!settings) return;
       renderDarkModeButton(!!settings.darkMode);
+      updateZoomLabel(settings.zoomFactor);
       document.documentElement.classList.toggle('custom-window-controls', !!settings.customWindowControls);
       renderMaximizeButton(!!settings.windowMaximized);
     });
@@ -2497,6 +3458,7 @@
 
     window.electronAPI.on('update-badge-changed', ({ available, version }) => {
       settingsUpdateBadge.classList.toggle('hidden', !available);
+      document.getElementById('settings-nav-update-dot').classList.toggle('hidden', !available);
       applyUpdateStatusUI(available, version);
       // Het bolletje alleen is makkelijk te missen - laat bij een gevonden
       // update ook een duidelijk zichtbare melding zien. Een eerder gesloten
@@ -2511,6 +3473,7 @@
     updateBannerSettingsBtn.addEventListener('click', async () => {
       hideUpdateBanner();
       if (!settingsOpen) await openSettingsPanel();
+      setSettingsSection('updates');
     });
 
     checkUpdatesBtn.addEventListener('click', async () => {
@@ -2572,9 +3535,11 @@
 
     window.electronAPI.on('zoom-changed', (factor) => {
       updateZoomLabel(factor);
-      zoomLevelLabel.classList.remove('bump');
-      void zoomLevelLabel.offsetWidth;
-      zoomLevelLabel.classList.add('bump');
+      [zoomLevelLabel, tabbarZoomLevel].forEach(label => {
+        label.classList.remove('bump');
+        void label.offsetWidth;
+        label.classList.add('bump');
+      });
     });
 
     // Het venster verschijnt pas na het splash-scherm (main.js faded het in);
@@ -2587,20 +3552,16 @@
     window.electronAPI.on('start-tabs-changed', (startTabs) => renderStartTabs(startTabs));
     window.electronAPI.on('tab-groups-changed', (tabGroups) => renderTabGroups(tabGroups));
 
-    // Rechtsklik-menu wil na "+ Nieuwe tabgroup" meteen het instellingenpaneel
-    // openen op het Tabgroepen-onderdeel, met de naam van de nieuwe groep klaar
-    // om direct over te typen.
-    window.electronAPI.on('open-settings-panel', async ({ section, focusGroupId } = {}) => {
-      await openSettingsPanel();
-      if (section) setSettingsSection(section);
-      if (focusGroupId) {
-        requestAnimationFrame(() => {
-          const input = document.querySelector(`.tab-group-item[data-group-id="${focusGroupId}"] .tab-group-name`);
-          if (input) {
-            input.focus();
-            input.select();
-          }
-        });
+    // Rechtsklik-menu wil na "+ Nieuwe tabgroup" meteen het taboverzicht
+    // openen, met de naam van de nieuwe groep klaar om direct over te typen.
+    window.electronAPI.on('open-tab-overview', async ({ focusGroupId } = {}) => {
+      await openTabOverview();
+      if (!focusGroupId) return;
+      const input = document.querySelector(`.overview-group[data-group-id="${focusGroupId}"] .overview-group-name`);
+      if (input) {
+        input.scrollIntoView({ block: 'nearest' });
+        input.focus();
+        input.select();
       }
     });
   </script>

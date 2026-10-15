@@ -40,6 +40,7 @@ let updateDialogOpen = false;
 let updateProgressWindow = null;
 let onboardingActive = false;
 let settingsPanelOpen = false;
+let tabOverviewOpen = false;
 let changelogNoticeOpen = false;
 let updateBannerOpen = false;
 let updateAvailableInfo = null;
@@ -464,7 +465,7 @@ function getViewBounds() {
 function applyActiveTabBounds() {
   if (!activeTabId || !tabs.has(activeTabId)) return;
   tabs.get(activeTabId).setBounds(
-    (onboardingActive || settingsPanelOpen || changelogNoticeOpen) ? { x: 0, y: 0, width: 0, height: 0 } : getViewBounds()
+    (onboardingActive || settingsPanelOpen || changelogNoticeOpen || tabOverviewOpen) ? { x: 0, y: 0, width: 0, height: 0 } : getViewBounds()
   );
 }
 
@@ -639,6 +640,10 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       view.webContents.insertCSS(DARK_MODE_CSS).catch(() => {});
     }
     applyDarkMode(view);
+    // Voorbeeld voor het taboverzicht zodra de pagina wat is opgebouwd.
+    setTimeout(() => {
+      if (tabs.get(activeTabId) === view) captureTabThumbnail(tabId);
+    }, 1500);
     // Wacht het overgangsgordijn op deze tab? Dan nog heel even de pagina
     // laten renderen en het gordijn daarna wegfaden.
     if (curtainWaitingFor === view) {
@@ -1226,6 +1231,10 @@ function switchTab(tabId, { recordHistory = true } = {}) {
     previousTabs.set(tabId, activeTabId);
   }
 
+  // Laatste kans voor een voorbeeld van de tab die we verlaten (zolang die
+  // nog in beeld is; lukt het niet, dan blijft het vorige voorbeeld staan).
+  if (activeTabId && activeTabId !== tabId) captureTabThumbnail(activeTabId);
+
   for (const [id, view] of tabs) {
     if (id !== tabId) view.setBounds({ x: 0, y: 0, width: 0, height: 0 });
   }
@@ -1298,7 +1307,7 @@ function createCurtain() {
 function coverActiveView(view, { color = curtainColor(), revealDelay = CURTAIN_SWITCH_DELAY_MS, fadeMs = CURTAIN_FADE_MS, waitForLoad = true } = {}) {
   if (!curtain || curtain.webContents.isDestroyed()) return;
   // Tabinhoud is dan toch verborgen (zie applyActiveTabBounds).
-  if (onboardingActive || settingsPanelOpen || changelogNoticeOpen) return;
+  if (onboardingActive || settingsPanelOpen || changelogNoticeOpen || tabOverviewOpen) return;
   // Windows' "Animatie-effecten" uit -> gewoon direct wisselen.
   if (systemPreferences.getAnimationSettings().prefersReducedMotion) return;
 
@@ -1332,6 +1341,31 @@ function revealCurtain(fadeMs = CURTAIN_FADE_MS) {
   }, fadeMs + 40);
 }
 
+// ---------- Voorbeeldjes voor het taboverzicht ----------
+//
+// Windows/Chromium kan geen screenshot maken van een tab die niet in beeld
+// is (die staat op 0x0). Daarom maken we het voorbeeld van de actieve tab op
+// drie momenten: kort na het laden, net vóór het wegwisselen en bij het
+// openen van het overzicht. Bewust geen interval, zodat het niets kost
+// zolang je gewoon werkt. Eén verkleind voorbeeld per tab, alleen in het
+// geheugen; weg zodra de tab sluit. Een tab die nooit actief is geweest
+// heeft nog geen voorbeeld.
+const tabThumbnails = new Map(); // tabId -> data-URL (jpeg)
+const THUMBNAIL_WIDTH = 480;
+
+async function captureTabThumbnail(tabId) {
+  const view = tabs.get(tabId);
+  if (!view || view.webContents.isDestroyed() || view.getBounds().width === 0) return;
+  try {
+    const image = await view.webContents.capturePage();
+    if (image.isEmpty()) return;
+    const small = image.resize({ width: THUMBNAIL_WIDTH, quality: 'good' });
+    tabThumbnails.set(tabId, `data:image/jpeg;base64,${small.toJPEG(75).toString('base64')}`);
+  } catch {
+    // Pagina net weg of nog niet getekend; volgende keer opnieuw.
+  }
+}
+
 function closeTab(tabId) {
   const view = tabs.get(tabId);
   if (!view) return;
@@ -1359,6 +1393,7 @@ function closeTab(tabId) {
   tabs.delete(tabId);
   parentTabs.delete(tabId);
   previousTabs.delete(tabId);
+  tabThumbnails.delete(tabId);
   for (const [id, previousTabId] of previousTabs) {
     if (previousTabId === tabId) previousTabs.delete(id);
   }
@@ -1419,6 +1454,7 @@ function detachTab(tabId, screenX, screenY) {
   tabs.delete(tabId);
   parentTabs.delete(tabId);
   previousTabs.delete(tabId);
+  tabThumbnails.delete(tabId);
   for (const [id, previousTabId] of previousTabs) {
     if (previousTabId === tabId) previousTabs.delete(id);
   }
@@ -1565,7 +1601,9 @@ ipcMain.on('show-tab-context-menu', (event, { tabId, x, y }) => {
       appSettings.tabGroups.push(newGroup);
       saveSettings();
       mainWindow.webContents.send('tab-groups-changed', appSettings.tabGroups);
-      mainWindow.webContents.send('open-settings-panel', { section: 'groups', focusGroupId: newGroup.id });
+      // Tabgroepen beheer je in het taboverzicht; open dat met de naam van de
+      // nieuwe groep klaar om direct over te typen.
+      mainWindow.webContents.send('open-tab-overview', { focusGroupId: newGroup.id });
     }
   });
 
@@ -1656,6 +1694,7 @@ ipcMain.handle('get-settings', (event) => {
     blockCtrlB: appSettings.blockCtrlB,
     darkMode: appSettings.darkMode,
     customWindowControls: CUSTOM_WINDOW_CONTROLS,
+    appVersion: app.getVersion(),
     windowMaximized: mainWindow.isMaximized(),
     updateVersion: updateAvailableInfo ? updateAvailableInfo.version : null
   };
@@ -1755,6 +1794,26 @@ ipcMain.on('onboarding-ended', (event) => {
   onboardingActive = false;
   applyActiveTabBounds();
 });
+// Taboverzicht: eerst het voorbeeld van de actieve tab vernieuwen (die is
+// nu nog in beeld), dan alle voorbeelden teruggeven.
+ipcMain.handle('get-tab-thumbnails', async (event) => {
+  if (event.sender !== mainWindow.webContents) return {};
+  if (activeTabId) await captureTabThumbnail(activeTabId);
+  return Object.fromEntries(tabThumbnails);
+});
+ipcMain.on('tab-overview-opened', (event) => {
+  if (event.sender !== mainWindow.webContents) return;
+  tabOverviewOpen = true;
+  applyActiveTabBounds();
+});
+// Bij sluiten komt de (eventueel net gekozen) tab via het gordijn in beeld,
+// in dezelfde kleur als de achtergrond van het overzicht.
+ipcMain.on('tab-overview-closed', (event) => {
+  if (event.sender !== mainWindow.webContents) return;
+  tabOverviewOpen = false;
+  if (activeTabId && tabs.has(activeTabId)) coverActiveView(tabs.get(activeTabId));
+  applyActiveTabBounds();
+});
 ipcMain.on('settings-panel-opened', (event) => {
   if (event.sender !== mainWindow.webContents) return;
   settingsPanelOpen = true;
@@ -1763,6 +1822,8 @@ ipcMain.on('settings-panel-opened', (event) => {
 ipcMain.on('settings-panel-closed', (event) => {
   if (event.sender !== mainWindow.webContents) return;
   settingsPanelOpen = false;
+  // Net als bij het taboverzicht: de pagina komt via het gordijn terug.
+  if (activeTabId && tabs.has(activeTabId)) coverActiveView(tabs.get(activeTabId));
   applyActiveTabBounds();
 });
 ipcMain.on('update-banner-opened', (event) => {
@@ -1848,6 +1909,103 @@ function fadeInWindow(win, duration) {
   }, 16);
 }
 
+// ---------- Sluitanimatie ("tv uit") ----------
+//
+// Het venster zelf kan niet inklappen (de tabinhoud is een native laag).
+// Daarom: screenshot van de tabbalk + de actieve tab, die in een doorzichtig
+// hulpvenster op exact dezelfde plek zetten, het echte venster verbergen en
+// het hulpvenster dezelfde animatie laten spelen als het splash-scherm:
+// inklappen tot een lichtende lijn en naar het midden uitdoven.
+const CLOSE_ANIMATION_MS = 550;
+const CLOSE_OVERLAY_HTML = `<!doctype html><html><head><style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  #screen { position: absolute; inset: 0; transform-origin: center; }
+  #screen img { position: absolute; display: block; }
+  body.off #screen { animation: tv-off ${CLOSE_ANIMATION_MS}ms cubic-bezier(0.5, 0, 0.7, 0.4) forwards; }
+  @keyframes tv-off {
+    0% { opacity: 1; transform: none; filter: none; }
+    50% { opacity: 1; transform: scale(1, 0.006); filter: brightness(2.2); }
+    85% { opacity: 1; transform: scale(0.02, 0.006); filter: brightness(3); }
+    100% { opacity: 0; transform: scale(0, 0.006); }
+  }
+</style></head><body><div id="screen"></div></body></html>`;
+
+let appQuitting = false;
+let closeAnimationRunning = false;
+
+// Afsluiten via de app zelf (bv. update installeren) of een tweede ronde na
+// de animatie: dan niet (nog eens) animeren.
+app.on('before-quit', () => {
+  appQuitting = true;
+});
+
+function toJpegDataUrl(image) {
+  return `data:image/jpeg;base64,${image.toJPEG(90).toString('base64')}`;
+}
+
+async function playCloseAnimation() {
+  closeAnimationRunning = true;
+  const bounds = mainWindow.getContentBounds();
+
+  // Lagen in de volgorde waarin ze over elkaar liggen: eerst de HTML-chrome
+  // (tabbalk), dan de actieve tab op zijn eigen plek eronder.
+  const layers = [];
+  const chrome = await mainWindow.webContents.capturePage();
+  if (!chrome.isEmpty()) {
+    layers.push({ src: toJpegDataUrl(chrome), x: 0, y: 0, width: bounds.width, height: bounds.height });
+  }
+  const view = activeTabId ? tabs.get(activeTabId) : null;
+  if (view && !view.webContents.isDestroyed() && view.getBounds().width > 0) {
+    const page = await view.webContents.capturePage();
+    if (!page.isEmpty()) layers.push({ src: toJpegDataUrl(page), ...view.getBounds() });
+  }
+  if (layers.length === 0) throw new Error('Geen screenshot');
+
+  const overlay = new BrowserWindow({
+    ...bounds,
+    frame: false,
+    transparent: true,
+    hasShadow: false,
+    resizable: false,
+    movable: false,
+    focusable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    show: false,
+    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true }
+  });
+  await overlay.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(CLOSE_OVERLAY_HTML)}`);
+  // Afbeeldingen via een script i.p.v. in de URL: een data-URL met
+  // schermvullende screenshots wordt te lang.
+  await overlay.webContents.executeJavaScript(`
+    (layers => new Promise(resolve => {
+      const screen = document.getElementById('screen');
+      let pending = layers.length;
+      for (const layer of layers) {
+        const img = new Image();
+        img.onload = img.onerror = () => { if (--pending === 0) resolve(); };
+        Object.assign(img.style, {
+          left: layer.x + 'px', top: layer.y + 'px', width: layer.width + 'px', height: layer.height + 'px'
+        });
+        img.src = layer.src;
+        screen.appendChild(img);
+      }
+    }))(${JSON.stringify(layers)});
+  `);
+
+  // Eerst het hulpvenster tonen en even laten tekenen, dan pas het echte
+  // venster verbergen, zodat er geen moment niets te zien is.
+  overlay.showInactive();
+  await new Promise(resolve => setTimeout(resolve, 50));
+  mainWindow.hide();
+  overlay.webContents.executeJavaScript(`document.body.classList.add('off');`).catch(() => {});
+
+  setTimeout(() => {
+    if (!overlay.isDestroyed()) overlay.destroy();
+    if (!mainWindow.isDestroyed()) mainWindow.destroy(); // -> 'closed' -> app.quit()
+  }, CLOSE_ANIMATION_MS + 50);
+}
+
 function createWindow() {
   const splashWindow = new BrowserWindow({
     width: 420,
@@ -1905,6 +2063,22 @@ function createWindow() {
   // eventuele losgetrokken vensters mee i.p.v. ze als wees te laten hangen.
   mainWindow.on('closed', () => {
     app.quit();
+  });
+
+  // Sluiten (kruisje, Alt+F4, taakbalk) speelt eerst de tv-uit-animatie af.
+  // Niet bij afsluiten via de app zelf, geminimaliseerd venster (niets te
+  // zien) of met Windows' "Animatie-effecten" uit.
+  mainWindow.on('close', (event) => {
+    if (closeAnimationRunning) {
+      event.preventDefault(); // animatie loopt al; tweede klik negeren
+      return;
+    }
+    if (appQuitting || !mainWindow.isVisible() || mainWindow.isMinimized()) return;
+    if (systemPreferences.getAnimationSettings().prefersReducedMotion) return;
+    event.preventDefault();
+    playCloseAnimation().catch(() => {
+      if (!mainWindow.isDestroyed()) mainWindow.destroy();
+    });
   });
 
   // Kopiëren/plakken via het rechtermuisknop-menu voor invoervelden in de
