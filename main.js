@@ -689,10 +689,15 @@ function findOtherPageIndex(navigationHistory, direction) {
 // Zet de class "dark" op de pagina aan of uit volgens de instelling. Alleen op
 // pagina's van de app zelf; inlogpagina's (Microsoft e.d.) blijven ongemoeid.
 // De achtergrondkleur van de view voorkomt een witte flits tijdens het laden.
+// Alleen pagina's van de app zelf krijgen de donkere achtergrond. Andere
+// inhoud (bv. de specificatie-preview: HTML die de app in een leeg venster
+// schrijft en die van een witte pagina uitgaat, of een PDF) houdt wit, anders
+// schijnt de donkere achtergrond door en staat de zwarte tekst op zwart.
 function applyDarkMode(view) {
   if (view.webContents.isDestroyed()) return;
-  view.setBackgroundColor(appSettings.darkMode ? DARK_MODE_BACKGROUND : '#ffffff');
-  if (!isInternalUrl(view.webContents.getURL())) return;
+  const internal = isInternalUrl(view.webContents.getURL());
+  view.setBackgroundColor(appSettings.darkMode && internal ? DARK_MODE_BACKGROUND : '#ffffff');
+  if (!internal) return;
   view.webContents.executeJavaScript(
     `document.documentElement.classList.toggle('dark', ${appSettings.darkMode});`
   ).catch(() => {});
@@ -857,7 +862,11 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
         mainWindow.contentView.addChildView(newView);
         newView.setBounds(getViewBounds());
         newView.webContents.zoomFactor = appSettings.zoomFactor;
-        if (appSettings.darkMode) newView.setBackgroundColor(DARK_MODE_BACKGROUND);
+        // Bewust géén donkere achtergrond: zo'n leeg venster krijgt meestal
+        // een PDF of door de app geschreven HTML (specificatie-preview) die
+        // van wit uitgaat. Wordt het toch een app-pagina, dan zet
+        // applyDarkMode (dom-ready) de donkere achtergrond alsnog.
+        newView.setBackgroundColor('#ffffff');
         attachNavigationHandlers(newView, newTabId, { skipFirstNavigation: false });
         tabs.set(newTabId, newView);
         parentTabs.set(newTabId, tabId);
