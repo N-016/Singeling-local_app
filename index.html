@@ -184,15 +184,22 @@
 
     #share-link-btn,
     #dark-mode-btn,
+    #help-btn,
     #settings-btn {
       color: var(--accent);
     }
 
     #share-link-btn:hover,
     #dark-mode-btn:hover,
+    #help-btn:hover,
     #settings-btn:hover {
       color: var(--accent-hover);
       background: var(--hover);
+    }
+
+    /* Hulp-venstertje open (dat tekent main.js, zie HELP_POPOVER_HTML). */
+    #help-btn.open {
+      background: var(--hover-strong);
     }
 
     /* Contrast-icoon (halfgevulde cirkel); bij donkere modus aan wisselt de
@@ -2451,6 +2458,12 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </button>
       </div>
+      <button id="new-tab-btn" type="button" title="Nieuw tabblad" aria-label="Nieuw tabblad">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+      </button>
+      <button id="tab-overview-btn" class="navigation-button" type="button" title="Overzicht van alle tabs" aria-label="Overzicht van alle tabs">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+      </button>
       <div id="tabbar-zoom" title="Zoomniveau van de pagina">
         <button id="tabbar-zoom-out" class="tabbar-zoom-btn" type="button" title="Uitzoomen" aria-label="Uitzoomen">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
@@ -2460,16 +2473,26 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
         </button>
       </div>
-      <button id="tab-overview-btn" class="navigation-button" type="button" title="Overzicht van alle tabs" aria-label="Overzicht van alle tabs">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
-      </button>
-      <button id="new-tab-btn" type="button" title="Nieuw tabblad" aria-label="Nieuw tabblad">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-      </button>
       <button id="dark-mode-btn" class="navigation-button" type="button" title="Donkere modus aanzetten" aria-label="Donkere modus" aria-pressed="false">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="9"/>
           <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>
+        </svg>
+      </button>
+      <button id="help-btn" class="navigation-button" type="button" title="Probleem melden of hulp nodig?" aria-label="Probleem melden of hulp nodig?" aria-expanded="false">
+        <!-- Kevertje ("bug"): hier meld je een fout. -->
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m8 2 1.88 1.88"/>
+          <path d="M14.12 3.88 16 2"/>
+          <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/>
+          <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/>
+          <path d="M12 20v-9"/>
+          <path d="M6.53 9C4.6 8.8 3 7.1 3 5"/>
+          <path d="M6 13H2"/>
+          <path d="M3 21c0-2.1 1.7-3.9 3.8-4"/>
+          <path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/>
+          <path d="M22 13h-4"/>
+          <path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/>
         </svg>
       </button>
       <button id="settings-btn" class="navigation-button" type="button" title="Instellingen" aria-label="Instellingen">
@@ -2938,6 +2961,11 @@
           demo: 'theme',
           title: 'Licht of donker',
           text: 'Kijk maar: met deze knop wissel je tussen een lichte en een donkere weergave. De tabbalk en de pagina\'s gaan mee.'
+        },
+        {
+          target: '#help-btn',
+          title: 'Iets gevonden dat niet goed gaat?',
+          text: 'Klik op het kevertje. Daar staat bij wie je terechtkunt: Nick als de app zelf (de balk hier bovenin) raar doet, Laurens als er iets niet klopt op een pagina of als je iets mist.'
         },
         {
           target: '.settings-nav',
@@ -3941,6 +3969,17 @@
     });
 
     // Instellingenmenu: zoomen en tabs die bij opstarten geopend worden
+    // Hulpknop: main.js tekent het venstertje eronder (over de pagina heen).
+    const helpBtn = document.getElementById('help-btn');
+    helpBtn.addEventListener('click', () => {
+      const rect = helpBtn.getBoundingClientRect();
+      window.electronAPI.toggleHelpPopover({ right: rect.right, bottom: rect.bottom });
+    });
+    window.electronAPI.on('help-popover-changed', (open) => {
+      helpBtn.classList.toggle('open', open);
+      helpBtn.setAttribute('aria-expanded', String(open));
+    });
+
     const settingsBtn = document.getElementById('settings-btn');
     const settingsPanel = document.getElementById('settings-panel');
     const zoomLevelLabel = document.getElementById('zoom-level');
