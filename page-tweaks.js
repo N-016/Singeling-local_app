@@ -90,8 +90,8 @@ const PAGE_TWEAKS_CSS = `
      pagina, zodat hij zich blijft onderscheiden. Na de lichte regels hierboven
      (zelfde specificiteit), dus deze wint. */
   html.sg-soft .sg-app .side {
-    background: #dcdcd8;
-    border-right-color: #cdcdc8;
+    background: #d4d4cf;
+    border-right-color: #c6c6c1;
   }
 
   html.sg-soft .sg-app .navg .sub {

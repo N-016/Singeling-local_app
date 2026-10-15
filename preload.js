@@ -1,11 +1,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const incomingChannels = ['dark-mode-changed', 'update-notice-show', 'update-notice-state', 'update-notice-hide', 'tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed', 'help-popover-changed'];
+const incomingChannels = ['open-link-field', 'dark-mode-changed', 'update-notice-show', 'update-notice-state', 'update-notice-hide', 'tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed', 'help-popover-changed'];
 
 contextBridge.exposeInMainWorld('electronAPI', {
   switchTab: (tabId) => ipcRenderer.send('switch-tab', tabId),
   closeTab: (tabId) => ipcRenderer.send('close-tab', tabId),
   requestNewTab: (url) => ipcRenderer.send('request-new-tab', url),
+  openEnteredLink: (text) => ipcRenderer.invoke('open-entered-link', text),
   navigateActiveTab: (action) => ipcRenderer.send('navigate-active-tab', action),
   setTabLocked: (tabId, locked) => ipcRenderer.send('set-tab-locked', { tabId, locked }),
   showTabContextMenu: (tabId, x, y) => ipcRenderer.send('show-tab-context-menu', { tabId, x, y }),

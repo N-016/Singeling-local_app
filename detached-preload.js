@@ -6,5 +6,6 @@ contextBridge.exposeInMainWorld('detachedAPI', {
   windowControl: (action) => ipcRenderer.send('detached-window-control', action),
   onState: (callback) => ipcRenderer.on('detached-state', (event, state) => callback(state)),
   onMaximized: (callback) => ipcRenderer.on('detached-maximized', (event, maximized) => callback(maximized)),
-  onTheme: (callback) => ipcRenderer.on('detached-theme', (event, dark) => callback(dark))
+  onTheme: (callback) => ipcRenderer.on('detached-theme', (event, dark) => callback(dark)),
+  onSoft: (callback) => ipcRenderer.on('detached-soft', (event, soft) => callback(soft))
 });

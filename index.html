@@ -99,13 +99,13 @@
     /* Leescomfort in licht: zachtgrijs i.p.v. fel wit, met minder contrast.
        Zelfde kleuren als soft-mode.js (sg-soft) voor de pagina's. */
     html.theme-light.theme-soft {
-      --app-bg: #e6e6e3;
+      --app-bg: #dfdfdb;
       --bar-bg: #e1e1de;
       --bar-border: #cdcdc8;
       --tab-bg: #e1e1de;
-      --surface: #efefec;
-      --surface-raised: #e4e4e0;
-      --field-bg: #e6e6e3;
+      --surface: #f3f3f0;
+      --surface-raised: #e6e6e2;
+      --field-bg: #e8e8e4;
       --border: #cdcdc8;
       --border-strong: #b6b6b1;
       --hover: rgba(43, 45, 49, 0.05);
@@ -247,6 +247,82 @@
     #settings-btn:hover {
       color: var(--accent-hover);
       background: var(--hover);
+    }
+
+    /* ---------- Link invoeren ---------- */
+    #open-link-btn {
+      color: var(--accent);
+    }
+
+    #open-link-btn:hover {
+      color: var(--accent-hover);
+      background: var(--hover);
+    }
+
+    #open-link-btn.open {
+      background: var(--hover-strong);
+    }
+
+    /* Schuift open in de balk zelf (niet eronder, daar zit de pagina). */
+    #open-link-field {
+      position: relative;
+      display: flex;
+      align-items: center;
+      flex: 0 0 auto;
+      width: 0;
+      opacity: 0;
+      overflow: hidden;
+      -webkit-app-region: no-drag;
+      transition: width 0.25s var(--ease), opacity 0.2s var(--ease), margin 0.25s var(--ease);
+    }
+
+    #open-link-field.open {
+      width: 360px;
+      margin: 0 6px 0 2px;
+      opacity: 1;
+    }
+
+    /* Foutmelding naast het veld (niet eroverheen): veld schuift breder. */
+    #open-link-field.open.error {
+      width: 640px;
+    }
+
+    #open-link-input {
+      flex: 0 0 360px;
+      width: 360px;
+      height: 26px;
+      box-sizing: border-box;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--field-bg);
+      color: var(--text);
+      font: inherit;
+      font-size: 12.5px;
+      outline: none;
+      transition: border-color 0.15s var(--ease);
+    }
+
+    #open-link-input:focus {
+      border-color: var(--accent);
+    }
+
+    #open-link-field.error #open-link-input {
+      border-color: #e5484d;
+      animation: link-shake 0.32s var(--ease);
+    }
+
+    .open-link-error {
+      flex: 0 0 auto;
+      margin-left: 10px;
+      font-size: 11.5px;
+      color: #e5484d;
+      white-space: nowrap;
+    }
+
+    @keyframes link-shake {
+      20%, 60% { transform: translateX(-4px); }
+      40%, 80% { transform: translateX(4px); }
     }
 
     /* Hulp-venstertje open (dat tekent main.js, zie HELP_POPOVER_HTML). */
@@ -1629,6 +1705,40 @@
       display: none;
     }
 
+    /* Het welkomstscherm (net als het laadscherm) altijd in de gewone kleuren,
+       ook als Leescomfort aanstaat: hier de gewone waarden terugzetten. */
+    html.theme-light.theme-soft #beta-notice {
+      --surface: #ffffff;
+      --surface-raised: #f0f2f4;
+      --field-bg: #f7f8f9;
+      --border: #dfe2e6;
+      --border-strong: #c5c9cf;
+      --hover: rgba(22, 24, 29, 0.05);
+      --hover-strong: rgba(22, 24, 29, 0.09);
+      --text: #16181d;
+      --text-2: #32363c;
+      --text-muted: #6b7178;
+      --text-faint: #9aa0a8;
+      --overlay: rgba(22, 24, 29, 0.45);
+      --shadow: 0 16px 40px rgba(22, 24, 29, 0.16);
+    }
+
+    html.theme-soft:not(.theme-light) #beta-notice {
+      --surface: #1e2127;
+      --surface-raised: #262a31;
+      --field-bg: rgba(0, 0, 0, 0.25);
+      --border: rgba(255, 255, 255, 0.1);
+      --border-strong: rgba(255, 255, 255, 0.2);
+      --hover: rgba(255, 255, 255, 0.06);
+      --hover-strong: rgba(255, 255, 255, 0.12);
+      --text: #f4f5f6;
+      --text-2: #c5c9cf;
+      --text-muted: #9da3ac;
+      --text-faint: #5f6670;
+      --overlay: rgba(8, 9, 11, 0.72);
+      --shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    }
+
     .notice-panel {
       width: min(520px, 100%);
       box-sizing: border-box;
@@ -2744,6 +2854,20 @@
           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
         </svg>
       </button>
+      <!-- Link invoeren: schuift een invoerveld open in de balk zelf (onder de
+           balk zou het achter de pagina verdwijnen). main.js laat alleen links
+           binnen het productiesysteem door (normalizeEnteredLink). -->
+      <button class="navigation-button" type="button" id="open-link-btn" title="Link openen (Ctrl+L)" aria-label="Link openen" aria-expanded="false" aria-controls="open-link-field">
+        <!-- Kompas: naar een pagina navigeren. -->
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/>
+        </svg>
+      </button>
+      <div id="open-link-field">
+        <input id="open-link-input" type="text" spellcheck="false" autocomplete="off" aria-label="Link uit het productiesysteem" placeholder="Plak of typ een link uit het productiesysteem… (Enter)">
+        <span id="open-link-error" class="open-link-error" hidden>Alleen links binnen het Singeling-productiesysteem</span>
+      </div>
       <div id="tab-scroll">
         <div id="tabs"></div>
       </div>
@@ -2848,6 +2972,7 @@
     <nav class="settings-nav">
       <h2 id="settings-title">Instellingen</h2>
       <button class="settings-nav-item active" type="button" data-section="general"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>Algemeen</button>
+      <button class="settings-nav-item" type="button" data-section="weergave"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>Weergave</button>
       <button class="settings-nav-item" type="button" data-section="updates"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Updates<span id="settings-nav-update-dot" class="nav-dot hidden" title="Update beschikbaar"></span></button>
       <button class="settings-nav-item" type="button" data-section="zoom"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>Zoomen<span id="settings-nav-zoom" class="nav-meta">100%</span></button>
       <button class="settings-nav-item" type="button" data-section="start"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>Starttabs<span id="settings-nav-start-count" class="nav-meta"></span></button>
@@ -2885,6 +3010,11 @@
         </span>
         <input type="checkbox" class="switch" id="block-ctrl-b-checkbox">
       </label>
+    </div>
+
+    <div class="settings-section hidden" data-section="weergave">
+      <h3>Weergave</h3>
+      <p class="settings-intro">Licht of donker, leescomfort en hoe meldingen bovenaan de pagina eruitzien.</p>
       <div id="theme-schedule-row" class="general-choice">
         <span class="toggle-text">
           Licht/donker wisselen
@@ -2977,7 +3107,7 @@
       <div class="notice-actions">
         <button id="accept-beta" type="button">Start</button>
       </div>
-      <p class="notice-footnote">Kom je een bug tegen? Meld dit bij Nick.</p>
+      <p class="notice-footnote">Kom je een fout tegen of mis je iets? Klik bovenin op het kevertje: daar staat bij wie je terechtkunt.</p>
     </div>
   </section>
 
@@ -3285,6 +3415,11 @@
           text: 'Kopieer de link van de huidige pagina, zodat je hem makkelijk kunt delen met collega\'s binnen Singeling.'
         },
         {
+          target: '#open-link-btn',
+          title: 'Link openen',
+          text: 'Heb je een link van een collega gekregen? Klik hier (of druk Ctrl+L), plak de link en druk op Enter: hij opent in een nieuw tabblad. Alleen links binnen het productiesysteem werken.'
+        },
+        {
           target: '#tab-scroll',
           title: 'Tabs',
           text: 'De actieve tab herken je aan het oranje balkje. Rechtsklik op een tab om hem vast te zetten: vastgezette tabs zijn goudgeel met een slotje en openen links altijd in een nieuw tabblad. Met de middelste muisknop sluit je een tab.'
@@ -3331,7 +3466,7 @@
           target: '.settings-nav',
           placement: 'side',
           title: 'Instellingen',
-          text: 'Via de moersleutel kom je hier. Links kies je een onderdeel: algemene voorkeuren, updates, zoomen en starttabs. Met "Terug" onderin (of Esc) ga je weer naar de pagina.',
+          text: 'Via de moersleutel kom je hier. Links kies je een onderdeel: algemene voorkeuren, weergave (licht/donker, leescomfort), updates, zoomen en starttabs. Met "Terug" onderin (of Esc) ga je weer naar de pagina.',
           requiresSettingsOpen: true,
           settingsSection: 'general'
         },
@@ -3422,7 +3557,7 @@
             title: 'Melding "Niet geklokt"',
             text: 'Kies hier hoe de oranje balk "Niet geklokt op een order" bovenaan de pagina verschijnt: aan, als rustige regel (subtiel) of helemaal niet. "Afwezig" blijft altijd in het rood zichtbaar.',
             requiresSettingsOpen: true,
-            settingsSection: 'general'
+            settingsSection: 'weergave'
           }
         ]
       },
@@ -4349,6 +4484,77 @@
     });
 
     // Instellingenmenu: zoomen en tabs die bij opstarten geopend worden
+    // ---------- Link invoeren ----------
+    // Enter = openen in een nieuw tabblad. main.js controleert opnieuw dat de
+    // link binnen het productiesysteem blijft; anders een foutmelding hier.
+    const openLinkBtn = document.getElementById('open-link-btn');
+    const openLinkField = document.getElementById('open-link-field');
+    const openLinkInput = document.getElementById('open-link-input');
+    const openLinkError = document.getElementById('open-link-error');
+
+    function showOpenLinkError(show) {
+      openLinkError.hidden = !show;
+      openLinkField.classList.remove('error');
+      if (show) {
+        void openLinkField.offsetWidth; // schud-animatie opnieuw laten spelen
+        openLinkField.classList.add('error');
+      }
+    }
+
+    function openLinkFieldShow() {
+      openLinkField.classList.add('open');
+      openLinkBtn.classList.add('open');
+      openLinkBtn.setAttribute('aria-expanded', 'true');
+      openLinkInput.focus();
+      openLinkInput.select();
+    }
+
+    function openLinkFieldHide() {
+      openLinkField.classList.remove('open');
+      openLinkBtn.classList.remove('open');
+      openLinkBtn.setAttribute('aria-expanded', 'false');
+      openLinkInput.value = '';
+      showOpenLinkError(false);
+    }
+
+    async function submitOpenLink() {
+      const value = openLinkInput.value.trim();
+      if (!value) return;
+      const result = await window.electronAPI.openEnteredLink(value);
+      if (result && result.ok) openLinkFieldHide();
+      else showOpenLinkError(true);
+    }
+
+    openLinkBtn.addEventListener('click', () => {
+      if (openLinkField.classList.contains('open')) openLinkFieldHide();
+      else openLinkFieldShow();
+    });
+    openLinkInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        submitOpenLink();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        openLinkFieldHide();
+      }
+    });
+    openLinkInput.addEventListener('input', () => showOpenLinkError(false));
+    // Ernaast klikken: leeg veld dicht. Met een getypte link blijft hij staan.
+    openLinkInput.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (document.activeElement !== openLinkInput && !openLinkInput.value.trim()) openLinkFieldHide();
+      }, 150);
+    });
+    // Ctrl+L, zoals in een browser: in de tabbalk hier, in een pagina via main.js.
+    document.addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'l') {
+        event.preventDefault();
+        openLinkFieldShow();
+      }
+    });
+    window.electronAPI.on('open-link-field', openLinkFieldShow);
+
     // Hulpknop: main.js tekent het venstertje eronder (over de pagina heen).
     const helpBtn = document.getElementById('help-btn');
     helpBtn.addEventListener('click', () => {
