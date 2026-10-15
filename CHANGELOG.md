@@ -2,7 +2,7 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
-## [1.3.0-beta.1] - 2026-10-15
+## [1.2.3-beta.1] - 2026-10-15
 
 Bètaversie: alleen voor wie "Bèta-versies ontvangen" aan heeft staan.
 
