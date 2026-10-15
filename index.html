@@ -1026,6 +1026,43 @@
       border-radius: var(--radius);
     }
 
+    /* Extra velden bij "Licht/donker wisselen" (tijden of zon). */
+    .theme-schedule-fields {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 16px;
+      font-size: 12.5px;
+      color: var(--text-2);
+    }
+
+    .theme-schedule-fields.hidden {
+      display: none;
+    }
+
+    .theme-schedule-fields label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .theme-schedule-fields input,
+    .theme-schedule-fields select {
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--field-bg);
+      color: var(--text);
+      font: inherit;
+      font-size: 12.5px;
+    }
+
+    .theme-schedule-fields input:focus,
+    .theme-schedule-fields select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
     /* Knoppenrij waarvan er één gekozen is (zelfde stijl als de tabs: oranje
        streepje onder de gekozen stand). Gebruikt in de instellingen en in het
        keuzescherm na de rondleiding. */
@@ -2766,6 +2803,31 @@
         </span>
         <input type="checkbox" class="switch" id="block-ctrl-b-checkbox">
       </label>
+      <div id="theme-schedule-row" class="general-choice">
+        <span class="toggle-text">
+          Licht/donker wisselen
+          <span id="theme-schedule-hint" class="settings-hint"></span>
+        </span>
+        <div class="choice-group" role="radiogroup" aria-label="Licht/donker wisselen" data-choice="theme-mode"></div>
+        <div id="theme-times-fields" class="theme-schedule-fields hidden">
+          <label>Donker vanaf <input type="time" id="theme-time-dark" required></label>
+          <label>Licht vanaf <input type="time" id="theme-time-light" required></label>
+        </div>
+        <div id="theme-sun-fields" class="theme-schedule-fields hidden">
+          <label>Verschuiving
+            <select id="theme-sun-offset">
+              <option value="-60">1 uur eerder</option>
+              <option value="-30">30 min eerder</option>
+              <option value="-15">15 min eerder</option>
+              <option value="0">precies op tijd</option>
+              <option value="15">15 min later</option>
+              <option value="30">30 min later</option>
+              <option value="60">1 uur later</option>
+            </select>
+          </label>
+          <span id="theme-sun-info" class="settings-hint"></span>
+        </div>
+      </div>
       <div id="show-not-clocked-row" class="general-choice">
         <span class="toggle-text">
           Melding "Niet geklokt op een order"
@@ -4303,6 +4365,7 @@
         openAllLinksNewTabCheckbox.checked = !!settings.openAllLinksInNewTab;
         blockCtrlBCheckbox.checked = !!settings.blockCtrlB;
         renderNotClockedChoice(settings.notClockedMode);
+        renderThemeSchedule(settings);
         applyUpdateStatusUI(!!settings.updateVersion, settings.updateVersion);
       }
       clearTimeout(settingsHideTimer);
@@ -4432,6 +4495,83 @@
       if (settings) renderNotClockedChoice(settings.notClockedMode);
     });
 
+    // ---- Licht/donker wisselen (zie "Licht/donker automatisch" in main.js) ----
+    const THEME_MODE_CHOICES = [
+      { value: 'handmatig', label: 'Handmatig' },
+      { value: 'systeem', label: 'Systeem' },
+      { value: 'tijden', label: 'Vaste tijden' },
+      { value: 'zon', label: 'Zon op/onder' }
+    ];
+    const THEME_MODE_HINTS = {
+      handmatig: 'Je wisselt zelf met de knop in de tabbalk.',
+      systeem: 'Volgt de instelling van Windows (Persoonlijke instellingen > Kleuren). De knop in de tabbalk wisselt tijdelijk, tot Windows zelf wisselt.',
+      tijden: 'Tussen deze tijden donker, daarbuiten licht. De knop in de tabbalk wisselt tijdelijk, tot het volgende omslagmoment.',
+      zon: 'Donker na zonsondergang, licht na zonsopkomst (berekend voor Wormerveer). De knop in de tabbalk wisselt tijdelijk, tot het volgende omslagmoment.'
+    };
+    const themeScheduleHint = document.getElementById('theme-schedule-hint');
+    const themeTimesFields = document.getElementById('theme-times-fields');
+    const themeSunFields = document.getElementById('theme-sun-fields');
+    const themeTimeDark = document.getElementById('theme-time-dark');
+    const themeTimeLight = document.getElementById('theme-time-light');
+    const themeSunOffset = document.getElementById('theme-sun-offset');
+    const themeSunInfo = document.getElementById('theme-sun-info');
+    let themeMode = 'handmatig';
+
+    async function refreshThemeSunInfo() {
+      if (themeMode !== 'zon') return;
+      const info = await window.electronAPI.getThemeScheduleInfo();
+      if (!info) return;
+      themeSunInfo.textContent = `Vandaag: zon op ${info.sunrise}, onder ${info.sunset}. Licht vanaf ${info.lightFrom}, donker vanaf ${info.darkFrom}.`;
+    }
+
+    function renderThemeSchedule({ themeMode: mode, themeTimes, themeSunOffset: offset } = {}) {
+      if (mode) themeMode = mode;
+      if (themeTimes) {
+        themeTimeDark.value = themeTimes.dark;
+        themeTimeLight.value = themeTimes.light;
+      }
+      if (offset !== undefined) {
+        // Onbekende waarde (bv. handmatig in het bestand gezet): dichtstbijzijnde optie.
+        const options = [...themeSunOffset.options].map(option => Number(option.value));
+        themeSunOffset.value = String(options.reduce((best, value) => Math.abs(value - offset) < Math.abs(best - offset) ? value : best));
+      }
+      document.querySelectorAll('.choice-group[data-choice="theme-mode"]').forEach(group => {
+        buildChoiceGroup(group, THEME_MODE_CHOICES, themeMode, value => {
+          themeMode = value;
+          saveThemeSchedule();
+          renderThemeSchedule();
+        });
+      });
+      themeScheduleHint.textContent = THEME_MODE_HINTS[themeMode];
+      themeTimesFields.classList.toggle('hidden', themeMode !== 'tijden');
+      themeSunFields.classList.toggle('hidden', themeMode !== 'zon');
+      refreshThemeSunInfo();
+    }
+
+    function saveThemeSchedule() {
+      window.electronAPI.setThemeSchedule({
+        mode: themeMode,
+        times: { dark: themeTimeDark.value || '18:00', light: themeTimeLight.value || '07:00' },
+        sunOffset: Number(themeSunOffset.value)
+      });
+    }
+
+    for (const input of [themeTimeDark, themeTimeLight]) {
+      input.addEventListener('change', () => {
+        if (input.value) saveThemeSchedule();
+      });
+    }
+    themeSunOffset.addEventListener('change', async () => {
+      saveThemeSchedule();
+      // main.js moet de nieuwe verschuiving eerst opslaan.
+      await new Promise(resolve => setTimeout(resolve, 50));
+      refreshThemeSunInfo();
+    });
+
+    window.electronAPI.getSettings().then(settings => {
+      if (settings) renderThemeSchedule(settings);
+    });
+
     // Donkere modus: losse knop in de tabbalk naast de instellingenknop.
     const darkModeBtn = document.getElementById('dark-mode-btn');
 
@@ -4453,6 +4593,18 @@
       document.documentElement.classList.add('theme-switching');
       renderDarkModeButton(enabled);
       window.electronAPI.setDarkMode(enabled);
+      themeSwitchTimer = setTimeout(() => {
+        document.documentElement.classList.remove('theme-switching');
+      }, THEME_SWITCH_MS + 100);
+    });
+
+    // Automatisch gewisseld (tijden, zon of Windows, zie main.js): de tabbalk
+    // gaat mee, met dezelfde overgang als bij een klik.
+    window.electronAPI.on('dark-mode-changed', (enabled) => {
+      if (darkModeBtn.classList.contains('active') === enabled) return;
+      clearTimeout(themeSwitchTimer);
+      document.documentElement.classList.add('theme-switching');
+      renderDarkModeButton(enabled);
       themeSwitchTimer = setTimeout(() => {
         document.documentElement.classList.remove('theme-switching');
       }, THEME_SWITCH_MS + 100);
