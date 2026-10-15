@@ -960,6 +960,11 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     } else if (input.key === '0') {
       event.preventDefault();
       setZoomFactor(DEFAULT_ZOOM);
+    } else if (input.key.toLowerCase() === 'l' && !isDetachedTab(tabId)) {
+      // Ctrl+L: het veld "Link openen" in de tabbalk (zoals in een browser).
+      event.preventDefault();
+      mainWindow.webContents.focus();
+      mainWindow.webContents.send('open-link-field');
     } else if (appSettings.blockCtrlB && input.key.toLowerCase() === 'b' && !isFocusOnEditableField) {
       // De website vangt Ctrl+B zelf af om de zijbalk in/uit te klappen, wat
       // vetgedrukt typen in tekstvelden onmogelijk maakt. Dit onderdrukt de
@@ -2034,7 +2039,7 @@ function createDetachedWindow(view, tabId, screenX, screenY) {
   // daaronder.
   detachedWindow.on('page-title-updated', (event) => event.preventDefault());
   detachedWindow.loadFile(path.join(__dirname, 'detached.html'), {
-    query: { theme: appSettings.darkMode ? 'dark' : 'light' }
+    query: { theme: appSettings.darkMode ? 'dark' : 'light', soft: appSettings.softColors ? '1' : '0' }
   });
   detachedWindow.webContents.once('did-finish-load', () => sendNavigationState(tabId));
 
@@ -2081,6 +2086,42 @@ ipcMain.on('detach-tab', (event, { tabId, screenX, screenY }) => {
   detachTab(tabId, screenX, screenY);
 });
 ipcMain.on('request-new-tab', (event, url) => createTab(url || START_URL));
+
+// ---------- Link invoeren (knop in de tabbalk) ----------
+//
+// Een zelf geplakte/getypte link mag alleen naar het productiesysteem zelf.
+// Bewust een eigen kanaal: createTab() stuurt externe links naar de browser,
+// maar hier wordt alles buiten ons domein gewoon geweigerd.
+// Toegestaan: een volledige link ("https://snglng.lovable.app/quotations/1"),
+// zonder https:// ("snglng.lovable.app/quotations/1") of alleen het pad
+// ("quotations/1" of "/quotations/1").
+function normalizeEnteredLink(text) {
+  let value = String(text || '').trim();
+  if (!value || value.length > 2000) return null;
+  const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(value);
+  const looksLikeHost = /^[^/\s?#]+\.[^/\s?#]+(\/|$|\?|#)/.test(value);
+  if (!hasScheme && !looksLikeHost) {
+    value = new URL(value.replace(/^\/*/, '/'), START_URL).href; // alleen een pad
+  } else if (!hasScheme) {
+    value = `https://${value}`;
+  }
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' || url.username || url.password || !isInternalUrl(url.href)) return null;
+  return url.href;
+}
+
+ipcMain.handle('open-entered-link', (event, text) => {
+  if (event.sender !== mainWindow.webContents) return { ok: false };
+  const url = normalizeEnteredLink(text);
+  if (!url) return { ok: false };
+  createTab(url, true, false, activeTabId);
+  return { ok: true, url };
+});
 ipcMain.on('navigate-active-tab', (event, action) => {
   if (event.sender !== mainWindow.webContents || !activeTabId) return;
 
@@ -2268,7 +2309,10 @@ ipcMain.on('set-soft-colors', (event, value) => {
     });
   }
   for (const view of tabs.values()) applyDarkMode(view);
-  for (const { view } of detachedWindows.values()) applyDarkMode(view);
+  for (const detached of detachedWindows.values()) {
+    applyDarkMode(detached.view);
+    if (!detached.window.isDestroyed()) detached.window.webContents.send('detached-soft', appSettings.softColors);
+  }
 });
 ipcMain.on('set-beta-updates', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
@@ -3126,7 +3170,8 @@ function createWindow() {
   // Thema en versie meegeven, zodat het splash-scherm meteen in licht/donker
   // verschijnt en altijd het echte versienummer toont.
   splashWindow.loadFile('splash.html', {
-    query: { theme: appSettings.darkMode ? (softDarkActive() ? 'dark-soft' : 'dark') : (softLightActive() ? 'soft' : 'light'), version: app.getVersion() }
+    // Laadscherm altijd in de gewone kleuren (ook met Leescomfort aan).
+    query: { theme: appSettings.darkMode ? 'dark' : 'light', version: app.getVersion() }
   });
   const splashStartTime = Date.now();
 

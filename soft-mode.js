@@ -12,31 +12,34 @@
 // Singeling), dan de onderdelen met een vaste witte achtergrond. "Papier"
 // (een nagebootst document, zoals de preview van een offerte) blijft wit.
 
-const { WHITE_SURFACES, PAPER } = require('./dark-mode');
+const { WHITE_SURFACES, PAPER, TAILWIND_COLORS } = require('./dark-mode');
 
 // Achtergrond van de tab tijdens het laden (= --background hieronder).
-const SOFT_MODE_BACKGROUND = '#e6e6e3';
+const SOFT_MODE_BACKGROUND = '#dfdfdb';
 const SOFT_DARK_BACKGROUND = '#23262a'; // = --background bij sg-soft-dark
 
+// Pagina (87%) en kaarten/vlakken (95%) duidelijk uit elkaar, zodat bv. de
+// orderkaarten in QRM Connect loskomen van de achtergrond; nog steeds geen
+// fel wit.
 const SOFT_VARIABLES = `
   html.sg-soft {
-    --background: 60 6% 90%;
+    --background: 60 6% 87%;
     --foreground: 220 7% 18%;
-    --card: 60 9% 93%;
+    --card: 60 11% 95%;
     --card-foreground: 220 7% 18%;
-    --popover: 60 9% 93%;
+    --popover: 60 11% 95%;
     --popover-foreground: 220 7% 18%;
-    --secondary: 60 6% 87%;
+    --secondary: 60 7% 90%;
     --secondary-foreground: 220 7% 18%;
-    --muted: 60 6% 87%;
+    --muted: 60 7% 90%;
     --muted-foreground: 215 5% 40%;
-    --accent: 60 6% 87%;
+    --accent: 60 7% 90%;
     --accent-foreground: 220 7% 18%;
     --border: 60 5% 79%;
     --input: 60 5% 79%;
-    --bg-canvas: #e6e6e3;
-    --bg-surface: #efefec;
-    --bg-sunk: #dfdfdb;
+    --bg-canvas: #dfdfdb;
+    --bg-surface: #f3f3f0;
+    --bg-sunk: #d8d8d4;
     --fg-1: #2b2d31;
     --fg-2: #55595f;
     --fg-3: #7b7f86;
@@ -53,6 +56,28 @@ const SOFT_SURFACES = `
   html:where(.sg-soft) .bg-white:where(:not(${PAPER})) { background-color: hsl(var(--card)); }
   html:where(.sg-soft) body { background-color: hsl(var(--background)); }
 `;
+
+// Vaste lichte Tailwind-kleuren (bg-purple-50, border-blue-200, ...), bv. de
+// gekleurde kolommen van het QRM-bord. Die zijn bijna wit; in zachtgrijs zouden
+// de (zachtgrijze) orderkaarten erin wegvallen. Daarom een gedempte tint van
+// de eigen kleur over het grijs, iets dieper dan de kaarten (95%): de kolom
+// houdt zijn kleur en de kaarten komen er licht bovenop te liggen.
+// :where() houdt de specificiteit laag, net als in dark-mode.js.
+const SOFT_BG_STRENGTH = { 50: 11, 100: 16, 200: 24 };
+const SOFT_BORDER_STRENGTH = { 100: 30, 200: 40, 300: 52 };
+function softTailwindRules() {
+  const scope = 'html:where(.sg-soft)';
+  const rules = [];
+  for (const [name, [c500]] of Object.entries(TAILWIND_COLORS)) {
+    for (const [shade, pct] of Object.entries(SOFT_BG_STRENGTH)) {
+      rules.push(`${scope} .bg-${name}-${shade}:where(:not(${PAPER} *)), ${scope} .hover\\:bg-${name}-${shade}:hover { background-color: color-mix(in srgb, rgb(${c500}) ${pct}%, #e2e2de); }`);
+    }
+    for (const [shade, pct] of Object.entries(SOFT_BORDER_STRENGTH)) {
+      rules.push(`${scope} .border-${name}-${shade}:where(:not(${PAPER} *)) { border-color: color-mix(in srgb, rgb(${c500}) ${pct}%, #cfcfca); }`);
+    }
+  }
+  return rules.join('\n');
+}
 
 // Papier blijft zoals in licht (wit met de gewone lichte kleuren).
 const SOFT_PAPER = `
@@ -100,6 +125,6 @@ const SOFT_DARK_VARIABLES = `
   html.dark.sg-soft-dark body { background-color: hsl(var(--background)); }
 `;
 
-const SOFT_MODE_CSS = SOFT_VARIABLES + SOFT_SURFACES + SOFT_PAPER + SOFT_DARK_VARIABLES;
+const SOFT_MODE_CSS = SOFT_VARIABLES + SOFT_SURFACES + softTailwindRules() + SOFT_PAPER + SOFT_DARK_VARIABLES;
 
 module.exports = { SOFT_MODE_BACKGROUND, SOFT_DARK_BACKGROUND, SOFT_MODE_CSS };
