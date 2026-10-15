@@ -104,7 +104,11 @@
       align-items: center;
       gap: 2px;
       height: 38px; /* = TABBAR_HEIGHT in main.js */
-      padding: 0 6px;
+      /* Rechts ruimte voor de Windows-knoppen als die door Windows getekend
+         worden (titleBarOverlay in main.js); Chromium geeft hun plek door via
+         env(titlebar-area-*). Met eigen knoppen (CUSTOM_WINDOW_CONTROLS)
+         bestaan die waarden niet en blijft er niets extra vrij. */
+      padding: 0 calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 6px) 0 6px;
       background: var(--bar-bg);
       border-bottom: 1px solid var(--bar-border);
       transition: background-color 0.25s var(--ease), border-color 0.25s var(--ease);
@@ -215,6 +219,87 @@
 
     #settings-btn.open svg {
       transform: rotate(-45deg);
+    }
+
+    /* ---------- Eigen vensterknoppen (CUSTOM_WINDOW_CONTROLS) ---------- */
+
+    /* Vierkant, over de volle hoogte van de balk, net als de tabs. Alleen
+       zichtbaar als main.js eigen knoppen gebruikt (class op <html>). */
+    #window-controls {
+      display: none;
+      align-self: stretch;
+      margin: 0 -6px 0 6px; /* tot tegen de rechterrand, over de padding heen */
+      border-left: 1px solid var(--bar-border);
+      -webkit-app-region: no-drag;
+    }
+
+    html.custom-window-controls #window-controls {
+      display: flex;
+    }
+
+    .window-control {
+      position: relative;
+      width: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      overflow: hidden;
+      transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
+    }
+
+    /* Oranje balkje onderin dat bij hover vanuit het midden opengroeit, in
+       de stijl van het actieve-tab-balkje. */
+    .window-control::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 2px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transition: transform 0.25s var(--ease);
+    }
+
+    .window-control:hover {
+      color: var(--text);
+      background: var(--hover);
+    }
+
+    .window-control:hover::after {
+      transform: scaleX(1);
+    }
+
+    .window-control:active svg {
+      transform: scale(0.85);
+    }
+
+    .window-control svg {
+      transition: transform 0.12s var(--ease);
+    }
+
+    /* Sluiten: oranje i.p.v. het Windows-rood, met witte kruis. */
+    #window-close:hover {
+      color: #fff;
+      background: var(--accent);
+    }
+
+    #window-close::after {
+      display: none;
+    }
+
+    #window-maximize .icon-restore,
+    #window-maximize.maximized .icon-maximize {
+      display: none;
+    }
+
+    #window-maximize.maximized .icon-restore {
+      display: block;
     }
 
     .update-badge {
@@ -1230,6 +1315,7 @@
     body.intro #tab-bar > :nth-child(5) { animation-delay: 0.24s; }
     body.intro #tab-bar > :nth-child(6) { animation-delay: 0.3s; }
     body.intro #tab-bar > :nth-child(7) { animation-delay: 0.36s; }
+    body.intro #tab-bar > :nth-child(8) { animation-delay: 0.42s; }
 
     /* Na "Start" in de welkomstmelding maakt main.js de starttabs aan; die
        worden dan één voor één ingetekend (--intro-i zet het script per tab). */
@@ -1449,6 +1535,18 @@
         </svg>
         <span id="settings-update-badge" class="update-badge hidden" title="Update beschikbaar"></span>
       </button>
+      <div id="window-controls">
+        <button id="window-minimize" class="window-control" type="button" title="Minimaliseren" aria-label="Minimaliseren">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M1.5 6h9"/></svg>
+        </button>
+        <button id="window-maximize" class="window-control" type="button" title="Maximaliseren" aria-label="Maximaliseren">
+          <svg class="icon-maximize" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9"/></svg>
+          <svg class="icon-restore" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><rect x="1.5" y="3.5" width="7" height="7"/><path d="M3.5 3.5v-2h7v7h-2"/></svg>
+        </button>
+        <button id="window-close" class="window-control" type="button" title="Sluiten" aria-label="Sluiten">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8"/></svg>
+        </button>
+      </div>
     </div>
     <div id="copy-confirmation" class="copy-confirmation">Gekopieerd naar klembord</div>
     <div id="update-banner" class="update-banner hidden" role="status">
@@ -2343,8 +2441,25 @@
     });
 
     window.electronAPI.getSettings().then(settings => {
-      if (settings) renderDarkModeButton(!!settings.darkMode);
+      if (!settings) return;
+      renderDarkModeButton(!!settings.darkMode);
+      document.documentElement.classList.toggle('custom-window-controls', !!settings.customWindowControls);
+      renderMaximizeButton(!!settings.windowMaximized);
     });
+
+    // Eigen vensterknoppen (alleen zichtbaar bij CUSTOM_WINDOW_CONTROLS in main.js).
+    const windowMaximizeBtn = document.getElementById('window-maximize');
+
+    function renderMaximizeButton(maximized) {
+      windowMaximizeBtn.classList.toggle('maximized', maximized);
+      windowMaximizeBtn.title = maximized ? 'Vorige grootte' : 'Maximaliseren';
+      windowMaximizeBtn.setAttribute('aria-label', windowMaximizeBtn.title);
+    }
+
+    document.getElementById('window-minimize').addEventListener('click', () => window.electronAPI.windowControl('minimize'));
+    windowMaximizeBtn.addEventListener('click', () => window.electronAPI.windowControl('toggle-maximize'));
+    document.getElementById('window-close').addEventListener('click', () => window.electronAPI.windowControl('close'));
+    window.electronAPI.on('window-maximized-changed', renderMaximizeButton);
 
     const checkUpdatesBtn = document.getElementById('check-updates-btn');
     const checkUpdatesStatus = document.getElementById('check-updates-status');

@@ -1637,6 +1637,14 @@ ipcMain.handle('get-changelog', (event) => {
     return `Changelog kon niet worden geladen: ${error.message}`;
   }
 });
+// Eigen vensterknoppen in de tabbalk (CUSTOM_WINDOW_CONTROLS).
+ipcMain.on('window-control', (event, action) => {
+  if (event.sender !== mainWindow.webContents) return;
+  if (action === 'minimize') mainWindow.minimize();
+  else if (action === 'toggle-maximize') mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+  else if (action === 'close') mainWindow.close();
+});
+
 ipcMain.handle('get-settings', (event) => {
   if (event.sender !== mainWindow.webContents) return null;
   return {
@@ -1647,6 +1655,8 @@ ipcMain.handle('get-settings', (event) => {
     showOnboarding: appSettings.showOnboarding,
     blockCtrlB: appSettings.blockCtrlB,
     darkMode: appSettings.darkMode,
+    customWindowControls: CUSTOM_WINDOW_CONTROLS,
+    windowMaximized: mainWindow.isMaximized(),
     updateVersion: updateAvailableInfo ? updateAvailableInfo.version : null
   };
 });
@@ -1661,8 +1671,10 @@ ipcMain.on('set-dark-mode', (event, value) => {
   // thema wisselen: zo komt het nieuwe thema er rustig onder vandaan in
   // plaats van in één klap om te springen.
   const previousColor = curtainColor();
+  const wasDark = appSettings.darkMode;
   appSettings.darkMode = !!value;
   saveSettings();
+  fadeTitleBarOverlay(wasDark, appSettings.darkMode, CURTAIN_THEME_FADE_MS);
   if (activeTabId && tabs.has(activeTabId)) {
     coverActiveView(tabs.get(activeTabId), {
       color: previousColor,
@@ -1768,6 +1780,55 @@ ipcMain.on('copy-to-clipboard', (event, text) => {
   clipboard.writeText(text);
 });
 
+// Vensterknoppen (minimaliseren/maximaliseren/sluiten) rechts in de tabbalk:
+//   false = de echte Windows-knoppen (titleBarOverlay); Windows tekent ze, wij
+//           kiezen alleen de kleuren. Snap-indeling bij hover blijft werken.
+//   true  = eigen knoppen in index.html, volledig in Singeling-stijl. Nadeel:
+//           geen Windows 11 snap-indeling bij hover over maximaliseren.
+const CUSTOM_WINDOW_CONTROLS = true;
+
+// Kleuren van de Windows-knoppen rechtsboven; gelijk aan --bar-bg en --text
+// van de tabbalk in index.html. Hoogte 37 i.p.v. 38, zodat de 1px onderrand
+// van de tabbalk ook onder de knoppen zichtbaar blijft.
+const TITLEBAR_OVERLAY_HEIGHT = TABBAR_HEIGHT - 1;
+const TITLEBAR_COLORS = {
+  dark: { color: '#0f1115', symbolColor: '#f4f5f6' },
+  light: { color: '#ffffff', symbolColor: '#16181d' }
+};
+
+function titleBarOverlayColors(darkMode) {
+  return { ...TITLEBAR_COLORS[darkMode ? 'dark' : 'light'], height: TITLEBAR_OVERLAY_HEIGHT };
+}
+
+// Laat de Windows-knoppen in hetzelfde tempo van kleur wisselen als de
+// tabbalk (THEME_SWITCH_MS in index.html), i.p.v. in één keer om te springen.
+let titleBarFadeTimer = null;
+
+function fadeTitleBarOverlay(fromDark, toDark, duration) {
+  if (CUSTOM_WINDOW_CONTROLS || !mainWindow || mainWindow.isDestroyed()) return;
+  clearInterval(titleBarFadeTimer);
+  const from = TITLEBAR_COLORS[fromDark ? 'dark' : 'light'];
+  const to = TITLEBAR_COLORS[toDark ? 'dark' : 'light'];
+  const mix = (a, b, t) => '#' + [1, 3, 5].map(i => {
+    const value = Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t);
+    return value.toString(16).padStart(2, '0');
+  }).join('');
+  const start = Date.now();
+  titleBarFadeTimer = setInterval(() => {
+    if (mainWindow.isDestroyed()) {
+      clearInterval(titleBarFadeTimer);
+      return;
+    }
+    const t = Math.min(1, (Date.now() - start) / duration);
+    mainWindow.setTitleBarOverlay({
+      color: mix(from.color, to.color, t),
+      symbolColor: mix(from.symbolColor, to.symbolColor, t),
+      height: TITLEBAR_OVERLAY_HEIGHT
+    });
+    if (t === 1) clearInterval(titleBarFadeTimer);
+  }, 30);
+}
+
 const SPLASH_FADE_MS = 550;
 const MAIN_WINDOW_FADE_MS = 500;
 
@@ -1820,6 +1881,13 @@ function createWindow() {
     icon: path.join(__dirname, 'assets/icon.ico'),
     show: false,
     autoHideMenuBar: true,
+    // Geen Windows-titelbalk: de tabbalk is de titelbalk (die is al
+    // sleepbaar via -webkit-app-region: drag). De echte Windows-knoppen
+    // (minimaliseren/maximaliseren/sluiten) tekent Windows rechts in de
+    // tabbalk, in de kleuren van het huidige thema.
+    titleBarStyle: 'hidden',
+    // Zonder overlay tekent Windows geen knoppen; dan doet index.html dat.
+    ...(CUSTOM_WINDOW_CONTROLS ? {} : { titleBarOverlay: titleBarOverlayColors(appSettings.darkMode) }),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -1866,6 +1934,13 @@ function createWindow() {
   mainWindow.on('resize', () => {
     applyActiveTabBounds();
   });
+
+  // De eigen maximaliseerknop wisselt tussen "maximaliseren" en "herstellen".
+  const sendMaximizedState = () => {
+    if (!mainWindow.isDestroyed()) mainWindow.webContents.send('window-maximized-changed', mainWindow.isMaximized());
+  };
+  mainWindow.on('maximize', sendMaximizedState);
+  mainWindow.on('unmaximize', sendMaximizedState);
 
   mainWindow.once('ready-to-show', () => {
     const elapsedTime = Date.now() - splashStartTime;

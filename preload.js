@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const incomingChannels = ['tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-settings-panel', 'show-changelog-notice', 'update-badge-changed', 'window-shown'];
+const incomingChannels = ['tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-settings-panel', 'show-changelog-notice', 'update-badge-changed', 'window-shown', 'window-maximized-changed'];
 
 contextBridge.exposeInMainWorld('electronAPI', {
   switchTab: (tabId) => ipcRenderer.send('switch-tab', tabId),
@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setShowOnboarding: (value) => ipcRenderer.send('set-show-onboarding', value),
   setBlockCtrlB: (value) => ipcRenderer.send('set-block-ctrl-b', value),
   setDarkMode: (value) => ipcRenderer.send('set-dark-mode', value),
+  windowControl: (action) => ipcRenderer.send('window-control', action),
   checkForUpdatesNow: () => ipcRenderer.invoke('check-for-updates-now'),
   getChangelog: () => ipcRenderer.invoke('get-changelog'),
   notifyChangelogNoticeClosed: () => ipcRenderer.send('changelog-notice-closed'),
