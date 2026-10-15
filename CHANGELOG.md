@@ -2,6 +2,13 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.2.3-beta.2] - 2026-10-15
+
+Bètaversie: alleen voor wie "Bèta-versies ontvangen" aan heeft staan.
+
+### Toegevoegd
+- Tijdens het installeren van een update staat er een scherm in beeld: "Singeling App wordt bijgewerkt", met een bewegend balkje, tot de nieuwe versie is opgestart. Zo is duidelijk dat de app bezig is en niet vastzit. (Je ziet dit vanaf de update ná deze versie.)
+
 ## [1.2.3-beta.1] - 2026-10-15
 
 Bètaversie: alleen voor wie "Bèta-versies ontvangen" aan heeft staan.
