@@ -2,6 +2,16 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.2.3-beta.4] - 2026-10-15
+
+Bètaversie: alleen voor wie "Bèta-versies ontvangen" aan heeft staan.
+
+### Toegevoegd
+- Leescomfort: zachtere kleuren (Instellingen > Algemeen), standaard aan. Minder fel contrast, prettiger voor je ogen bij lang lezen:
+  - **Licht:** rustig zachtgrijs in plaats van fel wit.
+  - **Donker:** donkergrijs in plaats van bijna zwart, met iets minder felle tekst.
+- In het keuzescherm na de rondleiding kies je nu ook het leescomfort (Gewoon of Zachter).
+
 ## [1.2.3-beta.3] - 2026-10-15
 
 Bètaversie: alleen voor wie "Bèta-versies ontvangen" aan heeft staan.
