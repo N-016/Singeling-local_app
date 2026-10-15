@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { DARK_MODE_BACKGROUND, DARK_MODE_CSS } = require('./dark-mode');
 const { PAGE_TWEAKS_CSS } = require('./page-tweaks');
+const { SOFT_MODE_BACKGROUND, SOFT_DARK_BACKGROUND, SOFT_MODE_CSS } = require('./soft-mode');
 
 // Zonder deze lock start elke nieuwe poging een los proces dat om dezelfde
 // cache- en instellingenbestanden in userData vecht met de al draaiende app
@@ -74,6 +75,7 @@ let appSettings = {
   notClockedMode: 'aan', // melding "Niet geklokt op een order": 'aan' (oranje balk), 'subtiel' of 'uit'
   preferencesChosen: false, // keuzescherm (thema + klokmelding) al gezien
   darkMode: false,
+  softColors: true, // leescomfort: zachtere kleuren (licht: zachtgrijs, donker: donkergrijs; soft-mode.js). Standaard aan.
   betaUpdates: RUNNING_PRERELEASE, // ook bètaversies (GitHub pre-releases) als update aanbieden
   // Licht/donker automatisch (zie "Licht/donker automatisch"):
   // 'handmatig' | 'systeem' | 'tijden' | 'zon'
@@ -130,6 +132,7 @@ function loadSettings() {
       notClockedMode: notClockedModeFrom(parsed),
       preferencesChosen: typeof parsed.preferencesChosen === 'boolean' ? parsed.preferencesChosen : false,
       darkMode: typeof parsed.darkMode === 'boolean' ? parsed.darkMode : false,
+      softColors: typeof parsed.softColors === 'boolean' ? parsed.softColors : true,
       betaUpdates: typeof parsed.betaUpdates === 'boolean' ? parsed.betaUpdates : RUNNING_PRERELEASE,
       themeMode: THEME_MODES.includes(parsed.themeMode) ? parsed.themeMode : 'handmatig',
       themeTimes: validThemeTimes(parsed.themeTimes),
@@ -867,13 +870,31 @@ function findOtherPageIndex(navigationHistory, direction) {
 // inhoud (bv. de specificatie-preview: HTML die de app in een leeg venster
 // schrijft en die van een witte pagina uitgaat, of een PDF) houdt wit, anders
 // schijnt de donkere achtergrond door en staat de zwarte tekst op zwart.
+// Leescomfort (zachtere kleuren, zie soft-mode.js): in licht zachtgrijs i.p.v.
+// fel wit, in donker donkergrijs i.p.v. bijna zwart.
+function softLightActive() {
+  return appSettings.softColors && !appSettings.darkMode;
+}
+
+function softDarkActive() {
+  return appSettings.softColors && appSettings.darkMode;
+}
+
+// Achtergrond van een app-pagina tijdens het laden, per thema.
+function pageBackground() {
+  if (appSettings.darkMode) return softDarkActive() ? SOFT_DARK_BACKGROUND : DARK_MODE_BACKGROUND;
+  return softLightActive() ? SOFT_MODE_BACKGROUND : '#ffffff';
+}
+
 function applyDarkMode(view) {
   if (view.webContents.isDestroyed()) return;
   const internal = isInternalUrl(view.webContents.getURL());
-  view.setBackgroundColor(appSettings.darkMode && internal ? DARK_MODE_BACKGROUND : '#ffffff');
+  view.setBackgroundColor(internal ? pageBackground() : '#ffffff');
   if (!internal) return;
   view.webContents.executeJavaScript(
-    `document.documentElement.classList.toggle('dark', ${appSettings.darkMode});`
+    `document.documentElement.classList.toggle('dark', ${appSettings.darkMode});
+     document.documentElement.classList.toggle('sg-soft', ${softLightActive()});
+     document.documentElement.classList.toggle('sg-soft-dark', ${softDarkActive()});`
   ).catch(() => {});
 }
 
@@ -895,6 +916,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
   view.webContents.on('dom-ready', () => {
     if (isInternalUrl(view.webContents.getURL())) {
       view.webContents.insertCSS(DARK_MODE_CSS).catch(() => {});
+      view.webContents.insertCSS(SOFT_MODE_CSS).catch(() => {});
       view.webContents.insertCSS(PAGE_TWEAKS_CSS).catch(() => {});
     }
     applyDarkMode(view);
@@ -1470,7 +1492,7 @@ function createTab(url, makeActive = true, lockTab = false, parentTabId = null) 
   // niet-actieve tab (bv. een tweede starttab) zichtbaar bovenop de rest.
   view.setBounds(makeActive ? getViewBounds() : { x: 0, y: 0, width: 0, height: 0 });
   view.webContents.zoomFactor = appSettings.zoomFactor;
-  if (appSettings.darkMode) view.setBackgroundColor(DARK_MODE_BACKGROUND);
+  view.setBackgroundColor(pageBackground());
   view.webContents.loadURL(url);
 
   attachNavigationHandlers(view, tabId);
@@ -1562,7 +1584,8 @@ let curtainTimer = null;
 let curtainWaitingFor = null;
 
 function curtainColor() {
-  return appSettings.darkMode ? DARK_MODE_BACKGROUND : LIGHT_MODE_BACKGROUND;
+  if (appSettings.darkMode) return softDarkActive() ? SOFT_DARK_BACKGROUND : DARK_MODE_BACKGROUND;
+  return softLightActive() ? SOFT_MODE_BACKGROUND : LIGHT_MODE_BACKGROUND;
 }
 
 function createCurtain() {
@@ -1632,6 +1655,14 @@ const HELP_POPOVER_HTML = `<!doctype html><html><head><meta charset="utf-8"><sty
     --bg: #ffffff; --border: #dfe2e6; --text: #16181d;
     --text-2: #32363c; --muted: #6b7178; --shadow: 0 12px 30px rgba(22, 24, 29, 0.16);
   }
+  html.soft:not(.light) {
+    --bg: #2a2d33; --border: rgba(255, 255, 255, 0.1); --text: #dfe1e4;
+    --text-2: #c2c6cc; --muted: #9a9fa7;
+  }
+  html.light.soft {
+    --bg: #efefec; --border: #cdcdc8; --text: #2b2d31;
+    --text-2: #45484e; --muted: #62666c;
+  }
   html, body { margin: 0; background: transparent; overflow: hidden; }
   body { font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif; padding: 0 12px 16px; }
   .card {
@@ -1673,7 +1704,10 @@ const HELP_POPOVER_HTML = `<!doctype html><html><head><meta charset="utf-8"><sty
   <div class="soon"><b>Binnenkort:</b> dan kun je een probleem ook direct hier melden. Houd deze knop dus in de gaten!</div>
 </div>
 <script>
-  window.setTheme = (dark) => document.documentElement.classList.toggle('light', !dark);
+  window.setTheme = (dark, soft) => {
+    document.documentElement.classList.toggle('light', !dark);
+    document.documentElement.classList.toggle('soft', !!soft);
+  };
   window.measure = () => Math.ceil(document.body.getBoundingClientRect().height);
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') window.blur(); });
 </script></body></html>`;
@@ -1710,7 +1744,7 @@ function closeHelpPopover() {
 async function openHelpPopover(anchor) {
   const view = ensureHelpPopover();
   if (view.webContents.isLoading()) await new Promise(resolve => view.webContents.once('did-finish-load', resolve));
-  await view.webContents.executeJavaScript(`setTheme(${!!appSettings.darkMode});`).catch(() => {});
+  await view.webContents.executeJavaScript(`setTheme(${!!appSettings.darkMode}, ${!!appSettings.softColors});`).catch(() => {});
   const height = await view.webContents.executeJavaScript('measure();').catch(() => 200);
   const { width: windowWidth } = mainWindow.getContentBounds();
   // Rechts uitgelijnd op de knop (het kaartje heeft 12px marge rondom).
@@ -2206,6 +2240,7 @@ ipcMain.handle('get-settings', (event) => {
     // index.html bij elke start van niet en kwam het scherm steeds terug.
     preferencesChosen: appSettings.preferencesChosen,
     darkMode: appSettings.darkMode,
+    softColors: appSettings.softColors,
     themeMode: appSettings.themeMode,
     themeTimes: appSettings.themeTimes,
     themeSunOffset: appSettings.themeSunOffset,
@@ -2215,6 +2250,25 @@ ipcMain.handle('get-settings', (event) => {
     windowMaximized: mainWindow.isMaximized(),
     updateVersion: updateAvailableInfo ? updateAvailableInfo.version : null
   };
+});
+// Leescomfort: zachtere kleuren aan/uit. Net als bij licht/donker eerst het
+// gordijn in de oude kleur, zodat de nieuwe kleuren er rustig onder vandaan
+// komen.
+ipcMain.on('set-soft-colors', (event, value) => {
+  if (event.sender !== mainWindow.webContents) return;
+  const previousColor = curtainColor();
+  appSettings.softColors = !!value;
+  saveSettings();
+  if (activeTabId && tabs.has(activeTabId)) {
+    coverActiveView(tabs.get(activeTabId), {
+      color: previousColor,
+      revealDelay: CURTAIN_THEME_DELAY_MS,
+      fadeMs: CURTAIN_THEME_FADE_MS,
+      waitForLoad: false
+    });
+  }
+  for (const view of tabs.values()) applyDarkMode(view);
+  for (const { view } of detachedWindows.values()) applyDarkMode(view);
 });
 ipcMain.on('set-beta-updates', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
@@ -3072,7 +3126,7 @@ function createWindow() {
   // Thema en versie meegeven, zodat het splash-scherm meteen in licht/donker
   // verschijnt en altijd het echte versienummer toont.
   splashWindow.loadFile('splash.html', {
-    query: { theme: appSettings.darkMode ? 'dark' : 'light', version: app.getVersion() }
+    query: { theme: appSettings.darkMode ? (softDarkActive() ? 'dark-soft' : 'dark') : (softLightActive() ? 'soft' : 'light'), version: app.getVersion() }
   });
   const splashStartTime = Date.now();
 

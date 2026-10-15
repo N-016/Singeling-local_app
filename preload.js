@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setBetaUpdates: (value) => ipcRenderer.send('set-beta-updates', value),
   setDarkMode: (value) => ipcRenderer.send('set-dark-mode', value),
   setThemeSchedule: (schedule) => ipcRenderer.send('set-theme-schedule', schedule),
+  setSoftColors: (value) => ipcRenderer.send('set-soft-colors', value),
   getThemeScheduleInfo: () => ipcRenderer.invoke('get-theme-schedule-info'),
   windowControl: (action) => ipcRenderer.send('window-control', action),
   toggleHelpPopover: (anchor) => ipcRenderer.send('toggle-help-popover', anchor),
