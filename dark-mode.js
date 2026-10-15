@@ -114,11 +114,49 @@ function tailwindColorRules() {
     rules.push(`${scope} .text-${name}-600 { color: rgb(${c400}); }`);
     rules.push(`${scope} .text-${name}-700, ${scope} .text-${name}-800, ${scope} .text-${name}-900 { color: rgb(${c300}); }`);
   }
-  rules.push(`${scope} .bg-white { background-color: hsl(var(--card)); }`);
-  rules.push(`${scope} .text-black { color: hsl(var(--foreground)); }`);
+  // Een wit vlak met een eigen vaste tekstkleur (bv. "bg-white text-[#16181D]")
+  // is "papier": een nagebootst document zoals de preview van een
+  // Moneybird-offerte. Dat blijft wit, anders wordt het zwarte tekst op een
+  // donker vlak. :where() houdt de specificiteit laag (zie boven).
+  rules.push(`${scope} .bg-white:where(:not(${PAPER})) { background-color: hsl(var(--card)); }`);
+  rules.push(`${scope} .text-black:where(:not(${PAPER} *, ${PAPER})) { color: hsl(var(--foreground)); }`);
   return rules.join('\n');
 }
 
-const DARK_MODE_CSS = SINGELING_VARIABLES + SINGELING_COMPONENTS + tailwindColorRules();
+// Zie hierboven. Binnen het papier gelden de lichte themakleuren weer (de
+// waarden van :root in de app-CSS), zodat bv. een kop zonder eigen kleur
+// (hsl(var(--foreground))) of een border-b zonder eigen kleur licht-modus
+// blijft. --sg-ink en --grey-* zijn vaste app-kleuren (niet donker gemaakt).
+const PAPER = '.bg-white:is([class*="text-[#"], .text-black)';
+const PAPER_RULES = `
+  html.dark ${PAPER} {
+    color-scheme: light;
+    --background: 210 17% 97%;
+    --foreground: 223 14% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 223 14% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 223 14% 10%;
+    --secondary: 210 11% 94%;
+    --secondary-foreground: 223 14% 10%;
+    --muted: 210 11% 94%;
+    --muted-foreground: 212 6% 44%;
+    --accent: 210 11% 94%;
+    --accent-foreground: 223 14% 10%;
+    --border: 214 12% 89%;
+    --input: 214 12% 89%;
+    --bg-canvas: var(--grey-50);
+    --bg-surface: #ffffff;
+    --bg-sunk: #f0f2f4;
+    --fg-1: var(--sg-ink);
+    --fg-2: var(--grey-600);
+    --fg-3: var(--grey-400);
+    --border-1: var(--grey-200);
+    --border-2: var(--grey-300);
+    --border-strong: var(--sg-ink);
+  }
+`;
+
+const DARK_MODE_CSS = SINGELING_VARIABLES + SINGELING_COMPONENTS + tailwindColorRules() + PAPER_RULES;
 
 module.exports = { DARK_MODE_BACKGROUND, DARK_MODE_CSS };
