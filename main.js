@@ -1653,8 +1653,8 @@ ipcMain.on('copy-to-clipboard', (event, text) => {
   clipboard.writeText(text);
 });
 
-const SPLASH_FADE_MS = 280;
-const MAIN_WINDOW_FADE_MS = 320;
+const SPLASH_FADE_MS = 550;
+const MAIN_WINDOW_FADE_MS = 500;
 
 // Laat een venster van doorzichtig naar volledig zichtbaar gaan (ease-out).
 // Werkt via de vensterdoorzichtigheid van Windows, dus inclusief de
