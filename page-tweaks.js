@@ -33,6 +33,55 @@ const PAGE_TWEAKS_CSS = `
   html.sg-hide-not-clocked ${NOT_CLOCKED} {
     display: none;
   }
+
+  /* Navigatie (zijbalk links). De webapp maakt die altijd bijna zwart
+     (--sg-ink); hier volgt hij de donkere modus: heel donkergrijs in donker,
+     lichtgrijs met donkere tekst in licht. Kleuren = de tabbalk (index.html). */
+  html.dark .sg-app .side {
+    background: #1e2127;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  html:not(.dark) .sg-app .side {
+    background: #f0f2f4;
+    color: #4a5059;
+    border-right: 1px solid #dfe2e6;
+  }
+
+  html:not(.dark) .sg-app .side .brand .t { color: #16181d; }
+  html:not(.dark) .sg-app .side .brand .t span { color: #6b7178; }
+  html:not(.dark) .sg-app .side .foot { color: #9aa0a8; }
+
+  html:not(.dark) .sg-app .side .sidetoggle { color: #6b7178; }
+  html:not(.dark) .sg-app .side .sidetoggle:hover {
+    background: rgba(22, 24, 29, 0.06);
+    color: #16181d;
+  }
+
+  html:not(.dark) .sg-app .navg .it,
+  html:not(.dark) .sg-app .navg .sub a {
+    color: #4a5059;
+  }
+
+  html:not(.dark) .sg-app .navg .it:hover {
+    background: rgba(22, 24, 29, 0.06);
+    color: #16181d;
+  }
+
+  html:not(.dark) .sg-app .navg .it.open,
+  html:not(.dark) .sg-app .navg .sub a:hover {
+    color: #16181d;
+  }
+
+  html:not(.dark) .sg-app .navg .it.active,
+  html:not(.dark) .sg-app .navg .sub a.active {
+    color: #16181d;
+    background: rgba(255, 81, 0, 0.12);
+  }
+
+  html:not(.dark) .sg-app .navg .sub {
+    border-left-color: #d5d9de;
+  }
 `;
 
 module.exports = { PAGE_TWEAKS_CSS };
