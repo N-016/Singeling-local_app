@@ -68,7 +68,8 @@ if ($LogoPath -and (Test-Path $LogoPath)) {
   $logo = New-Object System.Windows.Forms.PictureBox
   $logo.Image = [System.Drawing.Image]::FromFile($LogoPath)
   $logo.SizeMode = 'Zoom'
-  $logo.Bounds = New-Object System.Drawing.Rectangle((S 36), (S 46), (S 48), (S 48))
+  # Woordlogo (assets/singeling-logo*.png, 535x56), linksboven.
+  $logo.Bounds = New-Object System.Drawing.Rectangle((S 36), (S 30), (S 230), (S 24))
   $form.Controls.Add($logo)
 }
 
@@ -77,7 +78,7 @@ $title.Text = 'Singeling App wordt bijgewerkt'
 $title.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 13)
 $title.ForeColor = $fg
 $title.AutoSize = $true
-$title.Location = New-Object System.Drawing.Point((S 98), (S 48))
+$title.Location = New-Object System.Drawing.Point((S 33), (S 68))
 $form.Controls.Add($title)
 
 $sub = New-Object System.Windows.Forms.Label
@@ -85,8 +86,8 @@ $sub.Text = 'Even geduld, de app start zo vanzelf opnieuw.'
 $sub.Font = New-Object System.Drawing.Font('Segoe UI', 9.5)
 $sub.ForeColor = $muted
 $sub.AutoSize = $true
-$sub.MaximumSize = New-Object System.Drawing.Size((S 320), 0)
-$sub.Location = New-Object System.Drawing.Point((S 100), (S 76))
+$sub.MaximumSize = New-Object System.Drawing.Size((S 370), 0)
+$sub.Location = New-Object System.Drawing.Point((S 35), (S 96))
 $form.Controls.Add($sub)
 
 # Laadbalkje: een oranje stukje dat steeds door het spoor schuift.
