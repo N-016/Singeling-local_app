@@ -2,6 +2,17 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.3.0-beta.1] - 2026-10-15
+
+Bètaversie: alleen voor wie "Bèta-versies ontvangen" aan heeft staan.
+
+### Toegevoegd
+- Licht/donker kan nu vanzelf wisselen (Instellingen > Algemeen > "Licht/donker wisselen"):
+  - **Systeem:** volgt de instelling van Windows.
+  - **Vaste tijden:** bijvoorbeeld donker van 18:00 tot 07:00.
+  - **Zon op/onder:** donker na zonsondergang en licht na zonsopkomst, met een verschuiving van maximaal een uur eerder of later.
+- De knop in de tabbalk blijft werken: bij een automatische stand wissel je daarmee tijdelijk, tot het volgende omslagmoment.
+
 ## [1.2.2] - 2026-10-15
 
 ### Gewijzigd
