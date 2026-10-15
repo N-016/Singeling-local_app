@@ -2,6 +2,23 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.2.1] - 2026-10-15
+
+### Toegevoegd
+- Kevertje in de tabbalk: laat zien bij wie je terechtkunt als er iets niet goed gaat. Nick als de app zelf raar doet, Laurens als er iets niet klopt op een pagina of als je iets mist.
+- Na de rondleiding (of één keer na deze update) kies je zelf licht of donker en hoe de melding "Niet geklokt op een order" eruitziet.
+
+### Gewijzigd
+- De melding "Niet geklokt op een order" heeft nu drie standen: aan (de gewone oranje balk, standaard), subtiel of uit. Wie hem had verborgen, houdt hem verborgen.
+- Updates verschijnen nu als duidelijke melding in de app, met "Nu updaten" of "Later". Downloaden en herstarten gebeuren in die melding zelf.
+- Belangrijke updates krijgen een opvallendere melding en worden direct op de achtergrond klaargezet. Je kunt ze een uur uitstellen als je net met iets belangrijks bezig bent.
+- De app kijkt elk uur of er een update is, in plaats van één keer per dag.
+- De knoppen voor een nieuw tabblad en het taboverzicht staan nu naast de pijltjes van de tabbalk.
+- Het zoomniveau begint na deze update voor iedereen één keer op 100%; daarna wordt je eigen keuze weer onthouden.
+
+### Opgelost
+- In de donkere modus werden de preview van een Moneybird-offerte en de preview van een specificatie zwart, met zwarte tekst. Die blijven nu wit.
+
 ## [1.2.0] - 2026-10-15
 
 ### Toegevoegd
