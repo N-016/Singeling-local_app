@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const incomingChannels = ['tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed'];
+const incomingChannels = ['help-popover-changed', 'tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed'];
 
 contextBridge.exposeInMainWorld('electronAPI', {
   switchTab: (tabId) => ipcRenderer.send('switch-tab', tabId),
@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setBetaUpdates: (value) => ipcRenderer.send('set-beta-updates', value),
   setDarkMode: (value) => ipcRenderer.send('set-dark-mode', value),
   windowControl: (action) => ipcRenderer.send('window-control', action),
+  toggleHelpPopover: (anchor) => ipcRenderer.send('toggle-help-popover', anchor),
   getTabThumbnails: () => ipcRenderer.invoke('get-tab-thumbnails'),
   notifyTabOverviewOpened: () => ipcRenderer.send('tab-overview-opened'),
   notifyTabOverviewClosed: () => ipcRenderer.send('tab-overview-closed'),

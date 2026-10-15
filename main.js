@@ -60,6 +60,7 @@ const RUNNING_PRERELEASE = app.getVersion().includes('-');
 // iedereen zijn eigen zoomniveau en starttabs heeft.
 let appSettings = {
   zoomFactor: DEFAULT_ZOOM,
+  zoomResetDone: true, // zie ZOOM_RESET in loadSettings
   startTabs: [], // [{ url, locked }]
   tabGroups: [], // [{ id, name, urls: [] }]
   lastSeenChangelogVersion: null,
@@ -92,8 +93,12 @@ function loadSettings() {
   try {
     const raw = fs.readFileSync(getSettingsPath(), 'utf-8');
     const parsed = JSON.parse(raw);
+    // Eenmalig: na deze update begint iedereen weer op 100%. Daarna wordt
+    // ieders eigen zoomniveau weer gewoon onthouden (zoomResetDone).
+    const zoomResetDone = parsed.zoomResetDone === true;
     appSettings = {
-      zoomFactor: typeof parsed.zoomFactor === 'number' ? parsed.zoomFactor : DEFAULT_ZOOM,
+      zoomFactor: zoomResetDone && typeof parsed.zoomFactor === 'number' ? parsed.zoomFactor : DEFAULT_ZOOM,
+      zoomResetDone: true,
       startTabs: Array.isArray(parsed.startTabs) ? parsed.startTabs : [],
       tabGroups: Array.isArray(parsed.tabGroups) ? parsed.tabGroups : [],
       lastSeenChangelogVersion: typeof parsed.lastSeenChangelogVersion === 'string' ? parsed.lastSeenChangelogVersion : null,
@@ -106,6 +111,7 @@ function loadSettings() {
       darkMode: typeof parsed.darkMode === 'boolean' ? parsed.darkMode : false,
       betaUpdates: typeof parsed.betaUpdates === 'boolean' ? parsed.betaUpdates : RUNNING_PRERELEASE
     };
+    if (!zoomResetDone) saveSettings();
   } catch {
     // Nog geen instellingenbestand of het is ongeldig; standaardwaarden blijven staan.
   }
@@ -120,7 +126,8 @@ function saveSettings() {
 }
 
 function clampZoom(factor) {
-  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, factor));
+  // Afronden op hele procenten: anders loopt 1 + 0.1 + 0.1 op tot 1.2000000000000002.
+  return Math.round(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, factor)) * 100) / 100;
 }
 
 function setZoomFactor(factor) {
@@ -1432,6 +1439,127 @@ function revealCurtain(fadeMs = CURTAIN_FADE_MS) {
   }, fadeMs + 40);
 }
 
+// ---------- Hulp-venstertje onder de hulpknop in de tabbalk ----------
+//
+// De tabinhoud is een native laag die over de HTML-chrome heen tekent, dus
+// een uitklapvenster in index.html zou eronder verdwijnen. Daarom een eigen
+// kleine laag (zoals het gordijn) die bovenop alles komt, precies zo groot
+// als het kaartje. Sluit bij een klik ernaast (blur), Esc of de knop opnieuw.
+const HELP_POPOVER_WIDTH = 380;
+const HELP_POPOVER_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
+  :root {
+    --bg: #1e2127; --border: rgba(255, 255, 255, 0.1); --text: #f4f5f6;
+    --text-2: #c5c9cf; --muted: #9da3ac; --accent: #ff5100;
+    --shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  }
+  html.light {
+    --bg: #ffffff; --border: #dfe2e6; --text: #16181d;
+    --text-2: #32363c; --muted: #6b7178; --shadow: 0 12px 30px rgba(22, 24, 29, 0.16);
+  }
+  html, body { margin: 0; background: transparent; overflow: hidden; }
+  body { font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif; padding: 0 12px 16px; }
+  .card {
+    position: relative; padding: 14px 16px 15px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow);
+    animation: in 0.18s cubic-bezier(0.2, 0, 0, 1) both;
+  }
+  .card::before {
+    content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 2px; background: var(--accent);
+  }
+  h1 { margin: 0 0 10px; font-size: 13.5px; font-weight: 600; }
+  .item + .item { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .q { font-size: 12.5px; font-weight: 600; color: var(--text); }
+  .a { margin-top: 3px; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
+  .a b { color: var(--accent); font-weight: 600; }
+  .hint { font-size: 11.5px; color: var(--muted); }
+  @keyframes in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  .who { margin-top: 6px; font-size: 12.5px; color: var(--text); }
+  .who b { color: var(--accent); font-weight: 600; }
+  .soon {
+    margin-top: 12px; padding: 8px 10px; border-radius: 4px; font-size: 12px; line-height: 1.4;
+    color: var(--text-2); background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+  .soon b { color: var(--accent); }
+</style></head><body><div class="card">
+  <h1>Iets gevonden dat niet goed gaat?</h1>
+  <div class="item">
+    <div class="q">De app zelf doet raar</div>
+    <div class="a">Het gaat om de "schil" om de pagina's heen: de balk met tabbladen en knoppen hier bovenin. Bijvoorbeeld: de app start of sluit niet goed, tabbladen of vensters doen vreemd, of een update lukt niet.</div>
+    <div class="who">Stuur <b>Nick</b> een bericht via Slack.</div>
+  </div>
+  <div class="item">
+    <div class="q">Er klopt iets niet op een pagina, of je mist iets</div>
+    <div class="a">Het gaat om alles wat ín het scherm staat, het Singeling-productiesysteem: orders, offertes, facturen, pakbonnen, klokken, dashboards en planning. Bijvoorbeeld: een foutmelding, een getal dat niet klopt, of een functie die je graag zou hebben.</div>
+    <div class="who">Neem contact op met <b>Laurens</b>.</div>
+  </div>
+  <div class="item hint">Twijfel je? Vraag het gewoon aan een van beiden.</div>
+  <div class="soon"><b>Binnenkort:</b> dan kun je een probleem ook direct hier melden. Houd deze knop dus in de gaten!</div>
+</div>
+<script>
+  window.setTheme = (dark) => document.documentElement.classList.toggle('light', !dark);
+  window.measure = () => Math.ceil(document.body.getBoundingClientRect().height);
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') window.blur(); });
+</script></body></html>`;
+
+let helpPopover = null;
+let helpPopoverOpen = false;
+let helpPopoverClosedAt = 0;
+
+function ensureHelpPopover() {
+  if (helpPopover && !helpPopover.webContents.isDestroyed()) return helpPopover;
+  helpPopover = new WebContentsView({
+    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true }
+  });
+  helpPopover.setBackgroundColor('#00000000');
+  helpPopover.webContents.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(HELP_POPOVER_HTML)}`);
+  helpPopover.webContents.on('blur', () => closeHelpPopover());
+  helpPopover.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.key === 'Escape') closeHelpPopover();
+  });
+  return helpPopover;
+}
+
+function closeHelpPopover() {
+  if (!helpPopoverOpen) return;
+  helpPopoverOpen = false;
+  helpPopoverClosedAt = Date.now();
+  if (helpPopover && !helpPopover.webContents.isDestroyed()) {
+    helpPopover.setBounds({ x: 0, y: 0, width: 0, height: 0 });
+  }
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('help-popover-changed', false);
+}
+
+// anchor: { right, bottom } van de hulpknop in de tabbalk (CSS-pixels).
+async function openHelpPopover(anchor) {
+  const view = ensureHelpPopover();
+  if (view.webContents.isLoading()) await new Promise(resolve => view.webContents.once('did-finish-load', resolve));
+  await view.webContents.executeJavaScript(`setTheme(${!!appSettings.darkMode});`).catch(() => {});
+  const height = await view.webContents.executeJavaScript('measure();').catch(() => 200);
+  const { width: windowWidth } = mainWindow.getContentBounds();
+  // Rechts uitgelijnd op de knop (het kaartje heeft 12px marge rondom).
+  const x = Math.max(0, Math.min(Math.round(anchor.right) - HELP_POPOVER_WIDTH + 12, windowWidth - HELP_POPOVER_WIDTH));
+  mainWindow.contentView.addChildView(view); // opnieuw toevoegen = bovenop leggen
+  view.setBounds({ x, y: Math.round(anchor.bottom) + 4, width: HELP_POPOVER_WIDTH, height });
+  // Animatie opnieuw laten spelen.
+  view.webContents.executeJavaScript(`(() => { const c = document.querySelector('.card'); c.style.animation = 'none'; void c.offsetWidth; c.style.animation = ''; })();`).catch(() => {});
+  helpPopoverOpen = true;
+  view.webContents.focus();
+  mainWindow.webContents.send('help-popover-changed', true);
+}
+
+ipcMain.on('toggle-help-popover', (event, anchor) => {
+  if (event.sender !== mainWindow.webContents || !anchor) return;
+  if (helpPopoverOpen) {
+    closeHelpPopover();
+    return;
+  }
+  // Klik op de knop terwijl het open was: de blur (klik buiten het
+  // venstertje) heeft het net al gesloten; niet meteen weer openen.
+  if (Date.now() - helpPopoverClosedAt < 300) return;
+  openHelpPopover(anchor).catch(() => {});
+});
+
 // ---------- Voorbeeldjes voor het taboverzicht ----------
 //
 // Windows/Chromium kan geen screenshot maken van een tab die niet in beeld
@@ -2624,6 +2752,7 @@ function createWindow() {
   // Niet bij afsluiten via de app zelf, geminimaliseerd venster (niets te
   // zien) of met Windows' "Animatie-effecten" uit.
   setupMinimizeRestoreAnimations();
+  mainWindow.on('resize', closeHelpPopover);
 
   mainWindow.on('close', (event) => {
     if (closeAnimationRunning) {
