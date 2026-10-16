@@ -1192,6 +1192,31 @@
     }
 
     /* Instelling met een keuze uit een paar standen i.p.v. aan/uit. */
+    /* Thema "Standaard" (de app zoals hij is): geen licht/donker. De knop in
+       de balk verdwijnt en het wisselen in Weergave staat grijs. */
+    html.theme-original #dark-mode-btn {
+      display: none !important;
+    }
+
+    #theme-schedule-original-hint {
+      display: none;
+      color: var(--accent);
+    }
+
+    #theme-schedule-row.unavailable {
+      cursor: not-allowed;
+    }
+
+    #theme-schedule-row.unavailable > :not(.toggle-text),
+    #theme-schedule-row.unavailable .toggle-text > :not(#theme-schedule-original-hint) {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    #theme-schedule-row.unavailable #theme-schedule-original-hint {
+      display: block;
+    }
+
     /* Leescomfort bij een thema met een eigen palet (themes.js): uitgeschakeld. */
     #soft-colors-theme-hint {
       display: none;
@@ -3378,6 +3403,7 @@
         <span class="toggle-text">
           Licht/donker wisselen
           <span id="theme-schedule-hint" class="settings-hint"></span>
+          <span id="theme-schedule-original-hint" class="settings-hint">Het thema Standaard toont de app zoals hij is, zonder licht/donker. Kies bij Thema's een ander thema om licht/donker weer te gebruiken.</span>
         </span>
         <div class="choice-group" role="radiogroup" aria-label="Licht/donker wisselen" data-choice="theme-mode"></div>
         <div id="theme-times-fields" class="theme-schedule-fields hidden">
@@ -3403,7 +3429,7 @@
         <span class="toggle-text">
           Leescomfort: zachtere kleuren
           <span class="settings-hint">Minder fel contrast, prettiger voor je ogen bij lang lezen. Licht wordt rustig zachtgrijs in plaats van fel wit; donker wordt donkergrijs in plaats van bijna zwart.</span>
-          <span id="soft-colors-theme-hint" class="settings-hint">Het gekozen thema heeft zijn eigen kleuren, daarom werkt leescomfort hier niet. Kies bij Thema's de kleurenset Standaard of Testthema om het weer te gebruiken.</span>
+          <span id="soft-colors-theme-hint" class="settings-hint">Het gekozen thema heeft zijn eigen kleuren, daarom werkt leescomfort hier niet. Kies bij Thema's de kleurenset Singeling of Testthema om het weer te gebruiken.</span>
         </span>
         <input type="checkbox" class="switch" id="soft-colors-checkbox">
       </label>
@@ -5328,8 +5354,12 @@
 
     // De tabbalk en de rest van de chrome volgen dezelfde keuze als de
     // pagina's (zie de theme-light-variabelen in de CSS).
+    // Thema "Standaard" (main.js darkActive): de balk altijd licht, wat de
+    // bewaarde keuze ook is. De knop houdt die keuze (active) wel bij.
+    let originalTheme = false;
+
     function renderDarkModeButton(enabled) {
-      document.documentElement.classList.toggle('theme-light', !enabled);
+      document.documentElement.classList.toggle('theme-light', !enabled || originalTheme);
       darkModeBtn.classList.toggle('active', enabled);
       darkModeBtn.setAttribute('aria-pressed', String(enabled));
       darkModeBtn.title = enabled ? 'Donkere modus uitzetten' : 'Donkere modus aanzetten';
@@ -5372,6 +5402,14 @@
 
     // Leescomfort werkt niet bij een thema met een eigen palet: schakelaar
     // grijs, met uitleg. De keuze zelf blijft bewaard.
+    function renderOriginalTheme(original) {
+      if (original === undefined) return;
+      originalTheme = !!original;
+      document.documentElement.classList.toggle('theme-original', originalTheme);
+      document.getElementById('theme-schedule-row').classList.toggle('unavailable', originalTheme);
+      renderDarkModeButton(darkModeBtn.classList.contains('active'));
+    }
+
     function renderSoftSupport(supported) {
       if (supported === undefined) return;
       softSupported = !!supported;
@@ -5481,6 +5519,7 @@
       document.documentElement.classList.add('theme-switching');
       applyChromeTheme(state.css);
       renderSoftSupport(state.softSupported);
+      renderOriginalTheme(state.originalTheme);
       renderAppThemeChoice(state);
       themeSwitchTimer = setTimeout(() => {
         document.documentElement.classList.remove('theme-switching');
@@ -5504,6 +5543,7 @@
       renderDarkModeButton(!!settings.darkMode);
       setSoftColors(!!settings.softColors, { save: false });
       renderSoftSupport(settings.softSupported);
+      renderOriginalTheme(settings.originalTheme);
       applyChromeTheme(settings.chromeThemeCss);
       renderAppThemeChoice(settings);
       updateZoomLabel(settings.zoomFactor);

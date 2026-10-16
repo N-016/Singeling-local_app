@@ -503,7 +503,7 @@ function showUpdatingWindow(version, { maxSeconds = 180, processName = 'Singelin
       const marker = path.join(dir, 'shown');
       const launcherPath = path.join(dir, 'start.vbs');
       fs.writeFileSync(scriptPath, fs.readFileSync(path.join(__dirname, 'update-window.ps1')));
-      const logoFile = appSettings.darkMode ? 'assets/singeling-logo.png' : 'assets/singeling-logo-licht.png';
+      const logoFile = darkActive() ? 'assets/singeling-logo.png' : 'assets/singeling-logo-licht.png';
       fs.writeFileSync(logoPath, fs.readFileSync(path.join(__dirname, logoFile)));
       // In VBScript is "" een aanhalingsteken binnen een string.
       const quoted = (value) => `""${String(value).replace(/"/g, '')}""`;
@@ -511,7 +511,7 @@ function showUpdatingWindow(version, { maxSeconds = 180, processName = 'Singelin
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', quoted(scriptPath),
         '-OldPid', String(process.pid),
         '-Version', quoted(version || ''),
-        '-Dark', appSettings.darkMode ? '1' : '0',
+        '-Dark', darkActive() ? '1' : '0',
         '-LogoPath', quoted(logoPath),
         '-Marker', quoted(marker),
         '-MaxSeconds', String(maxSeconds),
@@ -879,6 +879,14 @@ function findOtherPageIndex(navigationHistory, direction) {
 // schijnt de donkere achtergrond door en staat de zwarte tekst op zwart.
 // Leescomfort (zachtere kleuren, zie soft-mode.js): in licht zachtgrijs i.p.v.
 // fel wit, in donker donkergrijs i.p.v. bijna zwart.
+// Donker zoals het er nu echt uitziet. Het thema "Standaard" (de app zoals
+// hij is, themes.js isOriginal) kent geen licht/donker: dan altijd licht. De
+// keuze zelf (appSettings.darkMode, ook de automatische wissel) blijft
+// bewaard en geldt weer bij een ander thema.
+function darkActive() {
+  return !!appSettings.darkMode && !themes.isOriginal(activeTheme());
+}
+
 // Leescomfort geldt niet bij een thema met een vast palet (themes.js): dat
 // heeft zijn eigen uitstraling. De instelling zelf blijft bewaard.
 function softActive() {
@@ -886,11 +894,11 @@ function softActive() {
 }
 
 function softLightActive() {
-  return softActive() && !appSettings.darkMode;
+  return softActive() && !darkActive();
 }
 
 function softDarkActive() {
-  return softActive() && appSettings.darkMode;
+  return softActive() && darkActive();
 }
 
 // Thema's zijn nog bèta: alleen wie bèta-updates aan heeft ziet de keuze en
@@ -906,14 +914,14 @@ function activeTheme() {
 
 // Kleur van de pagina-achtergrond bij een thema, of null bij het standaardthema.
 function themedBackground() {
-  return themes.themeBackground(activeTheme(), appSettings.darkMode, softActive());
+  return themes.themeBackground(activeTheme(), darkActive(), softActive());
 }
 
 // Achtergrond van een app-pagina tijdens het laden, per thema.
 function pageBackground() {
   const themed = themedBackground();
   if (themed) return themed;
-  if (appSettings.darkMode) return softDarkActive() ? SOFT_DARK_BACKGROUND : DARK_MODE_BACKGROUND;
+  if (darkActive()) return softDarkActive() ? SOFT_DARK_BACKGROUND : DARK_MODE_BACKGROUND;
   return softLightActive() ? SOFT_MODE_BACKGROUND : '#ffffff';
 }
 
@@ -923,7 +931,8 @@ function applyDarkMode(view) {
   view.setBackgroundColor(internal ? pageBackground() : '#ffffff');
   if (!internal) return;
   view.webContents.executeJavaScript(
-    `document.documentElement.classList.toggle('dark', ${appSettings.darkMode});
+    `document.documentElement.classList.toggle('dark', ${darkActive()});
+     document.documentElement.classList.toggle('sg-original', ${themes.isOriginal(activeTheme())});
      document.documentElement.classList.toggle('sg-soft', ${softLightActive()});
      document.documentElement.classList.toggle('sg-soft-dark', ${softDarkActive()});
      for (const name of ${JSON.stringify(themes.THEME_CLASSES)}) {
@@ -1652,7 +1661,7 @@ let curtainWaitingFor = null;
 function curtainColor() {
   const themed = themedBackground();
   if (themed) return themed;
-  if (appSettings.darkMode) return softDarkActive() ? SOFT_DARK_BACKGROUND : DARK_MODE_BACKGROUND;
+  if (darkActive()) return softDarkActive() ? SOFT_DARK_BACKGROUND : DARK_MODE_BACKGROUND;
   return softLightActive() ? SOFT_MODE_BACKGROUND : LIGHT_MODE_BACKGROUND;
 }
 
@@ -1815,7 +1824,7 @@ function closeHelpPopover() {
 async function openHelpPopover(anchor) {
   const view = ensureHelpPopover();
   if (view.webContents.isLoading()) await new Promise(resolve => view.webContents.once('did-finish-load', resolve));
-  await view.webContents.executeJavaScript(`setTheme(${!!appSettings.darkMode}, ${softActive()}, ${JSON.stringify(themes.helpPopoverThemeCss(activeTheme()))});`).catch(() => {});
+  await view.webContents.executeJavaScript(`setTheme(${darkActive()}, ${softActive()}, ${JSON.stringify(themes.helpPopoverThemeCss(activeTheme()))});`).catch(() => {});
   const height = await view.webContents.executeJavaScript('measure();').catch(() => 200);
   const { width: windowWidth } = mainWindow.getContentBounds();
   // Rechts uitgelijnd op de knop (het kaartje heeft 12px marge rondom).
@@ -2105,7 +2114,7 @@ function createDetachedWindow(view, tabId, screenX, screenY) {
   // daaronder.
   detachedWindow.on('page-title-updated', (event) => event.preventDefault());
   detachedWindow.loadFile(path.join(__dirname, 'detached.html'), {
-    query: { theme: appSettings.darkMode ? 'dark' : 'light', soft: softActive() ? '1' : '0' }
+    query: { theme: darkActive() ? 'dark' : 'light', soft: softActive() ? '1' : '0' }
   });
   detachedWindow.webContents.once('did-finish-load', () => {
     sendNavigationState(tabId);
@@ -2361,6 +2370,7 @@ ipcMain.handle('get-settings', (event) => {
     previewFontCss: themes.previewFontCss(),
     themesAvailable: themesAvailable(),
     softSupported: themes.supportsSoft(activeTheme()),
+    originalTheme: themes.isOriginal(activeTheme()),
     chromeThemeCss: themes.chromeThemeCss(activeTheme()),
     customWindowControls: CUSTOM_WINDOW_CONTROLS,
     appVersion: app.getVersion(),
@@ -2382,8 +2392,8 @@ ipcMain.on('set-app-theme', (event, id) => {
 });
 
 function detachedBarColor() {
-  return themes.themeBarColor(activeTheme(), appSettings.darkMode, softActive())
-    || (appSettings.darkMode ? '#0f1115' : '#ffffff');
+  return themes.themeBarColor(activeTheme(), darkActive(), softActive())
+    || (darkActive() ? '#0f1115' : '#ffffff');
 }
 
 // De chrome-kleuren van het thema naar de tabbalk (index.html), plus of de
@@ -2394,6 +2404,7 @@ function sendChromeTheme() {
     appTheme: appSettings.appTheme,
     themesAvailable: themesAvailable(),
     softSupported: themes.supportsSoft(activeTheme()),
+    originalTheme: themes.isOriginal(activeTheme()),
     css: themes.chromeThemeCss(activeTheme())
   });
 }
@@ -2420,6 +2431,7 @@ function applyThemeChange(previousColor) {
       detached.window.setBackgroundColor(detachedBarColor());
       detached.window.webContents.send('detached-chrome-theme', css);
       detached.window.webContents.send('detached-soft', softActive());
+      detached.window.webContents.send('detached-theme', darkActive());
     }
   }
 }
@@ -2657,10 +2669,11 @@ function applyDarkModeChange(value) {
   // thema wisselen: zo komt het nieuwe thema er rustig onder vandaan in
   // plaats van in één klap om te springen.
   const previousColor = curtainColor();
-  const wasDark = appSettings.darkMode;
+  const wasDark = darkActive();
   appSettings.darkMode = !!value;
   saveSettings();
-  fadeTitleBarOverlay(wasDark, appSettings.darkMode, CURTAIN_THEME_FADE_MS);
+  if (darkActive() === wasDark) return; // bv. bij het thema "Standaard"
+  fadeTitleBarOverlay(wasDark, darkActive(), CURTAIN_THEME_FADE_MS);
   if (activeTabId && tabs.has(activeTabId)) {
     coverActiveView(tabs.get(activeTabId), {
       color: previousColor,
@@ -2675,7 +2688,7 @@ function applyDarkModeChange(value) {
     applyDarkMode(detached.view);
     if (!detached.window.isDestroyed()) {
       detached.window.setBackgroundColor(detachedBarColor());
-      detached.window.webContents.send('detached-theme', appSettings.darkMode);
+      detached.window.webContents.send('detached-theme', darkActive());
     }
   }
 }
@@ -3329,9 +3342,9 @@ function createWindow() {
     // Laadscherm altijd in de gewone kleuren (ook met Leescomfort aan); bij
     // een thema volgt alleen de laadbalk de accentkleur.
     query: {
-      theme: appSettings.darkMode ? 'dark' : 'light',
+      theme: darkActive() ? 'dark' : 'light',
       version: app.getVersion(),
-      accent: themes.themeAccent(activeTheme(), appSettings.darkMode) || ''
+      accent: themes.themeAccent(activeTheme(), darkActive()) || ''
     }
   });
   const splashStartTime = Date.now();
@@ -3349,7 +3362,7 @@ function createWindow() {
     // tabbalk, in de kleuren van het huidige thema.
     titleBarStyle: 'hidden',
     // Zonder overlay tekent Windows geen knoppen; dan doet index.html dat.
-    ...(CUSTOM_WINDOW_CONTROLS ? {} : { titleBarOverlay: titleBarOverlayColors(appSettings.darkMode) }),
+    ...(CUSTOM_WINDOW_CONTROLS ? {} : { titleBarOverlay: titleBarOverlayColors(darkActive()) }),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

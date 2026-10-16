@@ -217,7 +217,14 @@ const NOORDERLICHT = {
 };
 
 const THEMES = {
-  standaard: { name: 'Standaard', description: 'De gewone Singeling-kleuren.' },
+  // De app precies zoals de webapp hem maakt: geen licht/donker, geen
+  // leescomfort, geen aangepaste kleuren of zijbalk (main.js darkActive,
+  // class sg-original op de pagina's; page-tweaks.js).
+  origineel: { name: 'Standaard', description: 'De app precies zoals hij is, zonder aanpassingen: geen licht/donker of leescomfort.', original: true },
+  // id "standaard" blijft (bewaard in ieders instellingen, en de standaard
+  // voor iedereen): de Singeling-kleuren van de app, met licht/donker en
+  // leescomfort.
+  standaard: { name: 'Singeling', description: 'De Singeling-kleuren van de app, met licht/donker en leescomfort.' },
   test: { name: 'Testthema', description: 'Koel en rustig blauw.', hue: 215, tint: 1, accent: '#2f7fe0' },
   rosepine: ROSE_PINE,
   synthwave: SYNTHWAVE,
@@ -274,6 +281,12 @@ function customTheme(id) {
   return theme && (theme.hue !== undefined || theme.palettes) ? theme : null;
 }
 
+// De webapp zonder aanpassingen: licht, met de bijna zwarte zijbalk.
+const ORIGINAL_PREVIEW = {
+  canvas: '#f6f7f9', surface: '#ffffff', sidebar: '#16181d', bar: '#ffffff', border: '#dfe2e6',
+  text: '#16181d', muted: '#6b7178', accent: '#ff5100', onAccent: '#ffffff'
+};
+
 // Kleuren van het standaardthema voor het voorbeeld in de instellingen
 // (= index.html en de Singeling-app zelf).
 const STANDARD_PREVIEW = {
@@ -301,7 +314,7 @@ function themeCatalog() {
         ...(p ? {
           canvas: p.canvas.hex, surface: p.surface.hex, sidebar: p.sidebar.hex, bar: p.bar.hex,
           border: p.border.hex, text: p.fg1.hex, muted: p.fg3.hex, accent: p.accent, onAccent: p.onAccent
-        } : STANDARD_PREVIEW[mode]),
+        } : theme.original ? ORIGINAL_PREVIEW : STANDARD_PREVIEW[mode]),
         wallpaper: (theme.wallpaper && theme.wallpaper[mode]) || null,
         motion: (theme.motion && theme.motion[mode]) || null
       };
@@ -325,10 +338,17 @@ function previewFontCss() {
 }
 
 // Leescomfort werkt bij het standaardthema en de afgeleide thema's; een vast
-// palet heeft zijn eigen uitstraling (zie boven).
+// palet heeft zijn eigen uitstraling (zie boven), en "zoals hij is"
+// (original) heeft geen leescomfort.
 function supportsSoft(id) {
   const theme = THEMES[id];
-  return !theme || !theme.palettes;
+  return !theme || (!theme.palettes && !theme.original);
+}
+
+// De app zonder aanpassingen (geen licht/donker, geen eigen kleuren).
+function isOriginal(id) {
+  const theme = THEMES[id];
+  return !!(theme && theme.original);
 }
 
 // ---------- Kleurrekenen ----------
@@ -881,6 +901,7 @@ module.exports = {
   DEFAULT_THEME,
   THEME_CLASSES,
   isTheme,
+  isOriginal,
   themeCatalog,
   previewFontCss,
   supportsSoft,
