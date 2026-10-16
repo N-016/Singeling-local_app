@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   copyToClipboard: (text) => ipcRenderer.send('copy-to-clipboard', text),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   setOpenAllLinksInNewTab: (value) => ipcRenderer.send('set-open-all-links-in-new-tab', value),
+  setTabBarDisabled: (value) => ipcRenderer.send('set-tab-bar-disabled', value),
   setShowOnboarding: (value) => ipcRenderer.send('set-show-onboarding', value),
   setBlockCtrlB: (value) => ipcRenderer.send('set-block-ctrl-b', value),
   setNotClockedMode: (mode) => ipcRenderer.send('set-not-clocked-mode', mode),
