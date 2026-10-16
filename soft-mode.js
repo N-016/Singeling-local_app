@@ -12,7 +12,7 @@
 // Singeling), dan de onderdelen met een vaste witte achtergrond. "Papier"
 // (een nagebootst document, zoals de preview van een offerte) blijft wit.
 
-const { WHITE_SURFACES, PAPER, TAILWIND_COLORS } = require('./dark-mode');
+const { WHITE_SURFACES, PAPER, TAILWIND_COLORS, tailwindGradientRules } = require('./dark-mode');
 
 // Achtergrond van de tab tijdens het laden (= --background hieronder).
 const SOFT_MODE_BACKGROUND = '#dfdfdb';
@@ -70,12 +70,15 @@ function softTailwindRules() {
   const rules = [];
   for (const [name, [c500]] of Object.entries(TAILWIND_COLORS)) {
     for (const [shade, pct] of Object.entries(SOFT_BG_STRENGTH)) {
-      rules.push(`${scope} .bg-${name}-${shade}:where(:not(${PAPER} *)), ${scope} .hover\\:bg-${name}-${shade}:hover { background-color: color-mix(in srgb, rgb(${c500}) ${pct}%, #e2e2de); }`);
+      rules.push(`${scope} .bg-${name}-${shade}:where(:not(${PAPER} *)), ${scope} .hover\\:bg-${name}-${shade}:hover { background-color: color-mix(in srgb, rgb(${c500}) ${pct}%, var(--sg-tw-mix, #e2e2de)); }`);
     }
     for (const [shade, pct] of Object.entries(SOFT_BORDER_STRENGTH)) {
-      rules.push(`${scope} .border-${name}-${shade}:where(:not(${PAPER} *)) { border-color: color-mix(in srgb, rgb(${c500}) ${pct}%, #cfcfca); }`);
+      rules.push(`${scope} .border-${name}-${shade}:where(:not(${PAPER} *)) { border-color: color-mix(in srgb, rgb(${c500}) ${pct}%, var(--sg-tw-mix-border, #cfcfca)); }`);
     }
   }
+  // Kleurverlopen (from-blue-50 to-blue-100 e.d.): dezelfde gedempte tinten.
+  rules.push(...tailwindGradientRules(scope,
+    (c500, pct) => `color-mix(in srgb, rgb(${c500}) ${pct}%, var(--sg-tw-mix, #e2e2de))`, SOFT_BG_STRENGTH));
   return rules.join('\n');
 }
 

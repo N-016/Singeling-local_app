@@ -101,6 +101,27 @@ const TAILWIND_COLORS = {
 const BG_ALPHA = { 50: 0.10, 100: 0.16, 200: 0.24 };
 const BORDER_ALPHA = { 100: 0.20, 200: 0.30, 300: 0.45 };
 
+// Kleurverlopen met lichte stops (bv. "bg-gradient-to-r from-blue-50
+// to-blue-100", de jobkaarten op Laser Jobs): zelfde omzetting als de
+// vlakke kleuren. Tailwind zet de stops in variabelen; from- zet ook een
+// doorzichtige to-, dus eerst alle from-, dan via-, dan to- (zelfde
+// specificiteit, de laatste wint). color(c500, sterkte) geeft de kleur.
+function tailwindGradientRules(scope, color, strengths) {
+  const from = [];
+  const via = [];
+  const to = [];
+  for (const [name, [c500]] of Object.entries(TAILWIND_COLORS)) {
+    for (const [shade, strength] of Object.entries(strengths)) {
+      const c = color(c500, strength);
+      const clear = color(c500, 0);
+      from.push(`${scope} .from-${name}-${shade} { --tw-gradient-from: ${c} var(--tw-gradient-from-position); --tw-gradient-to: ${clear} var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }`);
+      via.push(`${scope} .via-${name}-${shade} { --tw-gradient-to: ${clear} var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), ${c} var(--tw-gradient-via-position), var(--tw-gradient-to); }`);
+      to.push(`${scope} .to-${name}-${shade} { --tw-gradient-to: ${c} var(--tw-gradient-to-position); }`);
+    }
+  }
+  return [...from, ...via, ...to];
+}
+
 function tailwindColorRules() {
   const scope = 'html:where(.dark)';
   const rules = [];
@@ -114,6 +135,7 @@ function tailwindColorRules() {
     rules.push(`${scope} .text-${name}-600 { color: rgb(${c400}); }`);
     rules.push(`${scope} .text-${name}-700, ${scope} .text-${name}-800, ${scope} .text-${name}-900 { color: rgb(${c300}); }`);
   }
+  rules.push(...tailwindGradientRules(scope, (c500, alpha) => `rgb(${c500} / ${alpha})`, BG_ALPHA));
   // Een wit vlak met een eigen vaste tekstkleur (bv. "bg-white text-[#16181D]")
   // is "papier": een nagebootst document zoals de preview van een
   // Moneybird-offerte. Dat blijft wit, anders wordt het zwarte tekst op een
@@ -160,4 +182,4 @@ const PAPER_RULES = `
 const DARK_MODE_CSS = SINGELING_VARIABLES + SINGELING_COMPONENTS + tailwindColorRules() + PAPER_RULES;
 
 // WHITE_SURFACES, PAPER en TAILWIND_COLORS worden ook gebruikt door soft-mode.js.
-module.exports = { DARK_MODE_BACKGROUND, DARK_MODE_CSS, WHITE_SURFACES, PAPER, TAILWIND_COLORS };
+module.exports = { DARK_MODE_BACKGROUND, DARK_MODE_CSS, WHITE_SURFACES, PAPER, TAILWIND_COLORS, tailwindGradientRules };
