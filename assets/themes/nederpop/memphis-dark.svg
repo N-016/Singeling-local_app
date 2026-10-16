@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1200" preserveAspectRatio="xMidYMid slice">
+  <!-- Nederpop (jaren 80, Memphis-stijl): zelf gemaakt voor de Singeling App (gegenereerd). -->
+  <defs>
+    <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="5" cy="5" r="3.2" fill="#ffd23f"/>
+    </pattern>
+    <pattern id="stripes" width="22" height="22" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="11" height="22" fill="#000000"/>
+    </pattern>
+  </defs>
+  <rect width="1920" height="1200" fill="#24133d"/>
+  <g opacity="0.9">
+    <!-- rechtsboven: grote blauwe cirkel met gestreepte schaduw -->
+    <circle cx="1830" cy="70" r="270" fill="url(#stripes)" opacity="0.35"/>
+    <circle cx="1800" cy="40" r="260" fill="#3fa9f5"/>
+    <rect x="1440" y="300" width="190" height="130" fill="url(#dots)"/>
+    <!-- linksonder: gele halve zon met roze rand -->
+    <circle cx="140" cy="1200" r="330" fill="#ff4fa3"/>
+    <circle cx="140" cy="1200" r="290" fill="#ffd23f"/>
+    <rect x="40" y="700" width="220" height="150" fill="url(#dots)"/>
+    <!-- linksboven: paarse driehoek en blauwe zigzag -->
+    <path d="M200 330 L320 120 L440 330 Z" fill="none" stroke="#7b4bc4" stroke-width="20" stroke-linejoin="round"/>
+    <path d="M520 200 l34 -34 l34 34 l34 -34 l34 34 l34 -34 l34 34 l34 -34 l34 34" fill="none" stroke="#3fa9f5" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- rechtsonder: dikke roze kronkel en paarse cirkel -->
+    <path d="M1280 1050 L1280 1050.0 L1290 1059.2 L1300 1067.7 L1310 1074.8 L1320 1080.2 L1330 1083.3 L1340 1083.9 L1350 1082.0 L1360 1077.8 L1370 1071.5 L1380 1063.5 L1390 1054.6 L1400 1045.4 L1410 1036.5 L1420 1028.5 L1430 1022.2 L1440 1018.0 L1450 1016.1 L1460 1016.7 L1470 1019.8 L1480 1025.2 L1490 1032.3 L1500 1040.8 L1510 1050.0 L1520 1059.2 L1530 1067.7 L1540 1074.8 L1550 1080.2 L1560 1083.3 L1570 1083.9 L1580 1082.0 L1590 1077.8 L1600 1071.5 L1610 1063.5 L1620 1054.6 L1630 1045.4 L1640 1036.5 L1650 1028.5 L1660 1022.2 L1670 1018.0 L1680 1016.1 L1690 1016.7 L1700 1019.8 L1710 1025.2 L1720 1032.3 L1730 1040.8 L1740 1050.0 L1750 1059.2 L1760 1067.7 L1770 1074.8 L1780 1080.2 L1790 1083.3 L1800 1083.9 L1810 1082.0 L1820 1077.8 L1830 1071.5 L1840 1063.5 L1850 1054.6 L1860 1045.4 L1870 1036.5 L1880 1028.5 L1890 1022.2 L1900 1018.0 L1910 1016.1 L1920 1016.7 L1930 1019.8 L1940 1025.2 L1950 1032.3 L1960 1040.8 L1970 1050.0 L1980 1059.2" fill="none" stroke="#ff4fa3" stroke-width="34" stroke-linecap="round"/>
+    <circle cx="1720" cy="860" r="70" fill="#7b4bc4"/>
+    <circle cx="1720" cy="860" r="70" fill="none" stroke="#ffd23f" stroke-width="12" transform="translate(16 -16)"/>
+    <!-- onderin het midden: gele zigzag -->
+    <path d="M760 1150 l28 -28 l28 28 l28 -28 l28 28 l28 -28 l28 28 l28 -28 l28 28 l28 -28 l28 28" fill="none" stroke="#ffd23f" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- confetti -->
+    <rect x="60" y="203" width="26" height="8" rx="4" fill="#7b4bc4" transform="rotate(56 60 203)"/><rect x="1325" y="778" width="26" height="8" rx="4" fill="#ff4fa3" transform="rotate(74 1325 778)"/><rect x="990" y="1064" width="26" height="8" rx="4" fill="#ffd23f" transform="rotate(85 990 1064)"/><rect x="206" y="130" width="26" height="8" rx="4" fill="#3fa9f5" transform="rotate(128 206 130)"/><rect x="1379" y="634" width="26" height="8" rx="4" fill="#7b4bc4" transform="rotate(106 1379 634)"/><rect x="1163" y="1049" width="26" height="8" rx="4" fill="#ff4fa3" transform="rotate(15 1163 1049)"/><rect x="173" y="295" width="26" height="8" rx="4" fill="#ffd23f" transform="rotate(107 173 295)"/><rect x="1611" y="664" width="26" height="8" rx="4" fill="#3fa9f5" transform="rotate(42 1611 664)"/><rect x="872" y="1123" width="26" height="8" rx="4" fill="#7b4bc4" transform="rotate(2 872 1123)"/><rect x="160" y="244" width="26" height="8" rx="4" fill="#ff4fa3" transform="rotate(128 160 244)"/><rect x="1308" y="635" width="26" height="8" rx="4" fill="#ffd23f" transform="rotate(160 1308 635)"/><rect x="992" y="997" width="26" height="8" rx="4" fill="#3fa9f5" transform="rotate(110 992 997)"/><rect x="559" y="163" width="26" height="8" rx="4" fill="#7b4bc4" transform="rotate(162 559 163)"/><rect x="1310" y="735" width="26" height="8" rx="4" fill="#ff4fa3" transform="rotate(145 1310 735)"/><rect x="1232" y="1032" width="26" height="8" rx="4" fill="#ffd23f" transform="rotate(30 1232 1032)"/><rect x="476" y="363" width="26" height="8" rx="4" fill="#3fa9f5" transform="rotate(132 476 363)"/><rect x="1860" y="760" width="26" height="8" rx="4" fill="#7b4bc4" transform="rotate(78 1860 760)"/><rect x="843" y="1091" width="26" height="8" rx="4" fill="#ff4fa3" transform="rotate(4 843 1091)"/><rect x="555" y="326" width="26" height="8" rx="4" fill="#ffd23f" transform="rotate(63 555 326)"/><rect x="1790" y="520" width="26" height="8" rx="4" fill="#3fa9f5" transform="rotate(120 1790 520)"/><rect x="1233" y="1079" width="26" height="8" rx="4" fill="#7b4bc4" transform="rotate(122 1233 1079)"/><rect x="325" y="333" width="26" height="8" rx="4" fill="#ff4fa3" transform="rotate(78 325 333)"/><rect x="1819" y="819" width="26" height="8" rx="4" fill="#ffd23f" transform="rotate(77 1819 819)"/><rect x="1154" y="1071" width="26" height="8" rx="4" fill="#3fa9f5" transform="rotate(41 1154 1071)"/>
+  </g>
+</svg>

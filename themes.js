@@ -62,42 +62,42 @@ const ROSE_PINE = {
   radius: '12px'
 };
 
-// Synthwave '84 (cyber): palet van Robb Owen, MIT (zie
-// assets/themes/synthwave/BRON.md). Het origineel is alleen donker; de
-// lichte variant is van ons, in dezelfde kleuren. Achtergrond: eigen SVG.
-const SYNTHWAVE = {
-  name: 'Synthwave',
-  description: 'Neon uit de jaren 80. Lettertype Chakra Petch.',
+// Nederpop: vrolijke Nederlandse jaren-80-pop (Doe Maar-gevoel) in
+// Memphis-stijl: paars, roze, geel en blauw. Licht = lichtlila met diep
+// paarse tekst en roze accent, donker = diep paars met geel accent.
+// Lettertype Fredoka (OFL); palet en achtergronden van ons (zie
+// assets/themes/nederpop/BRON.md).
+const NEDERPOP = {
+  name: 'Nederpop',
+  description: 'Vrolijke Nederlandse jaren-80-pop: paars, roze, geel en blauw. Lettertype Fredoka.',
   palettes: {
     light: {
-      canvas: '#f6f1fb', surface: '#fffcff', raised: '#eee5f7', sunk: '#efe7f6',
-      bar: '#fffcff', tab: '#fffcff', sidebar: '#ece2f6', secondary: '#efe6f8',
-      border: '#dccfe9', borderStrong: '#c7b5dc',
-      fg1: '#2a2139', fg2: '#4b3f63', fg3: '#6d6290', fg4: '#9a8fb6',
-      accent: '#d22d9c', accentStrong: '#a8207c', onAccent: '#ffffff'
+      canvas: '#fbf6ff', surface: '#ffffff', raised: '#f3e9fb', sunk: '#f4ecfb',
+      bar: '#ffffff', tab: '#ffffff', sidebar: '#f1e6fa', secondary: '#f3eafb',
+      border: '#e2d2f2', borderStrong: '#c9b0e6',
+      fg1: '#2b1645', fg2: '#4a2f6e', fg3: '#6e5490', fg4: '#a08bbd',
+      accent: '#e8338f', accentStrong: '#b81f6c', onAccent: '#ffffff'
     },
     dark: {
-      canvas: '#262335', surface: '#2a2139', raised: '#34294f', sunk: '#1f1a2b',
-      bar: '#171520', tab: '#241b2f', sidebar: '#1d1828', secondary: '#34294f',
-      border: '#3e3358', borderStrong: '#4f4370',
-      fg1: '#f4eeff', fg2: '#cdc3e3', fg3: '#a296c2', fg4: '#6d6290',
-      accent: '#ff7edb', accentStrong: '#b1388f', onAccent: '#241b2f'
+      canvas: '#24133d', surface: '#2e1a4c', raised: '#3a235e', sunk: '#1c0f30',
+      bar: '#170b28', tab: '#2b1847', sidebar: '#1d1033', secondary: '#3a235e',
+      border: '#4a3170', borderStrong: '#5f4389',
+      fg1: '#fdf3ff', fg2: '#e2cff5', fg3: '#b9a0d8', fg4: '#7f66a3',
+      accent: '#ffd23f', accentStrong: '#9c7410', onAccent: '#24133d'
     }
   },
   wallpaper: {
-    light: 'assets/themes/synthwave/outrun-light.svg',
-    dark: 'assets/themes/synthwave/outrun-dark.svg'
+    light: 'assets/themes/nederpop/memphis-light.svg',
+    dark: 'assets/themes/nederpop/memphis-dark.svg'
   },
-  // Chakra Petch (OFL): hoekig en futuristisch, maar goed leesbaar.
   font: {
-    family: 'Chakra Petch',
+    family: 'Fredoka',
     fallback: '"Segoe UI", sans-serif',
     faces: [
-      { file: 'assets/themes/synthwave/ChakraPetch-Regular.woff2', weight: '100 500' },
-      { file: 'assets/themes/synthwave/ChakraPetch-Bold.woff2', weight: '600 900' }
+      { file: 'assets/themes/nederpop/Fredoka-Variable.woff2', weight: '300 700' }
     ]
   },
-  radius: '3px'
+  radius: '14px'
 };
 
 // Gruvbox (retro): palet van morhetz, MIT (zie assets/themes/gruvbox/BRON.md),
@@ -181,7 +181,7 @@ const TERMINAL = {
 // achtergronden van ons (assets/themes/noorderlicht/BRON.md).
 const NOORDERLICHT = {
   name: 'Noorderlicht',
-  description: 'Bewegend noorderlicht boven de bergen; overdag een dennenbos met ochtendmist. Lettertype Lexend.',
+  description: 'Een dennenbos: \'s nachts met bewegend noorderlicht, overdag met ochtendmist. Lettertype Lexend.',
   palettes: {
     light: {
       canvas: '#f2f7f8', surface: '#fbfdfd', raised: '#e6eff1', sunk: '#e9f1f3',
@@ -227,7 +227,7 @@ const THEMES = {
   standaard: { name: 'Singeling', description: 'De Singeling-kleuren van de app, met licht/donker en leescomfort.' },
   test: { name: 'Testthema', description: 'Koel en rustig blauw.', hue: 215, tint: 1, accent: '#2f7fe0' },
   rosepine: ROSE_PINE,
-  synthwave: SYNTHWAVE,
+  nederpop: NEDERPOP,
   gruvbox: GRUVBOX,
   terminal: TERMINAL,
   noorderlicht: NOORDERLICHT
