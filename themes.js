@@ -28,7 +28,7 @@ const { WHITE_SURFACES, PAPER } = require('./dark-mode');
 // Rosé Pine: palet MIT, achtergronden CC0 (zie assets/themes/rose-pine/BRON.md).
 const ROSE_PINE = {
   name: 'Rosé Pine',
-  description: 'Zacht paars en oudroze, met een achtergrond van bladeren. Lettertype Nunito.',
+  description: 'Zacht paars en oudroze, met een achtergrond van bladeren.',
   palettes: {
     // Dawn
     light: {
@@ -62,40 +62,45 @@ const ROSE_PINE = {
   radius: '12px'
 };
 
-// Nederpop: vrolijke Nederlandse jaren-80-pop (Doe Maar-gevoel) in
-// Memphis-stijl: paars, roze, geel en blauw. Licht = lichtlila met diep
-// paarse tekst en roze accent, donker = diep paars met geel accent.
-// Lettertype Fredoka (OFL); palet en achtergronden van ons (zie
-// assets/themes/nederpop/BRON.md).
-const NEDERPOP = {
-  name: 'Nederpop',
-  description: 'Vrolijke Nederlandse jaren-80-pop: paars, roze, geel en blauw. Lettertype Fredoka.',
+// Cassette: jaren 80 in rustig pastel (Doe Maar-kleuren: lila, roze, geel,
+// blauw). Een cassettebandje ("MIX '86"), een kubuspuzzel en wat Memphis.
+// Licht = lichtlila met roze accent, donker = diep paars met geel accent.
+// Tekst in Fredoka, koppen in Righteous (beide OFL); palet en achtergronden
+// van ons (zie assets/themes/cassette/BRON.md).
+const CASSETTE = {
+  name: 'Cassette',
+  description: 'Jaren 80 in pastel: een cassettebandje, een kubuspuzzel en Memphis-vormen.',
   palettes: {
     light: {
       canvas: '#fbf6ff', surface: '#ffffff', raised: '#f3e9fb', sunk: '#f4ecfb',
       bar: '#ffffff', tab: '#ffffff', sidebar: '#f1e6fa', secondary: '#f3eafb',
       border: '#e2d2f2', borderStrong: '#c9b0e6',
       fg1: '#2b1645', fg2: '#4a2f6e', fg3: '#6e5490', fg4: '#a08bbd',
-      accent: '#e8338f', accentStrong: '#b81f6c', onAccent: '#ffffff'
+      accent: '#d8559b', accentStrong: '#a83e77', onAccent: '#ffffff'
     },
     dark: {
       canvas: '#24133d', surface: '#2e1a4c', raised: '#3a235e', sunk: '#1c0f30',
       bar: '#170b28', tab: '#2b1847', sidebar: '#1d1033', secondary: '#3a235e',
       border: '#4a3170', borderStrong: '#5f4389',
       fg1: '#fdf3ff', fg2: '#e2cff5', fg3: '#b9a0d8', fg4: '#7f66a3',
-      accent: '#ffd23f', accentStrong: '#9c7410', onAccent: '#24133d'
+      accent: '#ffe08a', accentStrong: '#8f7020', onAccent: '#24133d'
     }
   },
   wallpaper: {
-    light: 'assets/themes/nederpop/memphis-light.svg',
-    dark: 'assets/themes/nederpop/memphis-dark.svg'
+    light: 'assets/themes/cassette/cassette-light.svg',
+    dark: 'assets/themes/cassette/cassette-dark.svg'
   },
   font: {
     family: 'Fredoka',
     fallback: '"Segoe UI", sans-serif',
     faces: [
-      { file: 'assets/themes/nederpop/Fredoka-Variable.woff2', weight: '300 700' }
+      { file: 'assets/themes/cassette/Fredoka-Variable.woff2', weight: '300 700' }
     ]
+  },
+  displayFont: {
+    family: 'Righteous',
+    fallback: '"Segoe UI", sans-serif',
+    faces: [{ file: 'assets/themes/cassette/Righteous-Regular.woff2', weight: '100 900' }]
   },
   radius: '14px'
 };
@@ -104,7 +109,7 @@ const NEDERPOP = {
 // officieel licht en donker. Achtergrond: eigen SVG.
 const GRUVBOX = {
   name: 'Gruvbox',
-  description: 'Warm en retro, jaren 70. Lettertype Fraunces.',
+  description: 'Warm en retro, jaren 70.',
   palettes: {
     light: {
       canvas: '#fbf1c7', surface: '#f9f5d7', raised: '#ebdbb2', sunk: '#f2e5bc',
@@ -143,7 +148,7 @@ const GRUVBOX = {
 // Palet en achtergronden van ons.
 const TERMINAL = {
   name: 'Terminal',
-  description: 'Een oude computer: groen fosfor met scanlines. Lettertype JetBrains Mono.',
+  description: 'Een oude computer: groen fosfor met scanlines en een knipperende cursor.',
   palettes: {
     light: {
       canvas: '#f1f5ee', surface: '#fafcf8', raised: '#e6ede2', sunk: '#e9efe5',
@@ -164,6 +169,11 @@ const TERMINAL = {
     light: 'assets/themes/terminal/crt-light.svg',
     dark: 'assets/themes/terminal/crt-dark.svg'
   },
+  // De cursor achter de prompt knippert.
+  ambient: {
+    light: 'assets/themes/terminal/cursor-light.svg',
+    dark: 'assets/themes/terminal/cursor-dark.svg'
+  },
   font: {
     family: 'JetBrains Mono',
     fallback: 'Consolas, "Courier New", monospace',
@@ -181,7 +191,7 @@ const TERMINAL = {
 // achtergronden van ons (assets/themes/noorderlicht/BRON.md).
 const NOORDERLICHT = {
   name: 'Noorderlicht',
-  description: 'Een dennenbos: \'s nachts met bewegend noorderlicht, overdag met ochtendmist. Lettertype Lexend.',
+  description: 'Een dennenbos: \'s nachts met bewegend noorderlicht, overdag met ochtendmist.',
   palettes: {
     light: {
       canvas: '#f2f7f8', surface: '#fbfdfd', raised: '#e6eff1', sunk: '#e9f1f3',
@@ -216,12 +226,13 @@ const NOORDERLICHT = {
   radius: '8px'
 };
 
-// Werkplaats: past bij Singeling. Geborsteld staal, traanplaat, een lasnaad
-// en waarschuwingsstrepen met veiligheidsgeel; een laspunt met vonken loopt
-// langs de hele lasnaad omlaag (bewegende laag). Lettertype Barlow (OFL).
+// Werkplaats: past bij Singeling. Een lastafel in zijaanzicht waar iemand
+// aan het lassen is, tegen een wand van geborsteld staal met
+// waarschuwingsstrepen en een traanplaatvloer. Het laspunt gloeit en de
+// vonken spatten (ambient-laag). Lettertype Barlow (OFL).
 const WERKPLAATS = {
   name: 'Werkplaats',
-  description: 'Staal, traanplaat en veiligheidsgeel, met een las die langs de hele naad loopt. Lettertype Barlow.',
+  description: 'Een lastafel in de werkplaats: er wordt gelast en de vonken spatten.',
   palettes: {
     light: {
       canvas: '#e9ebee', surface: '#f6f7f8', raised: '#dfe2e6', sunk: '#e1e4e8',
@@ -242,14 +253,11 @@ const WERKPLAATS = {
     light: 'assets/themes/werkplaats/staal-light.svg',
     dark: 'assets/themes/werkplaats/staal-dark.svg'
   },
-  motion: {
-    light: 'assets/themes/werkplaats/vonken.svg',
-    dark: 'assets/themes/werkplaats/vonken.svg'
+  // Het laspunt: gloed op de muur en spattende vonken.
+  ambient: {
+    light: 'assets/themes/werkplaats/vonken-light.svg',
+    dark: 'assets/themes/werkplaats/vonken-dark.svg'
   },
-  motionStyle: 'weld',
-  motionArea: 'full',
-  motionSize: 'cover',
-  weldTravel: 820, // naad loopt van y 60 tot 880 in de achtergrond
   font: {
     family: 'Barlow',
     fallback: '"Segoe UI", sans-serif',
@@ -265,7 +273,7 @@ const WERKPLAATS = {
 // donker = nachtblauw met lichtblauwe lijntjes. Lettertype Lora (OFL).
 const DELFTS = {
   name: 'Delfts blauw',
-  description: 'Porseleinwit met kobaltblauw en Delftse tegels; een paar bewegen. Lettertype Lora.',
+  description: 'Porseleinwit met kobaltblauw en Delftse tegels; een paar bewegen.',
   palettes: {
     light: {
       canvas: '#f5f8fc', surface: '#ffffff', raised: '#e9eff8', sunk: '#edf2f9',
@@ -308,7 +316,7 @@ const DELFTS = {
 // Lettertype Work Sans (OFL).
 const HAVEN = {
   name: 'Haven',
-  description: 'De Zaanstreek aan het water, met golvend water en \'s nachts havenlichtjes. Lettertype Work Sans.',
+  description: 'Een Zaanse waterkant met molens; af en toe vaart er een tjalk voorbij.',
   palettes: {
     light: {
       canvas: '#eef5f8', surface: '#fbfdfe', raised: '#e2edf2', sunk: '#e6f0f4',
@@ -335,6 +343,17 @@ const HAVEN = {
   },
   motionStyle: 'waves',
   motionArea: 'bottom',
+  // De tjalk vaart af en toe rustig voorbij (zit niet in de achtergrond zelf).
+  passer: {
+    light: 'assets/themes/haven/boot-light.svg',
+    dark: 'assets/themes/haven/boot-dark.svg'
+  },
+  passerDuration: 150,
+  // De molenwieken draaien heel langzaam (zitten niet in de achtergrond zelf).
+  ambient: {
+    light: 'assets/themes/haven/molens-light.svg',
+    dark: 'assets/themes/haven/molens-dark.svg'
+  },
   font: {
     family: 'Work Sans',
     fallback: '"Segoe UI", sans-serif',
@@ -350,7 +369,7 @@ const HAVEN = {
 // hoeken.
 const ARCADE = {
   name: 'Arcade',
-  description: 'Pixels uit de spelletjestijd: overdag wolken en munten, \'s nachts de ruimte. Koppen in Pixelify Sans, tekst in Rubik.',
+  description: 'Pixels uit de spelletjestijd: overdag wolken en draaiende munten, \'s nachts twinkelende sterren.',
   palettes: {
     light: {
       canvas: '#f2f4ff', surface: '#ffffff', raised: '#e6e9ff', sunk: '#e9ecff',
@@ -370,6 +389,11 @@ const ARCADE = {
   wallpaper: {
     light: 'assets/themes/arcade/pixel-light.svg',
     dark: 'assets/themes/arcade/pixel-dark.svg'
+  },
+  // Munten draaien, 's nachts twinkelen er sterren.
+  ambient: {
+    light: 'assets/themes/arcade/munten-light.svg',
+    dark: 'assets/themes/arcade/munten-dark.svg'
   },
   font: {
     family: 'Rubik',
@@ -392,10 +416,16 @@ const THEMES = {
   // id "standaard" blijft (bewaard in ieders instellingen, en de standaard
   // voor iedereen): de Singeling-kleuren van de app, met licht/donker en
   // leescomfort.
-  standaard: { name: 'Singeling', description: 'De Singeling-kleuren van de app, met licht/donker en leescomfort.' },
-  test: { name: 'Testthema', description: 'Koel en rustig blauw.', hue: 215, tint: 1, accent: '#2f7fe0' },
+  standaard: { name: 'Neutraal', description: 'De Singeling-kleuren: grijs met oranje.' },
+  // Pastelkleurensets (afgeleid: tint + accent). Alleen kleuren, met
+  // licht/donker en leescomfort.
+  blauw: { name: 'Blauw', description: 'Koel en rustig blauw.', hue: 215, tint: 1, accent: '#2f7fe0' },
+  groen: { name: 'Groen', description: 'Zacht saliegroen.', hue: 150, tint: 0.85, accent: '#2e8b57' },
+  roze: { name: 'Roze', description: 'Poederroze.', hue: 340, tint: 0.8, accent: '#d0457e' },
+  creme: { name: 'Crème', description: 'Warm crème met karamel.', hue: 38, tint: 1.1, accent: '#b7791f' },
+  lavendel: { name: 'Lavendel', description: 'Licht lila.', hue: 262, tint: 0.9, accent: '#7a5af0' },
   rosepine: ROSE_PINE,
-  nederpop: NEDERPOP,
+  cassette: CASSETTE,
   gruvbox: GRUVBOX,
   terminal: TERMINAL,
   noorderlicht: NOORDERLICHT,
@@ -488,14 +518,21 @@ function themeCatalog() {
           border: p.border.hex, text: p.fg1.hex, muted: p.fg3.hex, accent: p.accent, onAccent: p.onAccent
         } : theme.original ? ORIGINAL_PREVIEW : STANDARD_PREVIEW[mode]),
         wallpaper: (theme.wallpaper && theme.wallpaper[mode]) || null,
-        motion: (theme.motion && theme.motion[mode]) || null
+        // In het kleine voorbeeld beweegt alleen een laag bovenin (noorderlicht);
+        // een laag die op de achtergrond moet passen (cover) of onderin zit,
+        // komt stilstaand mee, net als de ambient-laag (molenwieken e.d.).
+        motion: (theme.motion && theme.motion[mode] && theme.motionSize !== 'cover' && (!theme.motionArea || theme.motionArea === 'top')) ? theme.motion[mode] : null,
+        ambient: (theme.ambient && theme.ambient[mode]) || (theme.motionSize === 'cover' && theme.motion && theme.motion[mode]) || null
       };
     }
     return {
       id,
       name: theme.name,
       description: theme.description || '',
-      kind: theme.font || theme.radius ? 'thema' : 'kleurenset',
+      // dynamisch = er beweegt iets in de achtergrond; thema = eigen
+      // lettertype/vormen; kleurenset = alleen kleuren.
+      kind: theme.original ? 'standaard'
+        : (theme.motion || theme.passer || theme.ambient ? 'dynamisch' : (theme.font || theme.radius ? 'thema' : 'kleurenset')),
       font: theme.font ? fontStack(theme) : null,
       displayFont: theme.font ? displayStack(theme) : null,
       radius: theme.radius || null,
@@ -519,6 +556,13 @@ function supportsSoft(id) {
 }
 
 // De app zonder aanpassingen (geen licht/donker, geen eigen kleuren).
+// Heeft dit thema een achtergrondafbeelding? Dan maakt main.js doorzichtige
+// tinten dicht (page-tweaks.js, SOLID_TINTS_SCRIPT; class sg-wallpaper).
+function hasWallpaper(id) {
+  const theme = THEMES[id];
+  return !!(theme && theme.wallpaper);
+}
+
 function isOriginal(id) {
   const theme = THEMES[id];
   return !!(theme && theme.original);
@@ -810,13 +854,45 @@ function motionFor(theme, mode) {
 }
 
 // De afbeeldingen één keer als variabele (anders staan ze in elke variant).
+// Ambient: een stilstaande laag boven de achtergrond (html::before) met eigen
+// animaties in de afbeelding zelf, bv. draaiende molenwieken of een
+// knipperende cursor. Zelfde schaling als de achtergrond (cover). De
+// afbeelding zet zelf de animaties stil bij "animaties uit".
+function ambientFor(theme, mode) {
+  const file = theme.ambient && theme.ambient[mode];
+  return file ? wallpaperUrl(file) : null;
+}
+
+function ambientCss(sel, theme, mode) {
+  if (!ambientFor(theme, mode)) return '';
+  return `
+  ${sel}::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--sg-ambient-${mode}) center bottom / cover no-repeat;
+  }`;
+}
+
+// Iets dat af en toe voorbijkomt (passer), bv. een bootje over het water.
+function passerFor(theme, mode) {
+  const file = theme.passer && theme.passer[mode];
+  return file ? wallpaperUrl(file) : null;
+}
+
 function wallpaperVariablesCss(id, theme) {
   const vars = [];
   for (const mode of ['light', 'dark']) {
     const wallpaper = wallpaperFor(theme, mode);
     const motion = motionFor(theme, mode);
+    const passer = passerFor(theme, mode);
+    const ambient = ambientFor(theme, mode);
     if (wallpaper) vars.push(`--sg-wallpaper-${mode}: url("${wallpaper}");`);
     if (motion) vars.push(`--sg-motion-${mode}: url("${motion}");`);
+    if (passer) vars.push(`--sg-passer-${mode}: url("${passer}");`);
+    if (ambient) vars.push(`--sg-ambient-${mode}: url("${ambient}");`);
   }
   return vars.length ? `\n  html.sg-theme-${id} { ${vars.join(' ')} }\n` : '';
 }
@@ -914,7 +990,25 @@ function motionCss(id, theme, sel, p) {
     animation: sg-motion-${id}-b ${timingB};
   }`.replace(theme.motionStyle === 'static' ? /animation: sg-motion-[^;]+;/g : /$^/, 'animation: none;')
     + (theme.motionStyle === 'static' ? `
-  ${sel} body::after { display: none; }` : '');
+  ${sel} body::after { display: none; }` : '')
+    + passerCss(id, theme, sel, mode);
+}
+
+// Passer: de tweede laag (::after) wordt iets dat af en toe rustig door het
+// beeld trekt (theme.passer, met passerDuration). Zelfde schaling als de
+// achtergrond, zodat het precies op bv. de waterlijn blijft; het beeld
+// begint links buiten beeld. Ongeveer 60% van de tijd onderweg, daarna even
+// niets.
+function passerCss(id, theme, sel, mode) {
+  if (!passerFor(theme, mode)) return '';
+  const duration = theme.passerDuration || 150;
+  return `
+  ${sel} body::after {
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: var(--sg-passer-${mode}) center bottom / cover no-repeat;
+    opacity: 1;
+    animation: sg-motion-${id}-pass ${duration}s linear -${Math.round(duration * 0.15)}s infinite;
+  }`;
 }
 
 function motionKeyframesCss(id, theme) {
@@ -941,7 +1035,19 @@ function motionKeyframesCss(id, theme) {
     html.sg-theme-${id} body::before,
     html.sg-theme-${id} body::after { animation: none; }
   }
-`;
+` + (theme.passer ? `
+  @keyframes sg-motion-${id}-pass {
+    0% { transform: translate3d(-25vw, 0, 0); }
+    15% { transform: translate3d(8vw, -0.25vh, 0); }
+    30% { transform: translate3d(41vw, 0, 0); }
+    45% { transform: translate3d(74vw, -0.25vh, 0); }
+    60% { transform: translate3d(108vw, 0, 0); }
+    100% { transform: translate3d(108vw, 0, 0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html.sg-theme-${id} body::after { display: none; }
+  }
+` : '');
 }
 
 function pageVariantCss(id, theme, variant) {
@@ -989,6 +1095,7 @@ function pageVariantCss(id, theme, variant) {
   }
   ${bodyBackgroundCss(sel, theme, p)}
   ${motionCss(id, theme, sel, p)}
+  ${ambientCss(sel, theme, p.dark ? 'dark' : 'light')}
   ${within(WHITE_SURFACES)} { background: var(--bg-surface); }
   ${sel} .bg-white:where(:not(${PAPER})) { background-color: hsl(var(--card)); }
   ${sel} .bg-\\[\\#FF5100\\] { background-color: ${p.accent}; color: ${p.onAccent}; }
@@ -1156,6 +1263,7 @@ module.exports = {
   THEME_CLASSES,
   isTheme,
   isOriginal,
+  hasWallpaper,
   themeCatalog,
   previewFontCss,
   supportsSoft,

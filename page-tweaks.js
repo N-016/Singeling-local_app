@@ -115,4 +115,56 @@ const PAGE_TWEAKS_CSS = `
   }
 `;
 
-module.exports = { PAGE_TWEAKS_CSS };
+// Doorzichtige tinten dicht maken bij een thema met een achtergrondafbeelding
+// (class sg-wallpaper, main.js). De webapp gebruikt veel tinten als
+// "bg-success/10" (10% groen): op een gewone pagina valt dat niet op, maar met
+// een achtergrondafbeelding schijnt die erdoorheen en wordt tekst slecht
+// leesbaar (bv. de ingeklokte mensen op de Shopfloor).
+//
+// Het script zoekt in de stylesheets van de pagina alle regels met zo'n
+// doorzichtige achtergrondkleur en legt er een dichte kaartkleur onder: de
+// tint blijft, alleen schijnt de achtergrond er niet meer door. Zo werkt het
+// ook voor kleuren die Lovable later toevoegt. Bewust doorzichtig blijft:
+// zwart/wit (de waas achter een pop-up, glimlaagjes), primary-foreground
+// (glimlaag op knoppen), border en muted-foreground (lijntjes, stipjes).
+const SOLID_TINTS_SCRIPT = `(() => {
+  if (window.__sgSolidTints) return;
+  window.__sgSolidTints = true;
+  const SKIP = /bg-(black|white|transparent|primary-foreground|border|muted-foreground)\\b/;
+  const style = document.createElement('style');
+  style.id = 'sg-solid-tints';
+  document.head.appendChild(style);
+  const seen = new Set();
+  const scan = () => {
+    const out = [];
+    for (const sheet of document.styleSheets) {
+      if (sheet.ownerNode === style) continue;
+      let rules;
+      try { rules = sheet.cssRules; } catch { continue; }
+      const walk = (list) => {
+        for (const rule of list) {
+          if (rule.cssRules && !rule.selectorText) { walk(rule.cssRules); continue; }
+          const selector = rule.selectorText;
+          if (!selector || !selector.includes('bg-') || SKIP.test(selector) || seen.has(selector)) continue;
+          const value = rule.style && rule.style.getPropertyValue('background-color');
+          // Alleen tinten met doorzichtigheid: "hsl(var(--x) / .1)" of rgba(..., 0.x).
+          if (!value || !/\\/\\s*\\.?\\d|rgba\\(/.test(value)) continue;
+          seen.add(selector);
+          // Een tint met !important (bv. .!bg-info/10) krijgt dat hier ook.
+          const imp = rule.style.getPropertyPriority('background-color') === 'important' ? ' !important' : '';
+          const scoped = selector.split(',').map(part => 'html.sg-wallpaper ' + part.trim()).join(', ');
+          out.push(scoped + ' { background-image: linear-gradient(' + value + ', ' + value + ')' + imp + '; background-color: hsl(var(--card))' + imp + '; }');
+        }
+      };
+      walk(rules);
+    }
+    if (out.length) style.textContent += out.join('\\n') + '\\n';
+  };
+  scan();
+  // Later geladen stylesheets (bv. een nieuwe pagina in de app) ook meenemen.
+  let timer = null;
+  new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(scan, 300); })
+    .observe(document.head, { childList: true });
+})();`;
+
+module.exports = { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT };
