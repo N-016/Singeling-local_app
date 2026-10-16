@@ -217,11 +217,11 @@ const NOORDERLICHT = {
 };
 
 // Werkplaats: past bij Singeling. Geborsteld staal, traanplaat, een lasnaad
-// en waarschuwingsstrepen met veiligheidsgeel; 's nachts vallen er lasvonken
-// (bewegende laag, alleen donker). Lettertype Barlow (OFL).
+// en waarschuwingsstrepen met veiligheidsgeel; een laspunt met vonken loopt
+// langs de hele lasnaad omlaag (bewegende laag). Lettertype Barlow (OFL).
 const WERKPLAATS = {
   name: 'Werkplaats',
-  description: 'Staal, traanplaat en veiligheidsgeel; \'s nachts vliegen de lasvonken. Lettertype Barlow.',
+  description: 'Staal, traanplaat en veiligheidsgeel, met een las die langs de hele naad loopt. Lettertype Barlow.',
   palettes: {
     light: {
       canvas: '#e9ebee', surface: '#f6f7f8', raised: '#dfe2e6', sunk: '#e1e4e8',
@@ -242,9 +242,14 @@ const WERKPLAATS = {
     light: 'assets/themes/werkplaats/staal-light.svg',
     dark: 'assets/themes/werkplaats/staal-dark.svg'
   },
-  motion: { dark: 'assets/themes/werkplaats/vonken-dark.svg' },
-  motionStyle: 'fall',
+  motion: {
+    light: 'assets/themes/werkplaats/vonken.svg',
+    dark: 'assets/themes/werkplaats/vonken.svg'
+  },
+  motionStyle: 'weld',
   motionArea: 'full',
+  motionSize: 'cover',
+  weldTravel: 820, // naad loopt van y 60 tot 880 in de achtergrond
   font: {
     family: 'Barlow',
     fallback: '"Segoe UI", sans-serif',
@@ -260,7 +265,7 @@ const WERKPLAATS = {
 // donker = nachtblauw met lichtblauwe lijntjes. Lettertype Lora (OFL).
 const DELFTS = {
   name: 'Delfts blauw',
-  description: 'Porseleinwit met kobaltblauw en Delftse tegels. Lettertype Lora.',
+  description: 'Porseleinwit met kobaltblauw en Delftse tegels; een paar bewegen. Lettertype Lora.',
   palettes: {
     light: {
       canvas: '#f5f8fc', surface: '#ffffff', raised: '#e9eff8', sunk: '#edf2f9',
@@ -281,6 +286,15 @@ const DELFTS = {
     light: 'assets/themes/delfts/tegels-light.svg',
     dark: 'assets/themes/delfts/tegels-dark.svg'
   },
+  // Drie tegels in de onderste helft bewegen: het molentje draait, het schip
+  // vaart, de tulp wiegt. Niet meer, anders wordt het te druk.
+  motion: {
+    light: 'assets/themes/delfts/tegels-anim-light.svg',
+    dark: 'assets/themes/delfts/tegels-anim-dark.svg'
+  },
+  motionStyle: 'static',
+  motionArea: 'full',
+  motionSize: 'cover',
   font: {
     family: 'Lora',
     fallback: 'Georgia, serif',
@@ -815,8 +829,18 @@ function wallpaperVariablesCss(id, theme) {
 // oogt dat natuurlijker dan één laag. Per thema:
 //   motionStyle: 'drift' (golvend heen en weer, bv. noorderlicht),
 //                'waves' (alleen opzij, bv. golfjes op het water) of
-//                'fall'  (vallen en uitdoven, bv. lasvonken)
+//                'fall'  (vallen en uitdoven) of
+//                'weld'  (laspunt dat langs een naad omlaag loopt, flakkerend)
+//                'static' (één laag die zelf stilstaat; de afbeelding heeft
+//                         eigen animaties, bv. een paar bewegende tegeltjes.
+//                         Met "animaties uit" verdwijnt de laag, dan blijft de
+//                         stilstaande versie in de achtergrond over)
 //   motionArea:  'top' (bovenste deel), 'bottom' (onderste deel) of 'full'
+//   motionSize:  'stretch' (standaard: afbeelding over het vlak) of 'cover'
+//                (zelfde schaling als de achtergrond, zodat iets precies op
+//                een plek in de achtergrond blijft, bv. het laspunt op de naad)
+//   weldTravel:  bij 'weld': hoe ver het laspunt zakt, in eenheden van de
+//                achtergrond (viewBox 1920 x 1200)
 const MOTION_AREAS = {
   top: 'top: -6vh; left: -20vw; width: 140vw; height: 78vh;',
   bottom: 'top: 70vh; left: -20vw; width: 140vw; height: 36vh;',
@@ -825,8 +849,21 @@ const MOTION_AREAS = {
 const MOTION_TIMING = {
   drift: ['20s ease-in-out infinite alternate', '31s ease-in-out infinite alternate'],
   waves: ['14s ease-in-out infinite alternate', '19s ease-in-out infinite alternate'],
-  fall: ['2.8s linear infinite', '3.7s linear -1.4s infinite']
+  fall: ['2.8s linear infinite', '3.7s linear -1.4s infinite'],
+  weld: ['16s linear infinite', '16s linear infinite']
 };
+
+// Laspunt langs de naad: in 20 stappen omlaag, met flakkerend licht; aan het
+// begin en eind uit (dan begint de volgende las bovenaan). De afstand rekent
+// met dezelfde schaal als de achtergrond (cover: de grootste van
+// breedte/1920 en hoogte/1200).
+function weldKeyframes(travel, flicker) {
+  const scale = 'max(100vw / 1920, 100vh / 1200)';
+  return Array.from({ length: 21 }, (_, i) => {
+    const opacity = i === 0 || i === 20 ? 0 : flicker[i % flicker.length];
+    return `${i * 5}% { transform: translate3d(0, calc(${scale} * ${(travel * i / 20).toFixed(1)}), 0); opacity: ${opacity}; }`;
+  }).join('\n    ');
+}
 const MOTION_KEYFRAMES = {
   drift: [
     `0% { transform: translate3d(-12vw, 0, 0) scaleY(0.9); opacity: 0.5; }
@@ -857,6 +894,7 @@ function motionCss(id, theme, sel, p) {
   const mode = p.dark ? 'dark' : 'light';
   if (!motionFor(theme, mode)) return '';
   const area = MOTION_AREAS[theme.motionArea] || MOTION_AREAS.top;
+  const size = theme.motionSize === 'cover' ? 'center bottom / cover' : 'center / 100% 100%';
   const [timingA, timingB] = MOTION_TIMING[theme.motionStyle] || MOTION_TIMING.drift;
   return `
   ${sel} body::before,
@@ -866,7 +904,7 @@ function motionCss(id, theme, sel, p) {
     ${area}
     z-index: -1;
     pointer-events: none;
-    background: var(--sg-motion-${mode}) center / 100% 100% no-repeat;
+    background: var(--sg-motion-${mode}) ${size} no-repeat;
     will-change: transform, opacity;
   }
   ${sel} body::before {
@@ -874,12 +912,24 @@ function motionCss(id, theme, sel, p) {
   }
   ${sel} body::after {
     animation: sg-motion-${id}-b ${timingB};
-  }`;
+  }`.replace(theme.motionStyle === 'static' ? /animation: sg-motion-[^;]+;/g : /$^/, 'animation: none;')
+    + (theme.motionStyle === 'static' ? `
+  ${sel} body::after { display: none; }` : '');
 }
 
 function motionKeyframesCss(id, theme) {
   if (!theme.motion) return '';
-  const [framesA, framesB] = MOTION_KEYFRAMES[theme.motionStyle] || MOTION_KEYFRAMES.drift;
+  if (theme.motionStyle === 'static') {
+    return `
+  @media (prefers-reduced-motion: reduce) {
+    html.sg-theme-${id} body::before { display: none; }
+  }
+`;
+  }
+  const [framesA, framesB] = theme.motionStyle === 'weld'
+    ? [weldKeyframes(theme.weldTravel || 800, [0.75, 1, 0.6, 0.95, 0.8, 1, 0.65, 0.9]),
+       weldKeyframes(theme.weldTravel || 800, [0.4, 0.15, 0.5, 0.25, 0.45, 0.1, 0.5, 0.3])]
+    : (MOTION_KEYFRAMES[theme.motionStyle] || MOTION_KEYFRAMES.drift);
   return `
   @keyframes sg-motion-${id}-a {
     ${framesA}
