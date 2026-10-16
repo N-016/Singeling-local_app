@@ -13,6 +13,14 @@
 const NOT_CLOCKED = '.sg-app .clockbar:not([style*="--stop"])';
 
 const PAGE_TWEAKS_CSS = `
+  /* Knoppen die de webapp rechtsonder over de pagina legt en die in de app
+     alleen in de weg zitten: de badge "Edit with Lovable" en het zwevende
+     sneltoetsenknopje (de sneltoets ? werkt gewoon nog). */
+  #lovable-badge,
+  div.fixed:has(> button[title^="Sneltoetsen"]) {
+    display: none !important;
+  }
+
   /* Instelling "Niet geklokt op een order": "aan" (de standaard) laat de
      oranje balk van de webapp gewoon staan. */
 

@@ -236,6 +236,7 @@
             outline-offset: -2px;
         }
     </style>
+    <style id="chrome-theme-style"></style>
 </head>
 <body>
     <button type="button" class="navigation-button" id="back" title="Ga terug" aria-label="Ga terug" disabled>
@@ -296,6 +297,12 @@
 
         window.detachedAPI.onSoft((soft) => {
             document.documentElement.classList.toggle('theme-soft', soft);
+        });
+
+        // Kleurenthema (themes.js): de CSS komt van main.js, '' = standaard.
+        window.detachedAPI.onChromeTheme((css) => {
+            document.getElementById('chrome-theme-style').textContent = css || '';
+            document.documentElement.classList.toggle('chrome-theme', !!css);
         });
     </script>
 </body>

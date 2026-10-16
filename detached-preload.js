@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld('detachedAPI', {
   onState: (callback) => ipcRenderer.on('detached-state', (event, state) => callback(state)),
   onMaximized: (callback) => ipcRenderer.on('detached-maximized', (event, maximized) => callback(maximized)),
   onTheme: (callback) => ipcRenderer.on('detached-theme', (event, dark) => callback(dark)),
-  onSoft: (callback) => ipcRenderer.on('detached-soft', (event, soft) => callback(soft))
+  onSoft: (callback) => ipcRenderer.on('detached-soft', (event, soft) => callback(soft)),
+  onChromeTheme: (callback) => ipcRenderer.on('detached-chrome-theme', (event, css) => callback(css))
 });

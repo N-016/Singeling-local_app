@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1200" preserveAspectRatio="xMidYMax slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#171520"/>
+      <stop offset="0.55" stop-color="#241b2f"/>
+      <stop offset="0.78" stop-color="#3b1f4a"/>
+      <stop offset="0.8" stop-color="#5a2257"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fede5d"/>
+      <stop offset="0.55" stop-color="#f97e72"/>
+      <stop offset="1" stop-color="#ff7edb"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a1b3d"/>
+      <stop offset="1" stop-color="#171520"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.8" r="0.5">
+      <stop offset="0" stop-color="#ff7edb" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ff7edb" stop-opacity="0"/>
+    </radialGradient>
+    <mask id="sunStripes">
+      <rect width="1920" height="1200" fill="#fff"/>
+      <rect x="0" y="790" width="1920" height="6" fill="#000"/>
+      <rect x="0" y="830" width="1920" height="9" fill="#000"/>
+      <rect x="0" y="868" width="1920" height="12" fill="#000"/>
+      <rect x="0" y="902" width="1920" height="15" fill="#000"/>
+      <rect x="0" y="934" width="1920" height="18" fill="#000"/>
+    </mask>
+    <clipPath id="floorClip"><rect x="0" y="960" width="1920" height="240"/></clipPath>
+  </defs>
+  <rect width="1920" height="1200" fill="url(#sky)"/>
+  <rect width="1920" height="1200" fill="url(#glow)"/>
+  <g fill="#e0dfe7" opacity="0.55">
+    <circle cx="210" cy="140" r="2"/><circle cx="520" cy="260" r="1.5"/><circle cx="760" cy="90" r="1.5"/>
+    <circle cx="1180" cy="200" r="2"/><circle cx="1460" cy="110" r="1.5"/><circle cx="1720" cy="300" r="2"/>
+    <circle cx="340" cy="420" r="1.5"/><circle cx="1590" cy="470" r="1.5"/><circle cx="980" cy="330" r="1.2"/>
+  </g>
+  <circle cx="960" cy="800" r="250" fill="url(#sun)" mask="url(#sunStripes)"/>
+  <path d="M0 960 L0 900 L160 930 L320 870 L470 925 L600 890 L700 960 Z" fill="#1d1628"/>
+  <path d="M1920 960 L1920 880 L1760 925 L1620 860 L1480 930 L1340 895 L1220 960 Z" fill="#1d1628"/>
+  <rect x="0" y="960" width="1920" height="240" fill="url(#floor)"/>
+  <g clip-path="url(#floorClip)" stroke="#36f9f6" stroke-opacity="0.55" stroke-width="2" fill="none">
+    <line x1="0" y1="962" x2="1920" y2="962" stroke="#ff7edb" stroke-opacity="0.9" stroke-width="3"/>
+    <line x1="0" y1="975" x2="1920" y2="975"/>
+    <line x1="0" y1="994" x2="1920" y2="994"/>
+    <line x1="0" y1="1021" x2="1920" y2="1021"/>
+    <line x1="0" y1="1058" x2="1920" y2="1058"/>
+    <line x1="0" y1="1108" x2="1920" y2="1108"/>
+    <line x1="0" y1="1175" x2="1920" y2="1175"/>
+    <line x1="960" y1="960" x2="960" y2="1200"/>
+    <line x1="960" y1="960" x2="760" y2="1200"/><line x1="960" y1="960" x2="1160" y2="1200"/>
+    <line x1="960" y1="960" x2="520" y2="1200"/><line x1="960" y1="960" x2="1400" y2="1200"/>
+    <line x1="960" y1="960" x2="200" y2="1200"/><line x1="960" y1="960" x2="1720" y2="1200"/>
+    <line x1="960" y1="960" x2="-280" y2="1200"/><line x1="960" y1="960" x2="2200" y2="1200"/>
+    <line x1="960" y1="960" x2="-900" y2="1200"/><line x1="960" y1="960" x2="2820" y2="1200"/>
+  </g>
+</svg>
