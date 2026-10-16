@@ -71,6 +71,7 @@ let appSettings = {
   lastSeenChangelogVersion: null,
   seenWhatsNewTours: [], // ids van "Nieuw in deze versie"-rondleidingen die al getoond zijn
   openAllLinksInNewTab: false,
+  tabBarDisabled: false, // tabbalk uit: één scherm, balk toont alleen het instellingen-icoon
   showOnboarding: true,
   blockCtrlB: false,
   notClockedMode: 'aan', // melding "Niet geklokt op een order": 'aan' (oranje balk), 'subtiel' of 'uit'
@@ -129,6 +130,7 @@ function loadSettings() {
       lastSeenChangelogVersion: typeof parsed.lastSeenChangelogVersion === 'string' ? parsed.lastSeenChangelogVersion : null,
       seenWhatsNewTours: Array.isArray(parsed.seenWhatsNewTours) ? parsed.seenWhatsNewTours : [],
       openAllLinksInNewTab: typeof parsed.openAllLinksInNewTab === 'boolean' ? parsed.openAllLinksInNewTab : false,
+      tabBarDisabled: typeof parsed.tabBarDisabled === 'boolean' ? parsed.tabBarDisabled : false,
       showOnboarding: typeof parsed.showOnboarding === 'boolean' ? parsed.showOnboarding : true,
       blockCtrlB: typeof parsed.blockCtrlB === 'boolean' ? parsed.blockCtrlB : false,
       notClockedMode: notClockedModeFrom(parsed),
@@ -290,7 +292,9 @@ function openStartTabs() {
   const configured = appSettings.startTabs.length > 0
     ? appSettings.startTabs
     : [{ url: START_URL, locked: true }];
-  configured.forEach((tab, index) => createTab(tab.url, index === 0, !!tab.locked));
+  // Tabbalk uit (één scherm): alleen de eerste starttab.
+  const toOpen = appSettings.tabBarDisabled ? configured.slice(0, 1) : configured;
+  toOpen.forEach((tab, index) => createTab(tab.url, index === 0, !!tab.locked && !appSettings.tabBarDisabled));
 }
 
 function logUpdater(message, error) {
@@ -1057,7 +1061,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       closeIfStillBlank(view, tabId);
       return;
     }
-    if (!isDetachedTab(tabId) && (lockedTabs.has(tabId) || appSettings.openAllLinksInNewTab)) {
+    if (!isDetachedTab(tabId) && !appSettings.tabBarDisabled && (lockedTabs.has(tabId) || appSettings.openAllLinksInNewTab)) {
       event.preventDefault();
       createTab(url, true, false, tabId);
     }
@@ -1140,6 +1144,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       if (!['http:', 'https:'].includes(linkProtocol)) return;
 
       const external = !isInternalUrl(params.linkURL);
+      if (!external && appSettings.tabBarDisabled && !isDetachedTab(tabId)) return;
       const newTabLabel = isDetachedTab(tabId) ? 'Link openen in nieuw tabblad (hoofdvenster)' : 'Link openen in nieuw tabblad';
       const menu = Menu.buildFromTemplate([
         {
@@ -1167,7 +1172,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
 
     view.webContents.executeJavaScript(clickableElementScript(params.x, params.y), true).then(button => {
       const menuItems = [];
-      if (button) {
+      if (button && !(appSettings.tabBarDisabled && !isDetachedTab(tabId))) {
         menuItems.push({
           label: isDetachedTab(tabId) ? 'Knop openen in nieuw tabblad (hoofdvenster)' : 'Knop openen in nieuw tabblad',
           click: () => openButtonInNewTab(view, button, tabId)
@@ -1204,8 +1209,8 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       // 2x (of vaker) werd geopend. Bij een echte volledige herlaadbeurt is
       // window weer schoon, dus dan installeert dit zich gewoon opnieuw.
       window.__electronForceNewTab = ${appSettings.openAllLinksInNewTab};
-      // Los venster (geen tabbalk): links en knoppen blijven in dit venster.
-      window.__electronDetached = ${isDetachedTab(tabId)};
+      // Los venster of tabbalk uit (geen tabbalk): links en knoppen blijven in dit scherm.
+      window.__electronDetached = ${isDetachedTab(tabId) || appSettings.tabBarDisabled};
       if (!window.__electronHandlersInstalled) {
         window.__electronHandlersInstalled = true;
 
@@ -1528,6 +1533,14 @@ function createTab(url, makeActive = true, lockTab = false, parentTabId = null) 
   if (!isInternalUrl(url)) {
     openExternalSafe(url);
     return null;
+  }
+
+  // Tabbalk uit (één scherm): geen nieuwe tab, maar hier openen. Alleen een
+  // preview via window.open() wordt nog wel een eigen tab (zie
+  // setWindowOpenHandler); de tabbalk laat dan even de tabs zien.
+  if (appSettings.tabBarDisabled && activeTabId && tabs.has(activeTabId) && !isDetachedTab(activeTabId)) {
+    tabs.get(activeTabId).webContents.loadURL(url);
+    return activeTabId;
   }
 
   const tabId = `tab-${++tabCounter}`;
@@ -1951,7 +1964,7 @@ function popupTabMenu(menu, tabId, x, y) {
 function openLinkFromTab(tabId, view, url) {
   if (!isInternalUrl(url)) {
     openExternalSafe(url);
-  } else if (isDetachedTab(tabId)) {
+  } else if (isDetachedTab(tabId) || appSettings.tabBarDisabled) {
     view.webContents.loadURL(url);
   } else {
     createTab(url, true, false, tabId);
@@ -2330,6 +2343,7 @@ ipcMain.handle('get-settings', (event) => {
     startTabs: appSettings.startTabs,
     tabGroups: appSettings.tabGroups,
     openAllLinksInNewTab: appSettings.openAllLinksInNewTab,
+    tabBarDisabled: appSettings.tabBarDisabled,
     showOnboarding: appSettings.showOnboarding,
     blockCtrlB: appSettings.blockCtrlB,
     notClockedMode: appSettings.notClockedMode,
@@ -2671,6 +2685,24 @@ ipcMain.on('set-show-onboarding', (event, value) => {
   appSettings.showOnboarding = !!value;
   saveSettings();
 });
+// Tabbalk uit (één scherm). Bij aanzetten gaan de andere tabs dicht, zodat
+// er echt één scherm overblijft; open pagina's krijgen meteen het nieuwe
+// gedrag voor links en knoppen.
+ipcMain.on('set-tab-bar-disabled', (event, value) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.tabBarDisabled = !!value;
+  saveSettings();
+  if (appSettings.tabBarDisabled) {
+    for (const tabId of [...tabs.keys()]) {
+      if (tabId !== activeTabId && !isDetachedTab(tabId)) closeTab(tabId);
+    }
+  }
+  for (const [tabId, view] of tabs) {
+    if (isDetachedTab(tabId)) continue;
+    view.webContents.executeJavaScript(`window.__electronDetached = ${appSettings.tabBarDisabled};`).catch(() => {});
+  }
+});
+
 ipcMain.on('set-open-all-links-in-new-tab', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
   appSettings.openAllLinksInNewTab = !!value;
