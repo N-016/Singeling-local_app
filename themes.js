@@ -216,6 +216,153 @@ const NOORDERLICHT = {
   radius: '8px'
 };
 
+// Werkplaats: past bij Singeling. Geborsteld staal, traanplaat, een lasnaad
+// en waarschuwingsstrepen met veiligheidsgeel; 's nachts vallen er lasvonken
+// (bewegende laag, alleen donker). Lettertype Barlow (OFL).
+const WERKPLAATS = {
+  name: 'Werkplaats',
+  description: 'Staal, traanplaat en veiligheidsgeel; \'s nachts vliegen de lasvonken. Lettertype Barlow.',
+  palettes: {
+    light: {
+      canvas: '#e9ebee', surface: '#f6f7f8', raised: '#dfe2e6', sunk: '#e1e4e8',
+      bar: '#f6f7f8', tab: '#f6f7f8', sidebar: '#d9dde2', secondary: '#e2e5e9',
+      border: '#c4c9d0', borderStrong: '#a9b0b9',
+      fg1: '#1d2228', fg2: '#343b44', fg3: '#555e69', fg4: '#8a929c',
+      accent: '#d99a00', accentStrong: '#8a6200', onAccent: '#1d2228'
+    },
+    dark: {
+      canvas: '#16191d', surface: '#1e2227', raised: '#272c32', sunk: '#111417',
+      bar: '#0e1013', tab: '#1c2025', sidebar: '#121519', secondary: '#272c32',
+      border: '#333941', borderStrong: '#454c56',
+      fg1: '#e8ebee', fg2: '#c3c8ce', fg3: '#9aa1aa', fg4: '#69717b',
+      accent: '#ffc21a', accentStrong: '#9c7400', onAccent: '#16191d'
+    }
+  },
+  wallpaper: {
+    light: 'assets/themes/werkplaats/staal-light.svg',
+    dark: 'assets/themes/werkplaats/staal-dark.svg'
+  },
+  motion: { dark: 'assets/themes/werkplaats/vonken-dark.svg' },
+  motionStyle: 'fall',
+  motionArea: 'full',
+  font: {
+    family: 'Barlow',
+    fallback: '"Segoe UI", sans-serif',
+    faces: [
+      { file: 'assets/themes/werkplaats/Barlow-Regular.woff2', weight: '100 500' },
+      { file: 'assets/themes/werkplaats/Barlow-Bold.woff2', weight: '600 900' }
+    ]
+  },
+  radius: '2px'
+};
+
+// Delfts blauw: porseleinwit met kobaltblauw, Delftse tegels langs de randen;
+// donker = nachtblauw met lichtblauwe lijntjes. Lettertype Lora (OFL).
+const DELFTS = {
+  name: 'Delfts blauw',
+  description: 'Porseleinwit met kobaltblauw en Delftse tegels. Lettertype Lora.',
+  palettes: {
+    light: {
+      canvas: '#f5f8fc', surface: '#ffffff', raised: '#e9eff8', sunk: '#edf2f9',
+      bar: '#ffffff', tab: '#ffffff', sidebar: '#e6edf8', secondary: '#eaf0f9',
+      border: '#cfdbee', borderStrong: '#b2c3e2',
+      fg1: '#12245a', fg2: '#2a3d78', fg3: '#4a5d96', fg4: '#8593bd',
+      accent: '#1f4fa8', accentStrong: '#173d85', onAccent: '#ffffff'
+    },
+    dark: {
+      canvas: '#0e1733', surface: '#15204a', raised: '#1c2a5a', sunk: '#0a1128',
+      bar: '#08102a', tab: '#13204a', sidebar: '#0b1430', secondary: '#1c2a5a',
+      border: '#26376e', borderStrong: '#34488a',
+      fg1: '#eaf0ff', fg2: '#c6d3f5', fg3: '#98a9da', fg4: '#64759f',
+      accent: '#8fb2ff', accentStrong: '#3a5fb8', onAccent: '#0e1733'
+    }
+  },
+  wallpaper: {
+    light: 'assets/themes/delfts/tegels-light.svg',
+    dark: 'assets/themes/delfts/tegels-dark.svg'
+  },
+  font: {
+    family: 'Lora',
+    fallback: 'Georgia, serif',
+    faces: [{ file: 'assets/themes/delfts/Lora-Variable.woff2', weight: '400 700' }]
+  },
+  radius: '4px'
+};
+
+// Haven: de Zaanstreek aan het water, met molens, huisjes, een schip en een
+// kraan; het water golft (bewegende laag onderin). 's Nachts met havenlichtjes.
+// Lettertype Work Sans (OFL).
+const HAVEN = {
+  name: 'Haven',
+  description: 'De Zaanstreek aan het water, met golvend water en \'s nachts havenlichtjes. Lettertype Work Sans.',
+  palettes: {
+    light: {
+      canvas: '#eef5f8', surface: '#fbfdfe', raised: '#e2edf2', sunk: '#e6f0f4',
+      bar: '#fbfdfe', tab: '#fbfdfe', sidebar: '#e0ecf1', secondary: '#e3eef3',
+      border: '#c8dbe4', borderStrong: '#a9c4d1',
+      fg1: '#0f2a3a', fg2: '#274656', fg3: '#486676', fg4: '#7f99a6',
+      accent: '#0a7ea4', accentStrong: '#075f7c', onAccent: '#ffffff'
+    },
+    dark: {
+      canvas: '#0a1a26', surface: '#0f2433', raised: '#163042', sunk: '#07131c',
+      bar: '#050f17', tab: '#0e2230', sidebar: '#08151f', secondary: '#163042',
+      border: '#1f3c50', borderStrong: '#2b4f66',
+      fg1: '#e6f3fa', fg2: '#bcd5e2', fg3: '#8badbf', fg4: '#5a7a8b',
+      accent: '#4cc3e6', accentStrong: '#1f87a8', onAccent: '#06202b'
+    }
+  },
+  wallpaper: {
+    light: 'assets/themes/haven/haven-light.svg',
+    dark: 'assets/themes/haven/haven-dark.svg'
+  },
+  motion: {
+    light: 'assets/themes/haven/golven-light.svg',
+    dark: 'assets/themes/haven/golven-dark.svg'
+  },
+  motionStyle: 'waves',
+  motionArea: 'bottom',
+  font: {
+    family: 'Work Sans',
+    fallback: '"Segoe UI", sans-serif',
+    faces: [{ file: 'assets/themes/haven/WorkSans-Variable.woff2', weight: '300 700' }]
+  },
+  radius: '6px'
+};
+
+// Arcade: spelletjes uit de jaren 80/90. Eigen pixelkunst (overdag wolken,
+// heuvels en munten; 's nachts sterren, een planeet en ruimtewezens),
+// pixellettertype Pixelify Sans (OFL) en geen afgeronde hoeken.
+const ARCADE = {
+  name: 'Arcade',
+  description: 'Pixels uit de spelletjestijd: overdag wolken en munten, \'s nachts de ruimte. Lettertype Pixelify Sans.',
+  palettes: {
+    light: {
+      canvas: '#f2f4ff', surface: '#ffffff', raised: '#e6e9ff', sunk: '#e9ecff',
+      bar: '#ffffff', tab: '#ffffff', sidebar: '#e3e7ff', secondary: '#e8ebff',
+      border: '#c9cff5', borderStrong: '#a9b1ee',
+      fg1: '#14163a', fg2: '#2d3170', fg3: '#4f55a0', fg4: '#8d92c9',
+      accent: '#5a3cff', accentStrong: '#3f22d6', onAccent: '#ffffff'
+    },
+    dark: {
+      canvas: '#0d0d1a', surface: '#16162b', raised: '#20203d', sunk: '#090912',
+      bar: '#07070f', tab: '#14142a', sidebar: '#0a0a16', secondary: '#20203d',
+      border: '#2c2c52', borderStrong: '#3d3d6e',
+      fg1: '#f1f1ff', fg2: '#c9c9f0', fg3: '#9a9ad0', fg4: '#6262a0',
+      accent: '#00e5ff', accentStrong: '#008ea0', onAccent: '#0d0d1a'
+    }
+  },
+  wallpaper: {
+    light: 'assets/themes/arcade/pixel-light.svg',
+    dark: 'assets/themes/arcade/pixel-dark.svg'
+  },
+  font: {
+    family: 'Pixelify Sans',
+    fallback: 'Consolas, monospace',
+    faces: [{ file: 'assets/themes/arcade/PixelifySans-Variable.woff2', weight: '400 700' }]
+  },
+  radius: '0px'
+};
+
 const THEMES = {
   // De app precies zoals de webapp hem maakt: geen licht/donker, geen
   // leescomfort, geen aangepaste kleuren of zijbalk (main.js darkActive,
@@ -230,7 +377,11 @@ const THEMES = {
   nederpop: NEDERPOP,
   gruvbox: GRUVBOX,
   terminal: TERMINAL,
-  noorderlicht: NOORDERLICHT
+  noorderlicht: NOORDERLICHT,
+  werkplaats: WERKPLAATS,
+  delfts: DELFTS,
+  haven: HAVEN,
+  arcade: ARCADE
 };
 
 const DEFAULT_THEME = 'standaard';
@@ -645,46 +796,81 @@ function wallpaperVariablesCss(id, theme) {
 // verschuift en van helderheid verandert. Dat doet de videokaart (transform
 // en opacity), zonder de pagina steeds opnieuw te tekenen. Zo traag dat het
 // niet afleidt; met "animaties uit" in Windows staat hij stil.
-// Twee lagen met dezelfde afbeelding (de tweede gespiegeld) die in een
-// ander tempo tegen elkaar in bewegen: samen golft dat natuurlijker dan één
-// laag die heen en weer schuift.
+// Twee lagen met dezelfde afbeelding die in een ander tempo bewegen; samen
+// oogt dat natuurlijker dan één laag. Per thema:
+//   motionStyle: 'drift' (golvend heen en weer, bv. noorderlicht),
+//                'waves' (alleen opzij, bv. golfjes op het water) of
+//                'fall'  (vallen en uitdoven, bv. lasvonken)
+//   motionArea:  'top' (bovenste deel), 'bottom' (onderste deel) of 'full'
+const MOTION_AREAS = {
+  top: 'top: -6vh; left: -20vw; width: 140vw; height: 78vh;',
+  bottom: 'top: 70vh; left: -20vw; width: 140vw; height: 36vh;',
+  full: 'top: 0; left: 0; width: 100vw; height: 100vh;'
+};
+const MOTION_TIMING = {
+  drift: ['20s ease-in-out infinite alternate', '31s ease-in-out infinite alternate'],
+  waves: ['14s ease-in-out infinite alternate', '19s ease-in-out infinite alternate'],
+  fall: ['2.8s linear infinite', '3.7s linear -1.4s infinite']
+};
+const MOTION_KEYFRAMES = {
+  drift: [
+    `0% { transform: translate3d(-12vw, 0, 0) scaleY(0.9); opacity: 0.5; }
+    50% { transform: translate3d(0, 3vh, 0) scaleY(1.2); opacity: 1; }
+    100% { transform: translate3d(12vw, -2vh, 0) scaleY(0.95); opacity: 0.65; }`,
+    `0% { transform: translate3d(10vw, 2vh, 0) scale(-1, 1.1); opacity: 0.25; }
+    50% { transform: translate3d(-4vw, -2vh, 0) scale(-1, 0.85); opacity: 0.6; }
+    100% { transform: translate3d(-12vw, 1vh, 0) scale(-1, 1.15); opacity: 0.3; }`
+  ],
+  waves: [
+    `0% { transform: translate3d(-10vw, 0, 0); opacity: 0.6; }
+    100% { transform: translate3d(10vw, 0.6vh, 0); opacity: 0.95; }`,
+    `0% { transform: translate3d(8vw, 1vh, 0) scale(-1, 1); opacity: 0.35; }
+    100% { transform: translate3d(-8vw, 0.4vh, 0) scale(-1, 1); opacity: 0.6; }`
+  ],
+  fall: [
+    `0% { transform: translate3d(0, -4vh, 0); opacity: 0; }
+    15% { opacity: 1; }
+    70% { opacity: 0.9; }
+    100% { transform: translate3d(0, 8vh, 0); opacity: 0; }`,
+    `0% { transform: translate3d(-1vw, -2vh, 0) scale(1.08); opacity: 0; }
+    20% { opacity: 0.8; }
+    100% { transform: translate3d(1vw, 10vh, 0) scale(1.08); opacity: 0; }`
+  ]
+};
+
 function motionCss(id, theme, sel, p) {
   const mode = p.dark ? 'dark' : 'light';
   if (!motionFor(theme, mode)) return '';
+  const area = MOTION_AREAS[theme.motionArea] || MOTION_AREAS.top;
+  const [timingA, timingB] = MOTION_TIMING[theme.motionStyle] || MOTION_TIMING.drift;
   return `
   ${sel} body::before,
   ${sel} body::after {
     content: '';
     position: fixed;
-    top: -6vh;
-    left: -20vw;
-    width: 140vw;
-    height: 78vh;
+    ${area}
     z-index: -1;
     pointer-events: none;
     background: var(--sg-motion-${mode}) center / 100% 100% no-repeat;
     will-change: transform, opacity;
   }
   ${sel} body::before {
-    animation: sg-theme-drift 20s ease-in-out infinite alternate;
+    animation: sg-motion-${id}-a ${timingA};
   }
   ${sel} body::after {
-    animation: sg-theme-drift-back 31s ease-in-out infinite alternate;
+    animation: sg-motion-${id}-b ${timingB};
   }`;
 }
 
 function motionKeyframesCss(id, theme) {
   if (!theme.motion) return '';
+  const [framesA, framesB] = MOTION_KEYFRAMES[theme.motionStyle] || MOTION_KEYFRAMES.drift;
   return `
-  @keyframes sg-theme-drift {
-    0% { transform: translate3d(-12vw, 0, 0) scaleY(0.9); opacity: 0.5; }
-    50% { transform: translate3d(0, 3vh, 0) scaleY(1.2); opacity: 1; }
-    100% { transform: translate3d(12vw, -2vh, 0) scaleY(0.95); opacity: 0.65; }
+  @keyframes sg-motion-${id}-a {
+    ${framesA}
   }
-  @keyframes sg-theme-drift-back {
-    0% { transform: translate3d(10vw, 2vh, 0) scale(-1, 1.1); opacity: 0.25; }
-    50% { transform: translate3d(-4vw, -2vh, 0) scale(-1, 0.85); opacity: 0.6; }
-    100% { transform: translate3d(-12vw, 1vh, 0) scale(-1, 1.15); opacity: 0.3; }
+  @keyframes sg-motion-${id}-b {
+    ${framesB}
   }
   @media (prefers-reduced-motion: reduce) {
     html.sg-theme-${id} body::before,
