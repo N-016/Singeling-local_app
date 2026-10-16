@@ -2,6 +2,25 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.3.0-beta.1] - 2026-10-16
+
+Bètaversie: alleen voor wie "Bèta-versies ontvangen" aan heeft staan.
+
+### Toegevoegd
+- **Thema's** (Instellingen > Thema's): geef de app een eigen uiterlijk. Elk thema werkt met licht en donker.
+  - **Dynamische thema's**, waarin rustig iets beweegt: Terminal, Noorderlicht, Werkplaats, Delfts blauw, Haven en Arcade. Staan animaties in Windows uit, dan staat alles stil.
+  - **Thema's** met een eigen sfeer en achtergrond: Rosé Pine, Cassette en Gruvbox.
+  - **Kleurensets** met alleen andere kleuren: Neutraal (de Singeling-kleuren), Blauw, Groen, Roze, Crème en Lavendel.
+  - **Standaard**: de app precies zoals hij gemaakt is, zonder licht/donker of leescomfort.
+- **Instelassistent**: in een paar schermen kies je een thema, licht of donker, leescomfort en hoe de melding "Niet geklokt op een order" eruitziet. Je ziet elke keuze meteen. Na deze update verschijnt hij één keer; daarna open je hem via Instellingen > Algemeen.
+
+### Gewijzigd
+- De rondleiding is korter: twee pagina's over werken met tabs en de knoppen bovenin de balk.
+- Licht/donker wisselt nu standaard vanzelf met zonsopkomst en -ondergang. Wie bewust Windows of vaste tijden had gekozen, houdt dat.
+
+### Opgelost
+- Op pagina's met een thema-achtergrond waren sommige kaarten doorzichtig (bv. de ingeklokte medewerkers op de Shopfloor). Ze zijn nu dicht en goed leesbaar.
+
 ## [1.2.4] - 2026-10-16
 
 ### Toegevoegd
