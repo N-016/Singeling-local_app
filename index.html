@@ -1343,6 +1343,7 @@
       --p-on-accent: var(--pd-onAccent);
       --p-wallpaper: var(--pd-wallpaper);
       --p-motion: var(--pd-motion);
+      --p-ambient: var(--pd-ambient);
       display: flex;
       flex-direction: column;
       height: 104px;
@@ -1365,6 +1366,7 @@
       --p-on-accent: var(--pl-onAccent);
       --p-wallpaper: var(--pl-wallpaper);
       --p-motion: var(--pl-motion);
+      --p-ambient: var(--pl-ambient);
     }
 
     .tp-bar {
@@ -1420,7 +1422,7 @@
       flex: 1;
       padding: 6px 8px;
       overflow: hidden;
-      background: var(--p-wallpaper) center bottom / cover no-repeat, var(--p-canvas);
+      background: var(--p-ambient) center bottom / cover no-repeat, var(--p-wallpaper) center bottom / cover no-repeat, var(--p-canvas);
     }
 
     .tp-motion {
@@ -2249,10 +2251,26 @@
       display: none;
     }
 
-    /* Stap zonder aanwijsdoel (welkom/afsluiting): de kaart staat in het
-       midden en de overlay dimt zelf, i.p.v. via de spotlight. */
+    /* Stap zonder aanwijsdoel (welkom, nieuw, klaar): een volle pagina in
+       de stijl van de instelassistent. Bovenin een strook om het venster te
+       slepen; de vensterknoppen blijven erboven (html.tour-page). */
     #onboarding-overlay.no-target {
-      background: rgba(0, 0, 0, 0.62);
+      background: var(--backdrop), var(--app-bg);
+    }
+
+    #onboarding-overlay.no-target::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 38px;
+      -webkit-app-region: drag;
+    }
+
+    html.tour-page #window-controls {
+      position: relative;
+      z-index: 16;
     }
 
     /* Tijdens instellingen-stappen moet de rondleiding boven het (dan
@@ -2293,13 +2311,13 @@
     .onboarding-tooltip {
       --arrow-left: 32px;
       position: fixed;
-      width: min(340px, calc(100vw - 32px));
+      width: min(380px, calc(100vw - 32px));
       box-sizing: border-box;
-      padding: 16px 18px 14px;
+      padding: 20px 22px 16px;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+      border-radius: 16px;
+      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
       transition: top 0.4s var(--ease), left 0.4s var(--ease);
       animation: pop-in 0.3s var(--ease);
     }
@@ -2330,8 +2348,12 @@
     }
 
     .onboarding-tooltip.centered {
-      width: min(440px, calc(100vw - 32px));
-      padding: 24px 26px 18px;
+      width: min(640px, calc(100vw - 48px));
+      padding: 0;
+      background: none;
+      border: 0;
+      box-shadow: none;
+      text-align: center;
     }
 
     /* Inhoud faded over bij het wisselen van stap. */
@@ -2344,18 +2366,25 @@
       transform: translateY(4px);
     }
 
-    .onboarding-head {
+    /* Logo, icoon of vinkje boven een volle pagina. */
+    .onboarding-hero {
+      display: none;
+    }
+
+    .onboarding-tooltip.centered .onboarding-hero {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 8px;
+      justify-content: center;
+    }
+
+    .onboarding-hero .setup-done-mark path {
+      animation: setup-check 0.5s var(--ease) 0.35s forwards;
     }
 
     #onboarding-label {
       display: flex;
       align-items: center;
       gap: 7px;
+      margin-bottom: 8px;
       font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
@@ -2370,27 +2399,39 @@
       background: var(--accent);
     }
 
-    #onboarding-progress {
-      font-size: 11.5px;
-      color: var(--text-faint);
-      font-variant-numeric: tabular-nums;
+    .onboarding-tooltip.centered #onboarding-label {
+      justify-content: center;
+    }
+
+    .onboarding-tooltip.centered #onboarding-label::before {
+      display: none;
     }
 
     .onboarding-tooltip h2 {
       margin: 0 0 6px;
-      font-size: 16px;
-      font-weight: 600;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.25;
     }
 
     .onboarding-tooltip.centered h2 {
-      font-size: 20px;
+      margin-bottom: 10px;
+      font-size: 30px;
+      line-height: 1.2;
     }
 
     .onboarding-tooltip p {
       margin: 0;
       color: var(--text-2);
-      font-size: 13px;
+      font-size: 13.5px;
       line-height: 1.55;
+    }
+
+    .onboarding-tooltip.centered p {
+      max-width: 540px;
+      margin: 0 auto;
+      font-size: 15px;
     }
 
     /* Opsomming (bv. "wat is er nieuw"), met oranje streepjes. */
@@ -2403,36 +2444,15 @@
       gap: 7px;
     }
 
+    .onboarding-tooltip.centered #onboarding-bullets {
+      width: fit-content;
+      margin: 22px auto 0;
+      gap: 9px;
+      text-align: left;
+    }
+
     #onboarding-bullets.hidden {
       display: none;
-    }
-
-    /* Keuzescherm (stap met choices: true): per vraag een label en knoppen. */
-    #onboarding-choices {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      margin-top: 14px;
-    }
-
-    #onboarding-choices.hidden {
-      display: none;
-    }
-
-    .onboarding-choice-label {
-      margin-bottom: 6px;
-      font-size: 10.5px;
-      font-weight: 600;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }
-
-    .onboarding-choice-hint {
-      margin-top: 6px;
-      font-size: 12px;
-      color: var(--text-muted);
-      line-height: 1.4;
     }
 
     #onboarding-bullets li {
@@ -2441,6 +2461,10 @@
       font-size: 13px;
       color: var(--text-2);
       line-height: 1.45;
+    }
+
+    .onboarding-tooltip.centered #onboarding-bullets li {
+      font-size: 14px;
     }
 
     #onboarding-bullets li::before {
@@ -2453,43 +2477,44 @@
       background: var(--accent);
     }
 
-    .onboarding-progressbar {
-      height: 3px;
-      margin: 14px 0 12px;
-      border-radius: 3px;
-      background: var(--hover-strong);
-      overflow: hidden;
-    }
-
-    #onboarding-progress-fill {
-      display: block;
-      height: 100%;
-      width: 0;
-      background: var(--accent);
-      transition: width 0.4s var(--ease);
-    }
-
+    /* Onderaan: bolletjes voor de voortgang en de knoppen. */
     .onboarding-footer {
       display: flex;
       align-items: center;
-      justify-content: flex-end;
+      justify-content: space-between;
       gap: 12px;
+      margin-top: 18px;
+    }
+
+    .onboarding-footer .setup-dots {
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .onboarding-footer .setup-dots span {
+      width: 6px;
+      height: 6px;
+    }
+
+    .onboarding-footer .setup-dots span.on {
+      width: 16px;
     }
 
     .onboarding-buttons {
       display: flex;
-      gap: 8px;
+      align-items: center;
+      gap: 4px;
     }
 
     .onboarding-buttons button {
-      padding: 6px 14px;
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius);
-      color: var(--text);
-      background: var(--surface-raised);
+      padding: 7px 12px;
+      border: 0;
+      border-radius: 10px;
+      background: none;
+      color: var(--text-2);
       font-size: 13px;
       cursor: pointer;
-      transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease), transform 0.12s var(--ease);
+      transition: background-color 0.15s var(--ease), transform 0.12s var(--ease);
     }
 
     .onboarding-buttons button:hover {
@@ -2505,9 +2530,10 @@
     }
 
     #onboarding-next {
-      border-color: var(--accent);
+      padding: 8px 18px;
       background: var(--accent-strong);
       color: #fff;
+      font-weight: 600;
     }
 
     #onboarding-next:hover {
@@ -2518,6 +2544,43 @@
       opacity: 0.55;
       cursor: wait;
       background: var(--accent-strong);
+    }
+
+    /* Volle pagina: zoals de instelassistent, de grote knop in het midden
+       met de bolletjes erboven en Terug/Changelog eronder. */
+    .onboarding-tooltip.centered .onboarding-footer {
+      flex-direction: column;
+      gap: 18px;
+      margin-top: 44px;
+    }
+
+    .onboarding-tooltip.centered .onboarding-footer .setup-dots {
+      gap: 7px;
+    }
+
+    .onboarding-tooltip.centered .onboarding-footer .setup-dots span {
+      width: 7px;
+      height: 7px;
+    }
+
+    .onboarding-tooltip.centered .onboarding-footer .setup-dots span.on {
+      width: 22px;
+    }
+
+    .onboarding-tooltip.centered .onboarding-buttons {
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .onboarding-tooltip.centered #onboarding-next {
+      order: -1;
+      min-width: 240px;
+      padding: 12px 28px;
+      font-size: 15px;
+    }
+
+    .onboarding-tooltip.centered .onboarding-buttons button:not(#onboarding-next) {
+      color: var(--accent);
     }
 
     /* Golf bij de licht/donker-demo: rolt vanuit de knop in de nieuwe
@@ -2539,6 +2602,485 @@
     @keyframes spotlight-pulse {
       0% { opacity: 0.8; transform: scale(1); }
       100% { opacity: 0; transform: scale(1.08); }
+    }
+
+    /* ---------- Instelassistent ---------- */
+
+    /* Schermvullend, één vraag per pagina. Bovenin een lege strook waarmee
+       je het venster nog kunt slepen; de vensterknoppen blijven erboven. */
+    #setup-assistant {
+      position: fixed;
+      inset: 0;
+      z-index: 35;
+      display: flex;
+      flex-direction: column;
+      background: var(--backdrop), var(--app-bg);
+      color: var(--text);
+      transition: opacity 0.35s var(--ease);
+      animation: fade-in 0.35s var(--ease);
+      -webkit-app-region: no-drag;
+    }
+
+    #setup-assistant.hidden {
+      display: none;
+    }
+
+    #setup-assistant.leaving {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    html.setup-open #window-controls {
+      position: relative;
+      z-index: 36;
+    }
+
+    .setup-dragbar {
+      flex: 0 0 38px;
+      -webkit-app-region: drag;
+    }
+
+    .setup-back {
+      position: absolute;
+      top: 50px;
+      left: 22px;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 10px 6px 6px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-2);
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.15s var(--ease), opacity 0.2s var(--ease);
+    }
+
+    .setup-back:hover {
+      background: var(--hover-strong);
+    }
+
+    .setup-back.hidden {
+      display: flex;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .setup-stage {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* Pagina's schuiven als bij een iPhone die je instelt: de volgende komt
+       van rechts, de vorige gaat naar links. */
+    .setup-page {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      padding: 40px 32px 8px;
+      text-align: center;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(48px);
+      transition: opacity 0.3s var(--ease), transform 0.45s var(--ease), visibility 0s linear 0.45s;
+    }
+
+    .setup-page.before {
+      transform: translateX(-48px);
+    }
+
+    .setup-page.active {
+      opacity: 1;
+      visibility: visible;
+      transform: none;
+      transition: opacity 0.35s var(--ease) 0.1s, transform 0.45s var(--ease), visibility 0s;
+    }
+
+    .setup-page.setup-tall {
+      justify-content: flex-start;
+      padding-top: 40px;
+    }
+
+    .setup-icon {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: 64px;
+      height: 64px;
+      margin-bottom: 22px;
+      border-radius: 18px;
+      background: linear-gradient(150deg, var(--accent-hover), var(--accent-strong));
+      color: #fff;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+    }
+
+    .setup-page.setup-tall .setup-icon {
+      width: 52px;
+      height: 52px;
+      margin-bottom: 16px;
+      border-radius: 15px;
+    }
+
+    .setup-page .brand-logo {
+      width: 260px;
+      margin: 0 auto 30px;
+    }
+
+    .setup-page h1 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+
+    .setup-lead {
+      max-width: 540px;
+      margin: 0 auto;
+      font-size: 15px;
+      line-height: 1.55;
+      color: var(--text-2);
+    }
+
+    .setup-page.setup-tall .setup-lead {
+      max-width: 820px;
+    }
+
+    .setup-note {
+      max-width: 540px;
+      min-height: 2.9em;
+      margin: 22px auto 0;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--text-muted);
+    }
+
+    /* Grote keuzes naast elkaar, elk met een tekening en een rondje eronder
+       (zoals "Weergave" bij het instellen van een Mac). */
+    .setup-options {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 18px;
+      margin-top: 34px;
+    }
+
+    .setup-option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 196px;
+      padding: 12px 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+      transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease), transform 0.12s var(--ease);
+    }
+
+    .setup-option:hover {
+      border-color: var(--border-strong);
+    }
+
+    .setup-option:active {
+      transform: scale(0.98);
+    }
+
+    .setup-option[aria-checked="true"] {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+
+    .setup-option:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    .setup-mock {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+    }
+
+    .setup-option-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .setup-radio {
+      box-sizing: border-box;
+      width: 16px;
+      height: 16px;
+      border: 1.5px solid var(--border-strong);
+      border-radius: 50%;
+      transition: border-color 0.15s var(--ease), border-width 0.15s var(--ease);
+    }
+
+    .setup-option[aria-checked="true"] .setup-radio {
+      border: 5px solid var(--accent);
+    }
+
+    .setup-option-desc {
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--text-muted);
+    }
+
+    /* Thema's: dezelfde kaartjes als bij Instellingen > Thema's, één rij
+       per soort met links de naam, zodat alles zonder scrollen past. Een
+       kaartje is zo breed als past: 6 naast elkaar (breedte) en 4 rijen
+       onder elkaar (hoogte), wat het kleinst uitkomt. Pas bij een heel
+       laag venster komt er een klein stukje scrollen bij. */
+    .setup-themes {
+      --card-w: clamp(112px, min(calc((100vw - 344px) / 6), calc((100vh - 510px) / 2.5)), 250px);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+      min-height: 0;
+      max-width: 100%;
+      margin-top: 22px;
+      padding: 4px 8px 12px;
+      box-sizing: border-box;
+      overflow-y: auto;
+      text-align: left;
+    }
+
+    .setup-themes .theme-group {
+      display: grid;
+      grid-template-columns: 180px auto;
+      grid-template-rows: auto auto;
+      column-gap: 24px;
+      margin: 0;
+    }
+
+    .setup-themes .theme-group-title {
+      grid-column: 1;
+      grid-row: 1;
+      align-self: end;
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .setup-themes .theme-group .settings-hint {
+      grid-column: 1;
+      grid-row: 2;
+      align-self: start;
+      margin: 3px 0 0;
+    }
+
+    .setup-themes .theme-grid {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      grid-template-columns: none;
+      grid-auto-flow: column;
+      grid-auto-columns: var(--card-w);
+      gap: 12px;
+    }
+
+    .setup-themes .theme-card {
+      padding: 7px 7px 9px;
+    }
+
+    .setup-themes .theme-preview {
+      height: auto;
+      aspect-ratio: 16 / 10;
+    }
+
+    .setup-themes .tp-title {
+      font-size: clamp(11px, calc(var(--card-w) / 13), 14px);
+      white-space: nowrap;
+    }
+
+    /* De uitleg staat als tooltip op het kaartje (title). */
+    .setup-themes .theme-card-desc {
+      display: none;
+    }
+
+    /* Uitlegpagina's: regels met links het icoontje uit de tabbalk. */
+    .setup-features {
+      display: grid;
+      gap: 18px;
+      width: min(580px, 100%);
+      margin: 30px auto 0;
+      padding: 0;
+      list-style: none;
+      text-align: left;
+    }
+
+    .setup-feature {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .setup-feature-icon {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--accent);
+    }
+
+    .setup-feature-icon svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .setup-feature h2 {
+      margin: 0 0 2px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .setup-feature p {
+      margin: 0;
+      font-size: 13.5px;
+      line-height: 1.45;
+      color: var(--text-muted);
+    }
+
+    .setup-done-mark {
+      display: grid;
+      place-items: center;
+      width: 84px;
+      height: 84px;
+      margin-bottom: 24px;
+      border-radius: 50%;
+      background: linear-gradient(150deg, var(--accent-hover), var(--accent-strong));
+      color: #fff;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+    }
+
+    .setup-done-mark path {
+      stroke-dasharray: 30;
+      stroke-dashoffset: 30;
+    }
+
+    .setup-page.active .setup-done-mark path {
+      animation: setup-check 0.5s var(--ease) 0.35s forwards;
+    }
+
+    @keyframes setup-check {
+      to { stroke-dashoffset: 0; }
+    }
+
+    .setup-footer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      padding: 14px 24px 34px;
+    }
+
+    .setup-dots {
+      display: flex;
+      gap: 7px;
+    }
+
+    .setup-dots span {
+      width: 7px;
+      height: 7px;
+      border-radius: 4px;
+      background: var(--border-strong);
+      transition: width 0.3s var(--ease), background-color 0.3s var(--ease);
+    }
+
+    .setup-dots span.on {
+      width: 22px;
+      background: var(--accent);
+    }
+
+    .setup-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .setup-next {
+      min-width: 240px;
+      padding: 12px 28px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--accent-strong);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.15s var(--ease), transform 0.12s var(--ease);
+    }
+
+    .setup-next:hover {
+      background: var(--accent);
+    }
+
+    .setup-next:active {
+      transform: scale(0.97);
+    }
+
+    .setup-next:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    .setup-link {
+      padding: 4px 8px;
+      border: 0;
+      background: none;
+      color: var(--accent);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .setup-link:hover {
+      text-decoration: underline;
+    }
+
+    .setup-link.hidden {
+      display: none;
+    }
+
+    @media (max-height: 640px) {
+      .setup-page { padding-top: 16px; }
+      .setup-page.setup-tall { padding-top: 24px; }
+      .setup-icon { width: 48px; height: 48px; margin-bottom: 14px; border-radius: 14px; }
+      .setup-page h1 { font-size: 24px; }
+      .setup-options { margin-top: 22px; }
+      .setup-features { margin-top: 18px; gap: 12px; }
+      .setup-footer { padding-bottom: 20px; gap: 12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .setup-page,
+      .setup-page.active {
+        transform: none;
+        transition: opacity 0.2s, visibility 0s;
+      }
+
+      .setup-done-mark path {
+        stroke-dashoffset: 0;
+        animation: none !important;
+      }
     }
 
     /* ---------- Taboverzicht ---------- */
@@ -3369,10 +3911,11 @@
     </button>
     <div class="settings-section" data-section="general">
       <h3>Algemeen</h3>
-      <p class="settings-intro">Rondleiding, changelog en hoe links en sneltoetsen zich gedragen.</p>
+      <p class="settings-intro">Rondleiding, instelassistent, changelog en hoe links en sneltoetsen zich gedragen.</p>
       <div class="general-actions">
         <button id="show-changelog-btn" type="button">Changelog bekijken</button>
         <button id="restart-onboarding-btn" type="button">Rondleiding opnieuw volgen</button>
+        <button id="restart-setup-btn" type="button">Instelassistent openen</button>
       </div>
       <label class="general-toggle">
         <span class="toggle-text">
@@ -3430,7 +3973,7 @@
         <span class="toggle-text">
           Leescomfort: zachtere kleuren
           <span class="settings-hint">Minder fel contrast, prettiger voor je ogen bij lang lezen. Licht wordt rustig zachtgrijs in plaats van fel wit; donker wordt donkergrijs in plaats van bijna zwart.</span>
-          <span id="soft-colors-theme-hint" class="settings-hint">Het gekozen thema heeft zijn eigen kleuren, daarom werkt leescomfort hier niet. Kies bij Thema's de kleurenset Singeling of Testthema om het weer te gebruiken.</span>
+          <span id="soft-colors-theme-hint" class="settings-hint">Het gekozen thema heeft zijn eigen kleuren, daarom werkt leescomfort hier niet. Kies bij Thema's een kleurenset (bv. Neutraal) om het weer te gebruiken.</span>
         </span>
         <input type="checkbox" class="switch" id="soft-colors-checkbox">
       </label>
@@ -3447,14 +3990,24 @@
       <h3>Thema's <span class="beta-badge">bèta</span></h3>
       <p class="settings-intro">Geef de app een eigen uiterlijk. Werkt samen met licht/donker: de voorbeelden laten zien hoe het er nu uitziet. Zolang dit een bèta is zie je dit tabblad alleen met "Bèta-versies ontvangen" aan (Updates).</p>
       <div class="theme-group">
+        <h4 class="theme-group-title">Dynamische thema's</h4>
+        <p class="settings-hint">Net als een thema, maar in de achtergrond beweegt er rustig iets. Staan animaties in Windows uit, dan staat alles stil.</p>
+        <div class="theme-grid" data-theme-kind="dynamisch" role="radiogroup" aria-label="Dynamische thema's"></div>
+      </div>
+      <div class="theme-group">
+        <h4 class="theme-group-title">Thema's</h4>
+        <p class="settings-hint">Een rustige, andere sfeer: eigen kleuren, lettertype, vormen en een achtergrond.</p>
+        <div class="theme-grid" data-theme-kind="thema" role="radiogroup" aria-label="Thema's"></div>
+      </div>
+      <div class="theme-group">
         <h4 class="theme-group-title">Kleurensets</h4>
         <p class="settings-hint">Alleen andere kleuren. Het lettertype en de vormen blijven zoals je gewend bent.</p>
         <div class="theme-grid" data-theme-kind="kleurenset" role="radiogroup" aria-label="Kleurensets"></div>
       </div>
       <div class="theme-group">
-        <h4 class="theme-group-title">Thema's</h4>
-        <p class="settings-hint">Gaan verder: ook een eigen lettertype, eigen vormen en een achtergrond.</p>
-        <div class="theme-grid" data-theme-kind="thema" role="radiogroup" aria-label="Thema's"></div>
+        <h4 class="theme-group-title">Standaard</h4>
+        <p class="settings-hint">De app precies zoals hij gemaakt is, zonder aanpassingen van deze app.</p>
+        <div class="theme-grid" data-theme-kind="standaard" role="radiogroup" aria-label="Standaard"></div>
       </div>
     </div>
 
@@ -3565,22 +4118,166 @@
     <div id="onboarding-spotlight" class="onboarding-spotlight"></div>
     <div id="onboarding-tooltip" class="onboarding-tooltip">
       <div class="onboarding-content">
-        <div class="onboarding-head">
-          <span id="onboarding-label">Rondleiding</span>
-          <span id="onboarding-progress"></span>
-        </div>
+        <div id="onboarding-hero" class="onboarding-hero" aria-hidden="true"></div>
+        <span id="onboarding-label">Rondleiding</span>
         <h2 id="onboarding-title"></h2>
         <p id="onboarding-text"></p>
         <ul id="onboarding-bullets" class="hidden"></ul>
-        <div id="onboarding-choices" class="hidden"></div>
       </div>
-      <div class="onboarding-progressbar"><span id="onboarding-progress-fill"></span></div>
       <div class="onboarding-footer">
+        <div id="onboarding-dots" class="setup-dots" aria-hidden="true"></div>
         <div class="onboarding-buttons">
-          <button id="onboarding-prev" type="button">Vorige</button>
+          <button id="onboarding-prev" type="button">Terug</button>
           <button id="onboarding-changelog" class="hidden" type="button">Changelog</button>
-          <button id="onboarding-next" type="button">Volgende</button>
+          <button id="onboarding-next" type="button">Ga door</button>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Instelassistent (zie "Instelassistent" in het script): per pagina één
+       vraag; de keuzes werken meteen. Pagina's zonder nut (bv. Thema's
+       zonder bèta) slaat het script over. -->
+  <section id="setup-assistant" class="hidden" role="dialog" aria-modal="true" aria-labelledby="setup-title-intro">
+    <div class="setup-dragbar"></div>
+    <button id="setup-back" class="setup-back hidden" type="button">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+      Terug
+    </button>
+    <div class="setup-stage">
+      <div class="setup-page" data-page="intro">
+        <img class="brand-logo logo-dark" src="assets/singeling-logo.svg" alt="Singeling">
+        <img class="brand-logo logo-light" src="assets/singeling-logo-licht.svg" alt="Singeling">
+        <h1 id="setup-title-intro">Maak de app van jou</h1>
+        <p id="setup-intro-lead" class="setup-lead"></p>
+      </div>
+
+      <div class="setup-page setup-tall" data-page="thema">
+        <h1 id="setup-title-thema">Kies een thema</h1>
+        <p class="setup-lead">Klik op een thema en je ziet het meteen. Je kunt altijd wisselen wanneer je wilt.</p>
+        <div class="setup-themes">
+          <div class="theme-group">
+            <h4 class="theme-group-title">Dynamische thema's</h4>
+            <p class="settings-hint">In de achtergrond beweegt er rustig iets.</p>
+            <div class="theme-grid" data-theme-kind="dynamisch" role="radiogroup" aria-label="Dynamische thema's"></div>
+          </div>
+          <div class="theme-group">
+            <h4 class="theme-group-title">Thema's</h4>
+            <p class="settings-hint">Een rustige, andere sfeer met een eigen achtergrond.</p>
+            <div class="theme-grid" data-theme-kind="thema" role="radiogroup" aria-label="Thema's"></div>
+          </div>
+          <div class="theme-group">
+            <h4 class="theme-group-title">Kleurensets</h4>
+            <p class="settings-hint">Alleen andere kleuren, verder alles zoals je gewend bent.</p>
+            <div class="theme-grid" data-theme-kind="kleurenset" role="radiogroup" aria-label="Kleurensets"></div>
+          </div>
+          <div class="theme-group">
+            <h4 class="theme-group-title">Standaard</h4>
+            <p class="settings-hint">De app precies zoals hij gemaakt is.</p>
+            <div class="theme-grid" data-theme-kind="standaard" role="radiogroup" aria-label="Standaard"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="setup-page" data-page="weergave">
+        <div class="setup-icon" aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 7.5v9a4.5 4.5 0 0 0 0-9z" fill="currentColor"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        </div>
+        <h1 id="setup-title-weergave">Licht of donker?</h1>
+        <p class="setup-lead">Kies hoe de app eruitziet. De pagina's gaan mee.</p>
+        <div id="setup-weergave-options" class="setup-options" role="radiogroup" aria-label="Weergave"></div>
+        <p id="setup-weergave-note" class="setup-note"></p>
+      </div>
+
+      <div class="setup-page" data-page="leescomfort">
+        <div class="setup-icon" aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <h1 id="setup-title-leescomfort">Leescomfort</h1>
+        <p class="setup-lead">Zachtere kleuren geven minder fel contrast. Prettig voor je ogen als je lang achter het scherm zit.</p>
+        <div id="setup-soft-options" class="setup-options" role="radiogroup" aria-label="Leescomfort"></div>
+        <p class="setup-note">Zachter = zachtgrijs in plaats van fel wit, en donkergrijs in plaats van bijna zwart.</p>
+      </div>
+
+      <div class="setup-page" data-page="melding">
+        <div class="setup-icon" aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M9 2h6"/></svg>
+        </div>
+        <h1 id="setup-title-melding">Niet geklokt op een order</h1>
+        <p class="setup-lead">Ben je niet ingeklokt op een order, dan meldt de pagina dat bovenaan. Kies hoe opvallend.</p>
+        <div id="setup-clock-options" class="setup-options" role="radiogroup" aria-label="Melding Niet geklokt op een order"></div>
+        <p class="setup-note">"Afwezig" en het blok "Geklokt op" blijven altijd zichtbaar.</p>
+      </div>
+
+      <div class="setup-page" data-page="uitleg-tabs">
+        <div class="setup-icon" aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M9 4v5"/></svg>
+        </div>
+        <h1 id="setup-title-uitleg-tabs">Werken met tabs</h1>
+        <p class="setup-lead">Net als in een browser, met een paar handige extra's.</p>
+        <ul class="setup-features">
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
+            <div><h2>Tabs vastzetten</h2><p>Rechtsklik op een tab. Een vastgezette tab (goudgeel, met slotje) opent links altijd in een nieuw tabblad.</p></div>
+          </li>
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true" data-icon-from="#tab-overview-btn"></span>
+            <div><h2>Taboverzicht</h2><p>Al je tabs en tabgroepen in één oogopslag, met een voorbeeld van elke pagina.</p></div>
+          </li>
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="14" height="11" rx="2"/><rect x="8" y="10" width="14" height="11" rx="2"/></svg></span>
+            <div><h2>Tab loskoppelen</h2><p>Sleep een tab onder de balk uit: hij wordt een eigen venster, bijvoorbeeld voor een tweede scherm.</p></div>
+          </li>
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+            <div><h2>Starttabs</h2><p>Rechtsklik op een tab en kies "Openen bij opstarten": dan staat hij er bij elke start meteen.</p></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="setup-page" data-page="uitleg-balk">
+        <div class="setup-icon" aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20"/><circle cx="6" cy="6.5" r="0.6" fill="currentColor"/><circle cx="9" cy="6.5" r="0.6" fill="currentColor"/></svg>
+        </div>
+        <h1 id="setup-title-uitleg-balk">Alles bovenin de balk</h1>
+        <p class="setup-lead">De knoppen die je het meest nodig hebt.</p>
+        <ul class="setup-features">
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true" data-icon-from="#share-link-btn"></span>
+            <div><h2>Links delen en openen</h2><p>Kopieer de link van een pagina voor een collega, of open een gekregen link met Ctrl+L.</p></div>
+          </li>
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/><path d="M8 11h6"/><path d="M11 8v6"/></svg></span>
+            <div><h2>Zoomen</h2><p>Maak de pagina groter of kleiner met − en +. Klik op het percentage voor 100%.</p></div>
+          </li>
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true" data-icon-from="#dark-mode-btn"></span>
+            <div><h2>Licht of donker</h2><p>Wissel met één klik, of laat het vanzelf gaan bij Instellingen > Weergave.</p></div>
+          </li>
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true" data-icon-from="#help-btn"></span>
+            <div><h2>Hulp nodig?</h2><p>Klik op het kevertje: Nick helpt als de app raar doet, Laurens als er iets niet klopt op een pagina.</p></div>
+          </li>
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true" data-icon-from="#settings-btn"></span>
+            <div><h2>Instellingen</h2><p>Via de moersleutel pas je alles aan. Daar vind je deze uitleg ook terug.</p></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="setup-page" data-page="klaar">
+        <div class="setup-done-mark" aria-hidden="true">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+        </div>
+        <h1 id="setup-title-klaar">Klaar!</h1>
+        <p id="setup-done-lead" class="setup-lead"></p>
+      </div>
+    </div>
+    <div class="setup-footer">
+      <div id="setup-dots" class="setup-dots" aria-hidden="true"></div>
+      <div class="setup-actions">
+        <button id="setup-next" class="setup-next" type="button">Ga door</button>
+        <button id="setup-changelog" class="setup-link hidden" type="button">Wat is er nog meer nieuw?</button>
       </div>
     </div>
   </section>
@@ -3728,11 +4425,9 @@
     });
     // ---------- Rondleidingen ----------
     //
-    // Eén mechanisme voor twee soorten rondleiding:
-    //   - FULL_TOUR: de volledige rondleiding (eerste keer, of via
-    //     Instellingen > Algemeen > "Rondleiding opnieuw volgen").
-    //   - WHATS_NEW_TOURS: korte "Nieuw in deze versie"-rondleidingen die na
-    //     een update eenmalig verschijnen (zie 'whats-new' hieronder).
+    // WHATS_NEW_TOURS: korte "Nieuw in deze versie"-rondleidingen die na
+    // een update eenmalig verschijnen (zie 'whats-new' hieronder). De uitleg
+    // van de app zelf staat in de instelassistent (startOnboarding).
     //
     // Een stap heeft een target (CSS-selector van het uit te lichten
     // onderdeel) of geen target (kaart in het midden). Verder optioneel:
@@ -3745,171 +4440,353 @@
     const onboardingTitle = document.getElementById('onboarding-title');
     const onboardingText = document.getElementById('onboarding-text');
     const onboardingBullets = document.getElementById('onboarding-bullets');
-    const onboardingProgress = document.getElementById('onboarding-progress');
-    const onboardingProgressFill = document.getElementById('onboarding-progress-fill');
+    const onboardingDots = document.getElementById('onboarding-dots');
+    const onboardingHero = document.getElementById('onboarding-hero');
     const onboardingPrev = document.getElementById('onboarding-prev');
     const onboardingNext = document.getElementById('onboarding-next');
     const onboardingChangelog = document.getElementById('onboarding-changelog');
-    const onboardingChoices = document.getElementById('onboarding-choices');
+    // ---------- Instelassistent ----------
+    //
+    // Schermvullend, zoals bij het instellen van een iPhone of Mac: per
+    // pagina één vraag, met "Ga door" naar de volgende. Elke keuze werkt
+    // meteen, via dezelfde functies als Instellingen > Weergave en Thema's.
+    // Vervangt het oude keuzescherm aan het eind van de rondleiding.
+    //
+    // Wie hem doorlopen heeft (setupVersion in de instellingen), krijgt hem
+    // niet nog eens. Verhoog SETUP_VERSION als er een vraag bij komt die
+    // iedereen moet zien. Opnieuw doorlopen kan via Instellingen > Algemeen.
+    const SETUP_VERSION = 1;
+    const SETUP_LEAVE_MS = 350;
+    const setupAssistant = document.getElementById('setup-assistant');
+    const setupBack = document.getElementById('setup-back');
+    const setupNext = document.getElementById('setup-next');
+    const setupChangelog = document.getElementById('setup-changelog');
+    const setupDots = document.getElementById('setup-dots');
 
-    // Keuzescherm aan het eind van de rondleiding: licht/donker en de melding
-    // "Niet geklokt op een order". Bestaande gebruikers krijgen het één keer
-    // na een update (zie 'whats-new' en 'tab-created' hieronder); daarna
-    // staat preferencesChosen in de instellingen.
-    const PREFERENCES_STEP = {
-      choices: true,
-      title: 'Nog een paar keuzes',
-      text: 'Kies hoe je de app wilt hebben. Je kunt dit later altijd aanpassen in de instellingen.'
-    };
-    let preferencesChosen = true; // pas na getSettings bekend
-    let preferencesTourTimer = null;
+    // Twee soorten pagina's: de vragen (questions) en de korte uitleg van de
+    // app (tour, voorheen de rondleiding met uitlegboxjes). Een nieuwe
+    // gebruiker krijgt ze allebei achter elkaar.
+    // when: pagina alleen als hij nu zin heeft. Dat wordt bij elke stap
+    // opnieuw bekeken: het gekozen thema bepaalt of licht/donker en
+    // leescomfort werken.
+    const SETUP_PAGES = [
+      { id: 'intro' },
+      { id: 'thema', when: () => setupRun.questions && themesOffered },
+      { id: 'weergave', when: () => setupRun.questions && !originalTheme },
+      { id: 'leescomfort', when: () => setupRun.questions && softSupported },
+      { id: 'melding', when: () => setupRun.questions },
+      { id: 'uitleg-tabs', when: () => setupRun.tour },
+      { id: 'uitleg-balk', when: () => setupRun.tour },
+      { id: 'klaar' }
+    ];
+    let setupRun = null; // { questions, tour, next, changelog } zolang de assistent open is
+    let setupPageId = null;
+    let setupTimer = null;
+    let setupDoneVersion = SETUP_VERSION; // pas na getSettings bekend
+    let preferencesChosen = true; // idem: oude keuzescherm al gezien?
+    let themesOffered = false; // thema's beschikbaar (bèta), zie renderAppThemeChoice
     window.electronAPI.getSettings().then(settings => {
-      if (settings) preferencesChosen = !!settings.preferencesChosen;
+      if (!settings) return;
+      setupDoneVersion = settings.setupVersion || 0;
+      preferencesChosen = !!settings.preferencesChosen;
+      themesOffered = !!settings.themesAvailable;
     });
 
-    function renderOnboardingChoices() {
-      onboardingChoices.innerHTML = '';
-      const addQuestion = (label, choiceKey, hint) => {
-        const block = document.createElement('div');
-        const title = document.createElement('div');
-        title.className = 'onboarding-choice-label';
-        title.textContent = label;
-        const group = document.createElement('div');
-        group.className = 'choice-group';
-        group.setAttribute('role', 'radiogroup');
-        group.setAttribute('aria-label', label);
-        if (choiceKey) group.dataset.choice = choiceKey;
-        block.append(title, group);
-        if (hint) {
-          const hintElement = document.createElement('div');
-          hintElement.className = 'onboarding-choice-hint';
-          hintElement.textContent = hint;
-          block.appendChild(hintElement);
-        }
-        onboardingChoices.appendChild(block);
-        return group;
-      };
+    // Zonder thema's en met het oude keuzescherm al gezien valt er niets
+    // nieuws te kiezen.
+    function setupNeeded() {
+      return setupDoneVersion < SETUP_VERSION && (themesOffered || !preferencesChosen);
+    }
 
-      // Automatisch = zon op/onder (de standaard). Licht of Donker kiezen
-      // zet het wisselen op handmatig, anders draait de zon het weer om.
-      const themeGroup = addQuestion('Weergave', null,
-        'Automatisch = licht overdag, donker na zonsondergang. Later aan te passen bij Instellingen > Weergave.');
-      const currentWeergave = themeMode === 'zon' ? 'auto' : (darkModeBtn.classList.contains('active') ? 'dark' : 'light');
-      buildChoiceGroup(themeGroup, PREFERENCE_THEME_CHOICES, currentWeergave, value => {
+    function visibleSetupPages() {
+      return SETUP_PAGES.filter(page => !page.when || page.when());
+    }
+
+    function setupOrder(id) {
+      return SETUP_PAGES.findIndex(page => page.id === id);
+    }
+
+    // ---- Tekeningetjes van het venster bij de keuzes ----
+    // Kleuren als CSS-waarde, dus ook var(...): de melding-voorbeelden volgen
+    // zo het huidige thema, licht/donker en leescomfort tonen vaste kleuren.
+    const MOCK_COLORS = {
+      light: { bg: '#f7f8f9', bar: '#ffffff', panel: '#ffffff', line: '#c5c9cf', border: '#dfe2e6' },
+      dark: { bg: '#14161a', bar: '#0f1115', panel: '#1e2127', line: '#4a5059', border: '#2b2f36' },
+      softLight: { bg: '#dfdfdb', bar: '#e1e1de', panel: '#f3f3f0', line: '#b6b6b1', border: '#cdcdc8' },
+      softDark: { bg: '#23262a', bar: '#1f2226', panel: '#2a2d33', line: '#50555d', border: '#3a3f47' },
+      current: { bg: 'var(--app-bg)', bar: 'var(--bar-bg)', panel: 'var(--surface)', line: 'var(--border-strong)', border: 'var(--border)' }
+    };
+    let setupMockCount = 0;
+
+    function mockParts(c, notice) {
+      const fill = value => `style="fill: ${value}"`;
+      let top = 26;
+      let noticeParts = '';
+      if (notice === 'aan') {
+        noticeParts = `<rect x="32" y="15.8" width="128" height="11" ${fill('#ff6a13')}/>
+          <rect x="40" y="19.8" width="52" height="3" rx="1.5" ${fill('#ffffff')}/>`;
+        top = 34;
+      } else if (notice === 'subtiel') {
+        noticeParts = `<circle cx="44" cy="22.5" r="2" ${fill('#ff6a13')}/>
+          <rect x="49" y="21" width="44" height="3" rx="1.5" ${fill(c.line)}/>`;
+        top = 31;
+      }
+      return `<rect width="160" height="100" ${fill(c.bg)}/>
+        <rect width="160" height="15" ${fill(c.bar)}/>
+        <rect y="15" width="160" height="0.8" ${fill(c.border)}/>
+        <rect x="6" y="4" width="28" height="11" rx="2" ${fill(c.panel)}/>
+        <rect x="6" y="4" width="1.6" height="11" ${fill('var(--accent)')}/>
+        <rect x="37" y="5" width="24" height="10" rx="2" ${fill(c.panel)} opacity="0.6"/>
+        <rect y="15.8" width="32" height="84.2" ${fill(c.panel)}/>
+        <rect x="7" y="25" width="18" height="3" rx="1.5" ${fill(c.line)}/>
+        <rect x="7" y="33" width="18" height="3" rx="1.5" ${fill('var(--accent)')}/>
+        <rect x="7" y="41" width="18" height="3" rx="1.5" ${fill(c.line)}/>
+        ${noticeParts}
+        <rect x="42" y="${top}" width="108" height="30" rx="4" ${fill(c.panel)} stroke="${c.border}" stroke-width="0.8"/>
+        <rect x="49" y="${top + 8}" width="58" height="3" rx="1.5" ${fill(c.line)}/>
+        <rect x="49" y="${top + 16}" width="38" height="3" rx="1.5" ${fill(c.line)}/>
+        <rect x="124" y="${top + 19}" width="19" height="6" rx="2" ${fill('var(--accent)')}/>
+        <rect x="42" y="${top + 37}" width="108" height="24" rx="4" ${fill(c.panel)} stroke="${c.border}" stroke-width="0.8"/>
+        <rect x="49" y="${top + 45}" width="70" height="3" rx="1.5" ${fill(c.line)}/>`;
+    }
+
+    // Eén stand, of twee schuin gesplitst (links de eerste, rechts de tweede).
+    function mockWindow(colors, { split, notice } = {}) {
+      const id = `setup-mock-${++setupMockCount}`;
+      const second = split
+        ? `<g clip-path="url(#${id}-half)">${mockParts(split, notice)}</g>`
+        : '';
+      return `<svg class="setup-mock" viewBox="0 0 160 100" aria-hidden="true">
+        <defs>
+          <clipPath id="${id}"><rect width="160" height="100" rx="8"/></clipPath>
+          <clipPath id="${id}-half"><polygon points="104,0 160,0 160,100 56,100"/></clipPath>
+        </defs>
+        <g clip-path="url(#${id})">${mockParts(colors, notice)}${second}</g>
+        <rect x="0.5" y="0.5" width="159" height="99" rx="7.5" fill="none" style="stroke: var(--border-strong)"/>
+      </svg>`;
+    }
+
+    // Vult een rij grote keuzes; onSelect(value) bij een andere keuze.
+    function buildSetupOptions(container, options, current, onSelect) {
+      container.innerHTML = '';
+      for (const option of options) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'setup-option';
+        button.setAttribute('role', 'radio');
+        button.setAttribute('aria-checked', String(option.value === current));
+        button.innerHTML = option.mock;
+        const name = document.createElement('span');
+        name.className = 'setup-option-name';
+        const radio = document.createElement('span');
+        radio.className = 'setup-radio';
+        name.append(radio, option.label);
+        button.appendChild(name);
+        if (option.desc) {
+          const desc = document.createElement('span');
+          desc.className = 'setup-option-desc';
+          desc.textContent = option.desc;
+          button.appendChild(desc);
+        }
+        button.addEventListener('click', () => {
+          if (button.getAttribute('aria-checked') === 'true') return;
+          for (const other of container.children) other.setAttribute('aria-checked', String(other === button));
+          onSelect(option.value);
+        });
+        container.appendChild(button);
+      }
+    }
+
+    // Licht/donker omzetten met dezelfde zachte overgang als de knop in de
+    // tabbalk.
+    function setThemeSmooth(enabled) {
+      clearTimeout(themeSwitchTimer);
+      document.documentElement.classList.add('theme-switching');
+      setThemeDirect(enabled);
+      themeSwitchTimer = setTimeout(() => {
+        document.documentElement.classList.remove('theme-switching');
+      }, THEME_SWITCH_MS + 100);
+    }
+
+    function weergaveNote(value) {
+      if (value !== 'auto') return 'Met de knop in de tabbalk wissel je altijd zelf tussen licht en donker.';
+      if (themeMode === 'systeem') return 'Je volgt nu de instelling van Windows. Vaste tijden of zon op/onder kies je bij Instellingen > Weergave.';
+      if (themeMode === 'tijden') return `Je wisselt nu op vaste tijden (donker vanaf ${themeTimeDark.value}, licht vanaf ${themeTimeLight.value}). Aan te passen bij Instellingen > Weergave.`;
+      return 'Overdag licht, na zonsondergang donker. Met de knop in de tabbalk wissel je even tussendoor.';
+    }
+
+    function renderSetupWeergave() {
+      const note = document.getElementById('setup-weergave-note');
+      // Systeem en vaste tijden zijn ook automatisch; die laten we staan.
+      const current = themeMode === 'handmatig' ? (darkModeBtn.classList.contains('active') ? 'dark' : 'light') : 'auto';
+      buildSetupOptions(document.getElementById('setup-weergave-options'), [
+        { value: 'auto', label: 'Automatisch', mock: mockWindow(MOCK_COLORS.light, { split: MOCK_COLORS.dark }) },
+        { value: 'light', label: 'Licht', mock: mockWindow(MOCK_COLORS.light) },
+        { value: 'dark', label: 'Donker', mock: mockWindow(MOCK_COLORS.dark) }
+      ], current, value => {
         themeMode = value === 'auto' ? 'zon' : 'handmatig';
         saveThemeSchedule();
         renderThemeSchedule();
-        if (value !== 'auto') setThemeDirect(value === 'dark');
+        if (value !== 'auto') setThemeSmooth(value === 'dark');
+        note.textContent = weergaveNote(value);
       });
-
-      const softGroup = addQuestion('Leescomfort', null,
-        'Zachter = minder fel contrast: zachtgrijs in licht, donkergrijs in donker.');
-      buildChoiceGroup(softGroup, SOFT_COLOR_CHOICES, softColors ? 'zachter' : 'gewoon',
-        value => setSoftColors(value === 'zachter'));
-
-      addQuestion('Melding "Niet geklokt op een order"', 'not-clocked',
-        'Aan = de oranje balk bovenaan de pagina. Subtiel = een rustige regel. Uit = niet tonen. "Afwezig" blijft altijd zichtbaar.');
-      renderNotClockedChoice();
+      note.textContent = weergaveNote(current);
     }
 
-    function markPreferencesChosen() {
-      if (preferencesChosen) return;
-      preferencesChosen = true;
-      window.electronAPI.markPreferencesChosen();
+    function renderSetupSoft() {
+      buildSetupOptions(document.getElementById('setup-soft-options'), [
+        { value: 'gewoon', label: 'Gewoon', desc: 'Helder wit en diep donker', mock: mockWindow(MOCK_COLORS.light, { split: MOCK_COLORS.dark }) },
+        { value: 'zachter', label: 'Zachter', desc: 'Rustiger voor je ogen', mock: mockWindow(MOCK_COLORS.softLight, { split: MOCK_COLORS.softDark }) }
+      ], softColors ? 'zachter' : 'gewoon', value => setSoftColors(value === 'zachter'));
     }
 
-    // Alleen het keuzescherm, voor wie de rondleiding niet volgt.
-    function startPreferencesTour({ showChangelog = false } = {}) {
-      startTour({ label: 'Even kiezen', steps: [PREFERENCES_STEP], showChangelog });
+    function renderSetupClock() {
+      buildSetupOptions(document.getElementById('setup-clock-options'), [
+        { value: 'aan', label: 'Aan', desc: 'Een oranje balk bovenaan', mock: mockWindow(MOCK_COLORS.current, { notice: 'aan' }) },
+        { value: 'subtiel', label: 'Subtiel', desc: 'Een rustige regel', mock: mockWindow(MOCK_COLORS.current, { notice: 'subtiel' }) },
+        { value: 'uit', label: 'Uit', desc: 'Niet tonen', mock: mockWindow(MOCK_COLORS.current, { notice: 'uit' }) }
+      ], notClockedMode, setNotClockedMode);
     }
 
-    const FULL_TOUR = {
-      label: 'Rondleiding',
-      steps: [
-        {
-          title: 'Welkom in de Singeling App',
-          text: 'In een paar stappen laten we zien hoe de app werkt en waar je alles vindt. Je kunt de rondleiding later altijd opnieuw volgen via de instellingen.'
-        },
-        {
-          target: '#navigation-buttons',
-          title: 'Navigeren en verversen',
-          text: 'Met de pijltjes ga je terug of vooruit, net als in een browser. De ververs-knop (en F5) laadt de huidige pagina opnieuw.'
-        },
-        {
-          target: '#share-link-btn',
-          title: 'Link delen',
-          text: 'Kopieer de link van de huidige pagina, zodat je hem makkelijk kunt delen met collega\'s binnen Singeling.'
-        },
-        {
-          target: '#open-link-btn',
-          title: 'Link openen',
-          text: 'Heb je een link van een collega gekregen? Klik hier (of druk Ctrl+L), plak de link en druk op Enter: hij opent in een nieuw tabblad. Alleen links binnen het productiesysteem werken.'
-        },
-        {
-          target: '#tab-scroll',
-          title: 'Tabs',
-          text: 'De actieve tab herken je aan het oranje balkje. Rechtsklik op een tab om hem vast te zetten: vastgezette tabs zijn goudgeel met een slotje en openen links altijd in een nieuw tabblad. Met de middelste muisknop sluit je een tab.'
-        },
-        {
-          target: '#tab-scroll',
-          title: 'Tab loskoppelen',
-          text: 'Sleep een tab ver genoeg onder de tabbalk uit en laat los: hij wordt een eigen venster, dat je bijvoorbeeld naar een tweede scherm kunt slepen.'
-        },
-        {
-          target: '#tab-overview-btn',
-          title: 'Taboverzicht',
-          text: 'Met deze knop zie je al je tabs in één oogopslag. We openen hem even.'
-        },
-        {
-          target: '.overview-card.active',
-          requiresOverviewOpen: true,
-          title: 'Al je tabs op een rij',
-          text: 'Elke kaart is een open tab, met een voorbeeld van de pagina. Klik op een kaart om ernaartoe te gaan, of zoek bovenin op naam of adres.'
-        },
-        {
-          target: '#overview-groups-section',
-          requiresOverviewOpen: true,
-          title: 'Tabgroepen',
-          text: 'Maak een groep via rechtsklik op een tab > "Toevoegen aan tabgroup". Hier hernoem je de groep, haal je tabs eruit of open je de hele groep in één klik.'
-        },
-        {
-          target: '#tabbar-zoom',
-          title: 'Zoomen',
-          text: 'Maak de pagina groter of kleiner met − en +. Klik op het percentage om terug te gaan naar 100%. Ctrl + scrollen op een pagina werkt ook.'
-        },
-        {
-          target: '#dark-mode-btn',
-          demo: 'theme',
-          title: 'Licht of donker',
-          text: 'Kijk maar: met deze knop wissel je tussen een lichte en een donkere weergave. De tabbalk en de pagina\'s gaan mee.'
-        },
-        {
-          target: '#help-btn',
-          title: 'Iets gevonden dat niet goed gaat?',
-          text: 'Klik op het kevertje. Daar staat bij wie je terechtkunt: Nick als de app zelf (de balk hier bovenin) raar doet, Laurens als er iets niet klopt op een pagina of als je iets mist.'
-        },
-        {
-          target: '.settings-nav',
-          placement: 'side',
-          title: 'Instellingen',
-          text: 'Via de moersleutel kom je hier. Links kies je een onderdeel: algemene voorkeuren, weergave (licht/donker, leescomfort), updates, zoomen en starttabs. Met "Terug" onderin (of Esc) ga je weer naar de pagina.',
-          requiresSettingsOpen: true,
-          settingsSection: 'general'
-        },
-        {
-          target: '#settings-section-start',
-          title: 'Starttabs',
-          text: 'Rechtsklik op een tab en kies "Openen bij opstarten" om hem hier toe te voegen. Starttabs kun je verwijderen of vergrendeld laten openen.',
-          requiresSettingsOpen: true,
-          settingsSection: 'start'
-        },
-        {
-          ...PREFERENCES_STEP,
-          title: 'Klaar! Nog een paar keuzes',
-          text: 'Je bent er klaar voor. Kies nog hoe je de app wilt hebben; dit en de rondleiding vind je later terug in de instellingen.'
+    function renderSetupPage(id) {
+      if (id === 'intro') {
+        const title = document.getElementById('setup-title-intro');
+        const lead = document.getElementById('setup-intro-lead');
+        if (setupRun.questions && setupRun.tour) {
+          title.textContent = 'Welkom bij de Singeling App';
+          lead.textContent = themesOffered
+            ? 'Kies een thema dat bij je past, stel licht of donker in en zie in twee pagina\'s hoe de app werkt. Alles is later aan te passen bij Instellingen.'
+            : 'In een paar stappen stel je de app in en zie je hoe hij werkt. Alles is later aan te passen bij Instellingen.';
+        } else if (setupRun.tour) {
+          title.textContent = 'Zo werkt de app';
+          lead.textContent = 'In twee pagina\'s zie je wat de app allemaal kan.';
+        } else {
+          title.textContent = 'Maak de app van jou';
+          lead.textContent = themesOffered
+            ? 'Nieuw: thema\'s! In een paar stappen geef je de app een eigen uiterlijk en kies je hoe hij eruitziet. Alles is later aan te passen bij Instellingen.'
+            : 'In een paar stappen kies je hoe de app eruitziet. Alles is later aan te passen bij Instellingen.';
         }
-      ]
-    };
+      } else if (id === 'weergave') {
+        renderSetupWeergave();
+      } else if (id === 'leescomfort') {
+        renderSetupSoft();
+      } else if (id === 'melding') {
+        renderSetupClock();
+      } else if (id === 'klaar') {
+        document.getElementById('setup-done-lead').textContent = setupRun.tour
+          ? 'Je bent er klaar voor. De uitleg en de instellingen vind je altijd terug via de moersleutel rechtsboven.'
+          : setupRun.next
+            ? 'Alles staat ingesteld. Hierna laten we kort zien wat er nog meer nieuw is.'
+            : 'Alles staat ingesteld. Je kunt het altijd weer aanpassen via de moersleutel rechtsboven.';
+      }
+    }
+
+    function showSetupPage(id) {
+      const pages = visibleSetupPages();
+      const index = pages.findIndex(page => page.id === id);
+      const last = index === pages.length - 1;
+      setupPageId = id;
+      renderSetupPage(id);
+      for (const element of setupAssistant.querySelectorAll('.setup-page')) {
+        const order = setupOrder(element.dataset.page);
+        element.classList.toggle('active', order === setupOrder(id));
+        element.classList.toggle('before', order < setupOrder(id));
+        element.setAttribute('aria-hidden', String(order !== setupOrder(id)));
+      }
+      setupAssistant.setAttribute('aria-labelledby', `setup-title-${id}`);
+      setupBack.classList.toggle('hidden', index === 0);
+      setupNext.textContent = last ? 'Aan de slag' : 'Ga door';
+      setupChangelog.classList.toggle('hidden', !(last && setupRun.changelog));
+      setupDots.innerHTML = pages.map((page, i) => `<span${i === index ? ' class="on"' : ''}></span>`).join('');
+      setupNext.focus({ preventScroll: true });
+    }
+
+    function stepSetup(delta) {
+      if (!setupRun) return;
+      const current = setupOrder(setupPageId);
+      const pages = visibleSetupPages();
+      const target = delta > 0
+        ? pages.find(page => setupOrder(page.id) > current)
+        : [...pages].reverse().find(page => setupOrder(page.id) < current);
+      if (target) showSetupPage(target.id);
+      else if (delta > 0) finishSetup();
+    }
+
+    // De icoontjes op de uitlegpagina's zijn die van de knoppen in de
+    // tabbalk zelf, zodat je ze herkent.
+    function fillSetupFeatureIcons() {
+      for (const holder of setupAssistant.querySelectorAll('[data-icon-from]:empty')) {
+        const icon = document.querySelector(`${holder.dataset.iconFrom} svg`);
+        if (icon) holder.appendChild(icon.cloneNode(true));
+      }
+    }
+
+    // run: { questions: de vragen, tour: de uitleg van de app, next: wat er
+    // daarna komt (bv. "Nieuw in deze versie"), changelog: tekst voor "Wat is
+    // er nog meer nieuw?" op de laatste pagina }
+    function openSetup(run = { questions: true }) {
+      if (setupRun) return;
+      clearTimeout(setupTimer);
+      if (activeTour) stopOnboarding();
+      setupRun = run;
+      onboardingStarted = true;
+      window.electronAPI.notifyOnboardingStarted();
+      document.documentElement.classList.add('setup-open');
+      setupAssistant.classList.remove('hidden', 'leaving');
+      setupAssistant.style.animation = 'none';
+      void setupAssistant.offsetWidth;
+      setupAssistant.style.animation = '';
+      setupAssistant.querySelector('.setup-themes').scrollTop = 0;
+      fillSetupFeatureIcons();
+      showSetupPage('intro');
+    }
+
+    function finishSetup({ withChangelog = false } = {}) {
+      const run = setupRun;
+      if (!run) return;
+      setupRun = null;
+      if (run.questions) {
+        setupDoneVersion = SETUP_VERSION;
+        preferencesChosen = true;
+        window.electronAPI.markSetupDone(SETUP_VERSION);
+      }
+      // Wat hierna komt eerst openen (houdt de tabinhoud verborgen), anders
+      // flitst de pagina even op.
+      if (withChangelog) {
+        showChangelogOverlay('Wat is er nieuw?', run.changelog);
+        window.electronAPI.notifyOnboardingEnded();
+      } else if (run.next) {
+        run.next();
+      } else {
+        window.electronAPI.notifyOnboardingEnded();
+      }
+      setupAssistant.classList.add('leaving');
+      setTimeout(() => {
+        if (setupRun) return; // intussen weer geopend
+        setupAssistant.classList.add('hidden');
+        setupAssistant.classList.remove('leaving');
+        document.documentElement.classList.remove('setup-open');
+      }, SETUP_LEAVE_MS);
+    }
+
+    setupNext.addEventListener('click', () => stepSetup(1));
+    setupBack.addEventListener('click', () => stepSetup(-1));
+    setupChangelog.addEventListener('click', () => finishSetup({ withChangelog: true }));
+
+    // Enter = Ga door (een andere knop met focus handelt Enter zelf af). Esc
+    // doet niets, net als bij de rondleiding; sneltoetsen van de tabbalk
+    // werken niet zolang de assistent open is.
+    document.addEventListener('keydown', (event) => {
+      if (!setupRun) return;
+      event.stopImmediatePropagation();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+      } else if (event.key === 'Enter') {
+        if (event.target instanceof HTMLButtonElement && event.target !== setupNext) return;
+        event.preventDefault();
+        stepSetup(1);
+      }
+    }, true);
 
     // "Nieuw in deze versie": per update één rondleiding met een vaste id
     // (los van het versienummer). Wie hem gezien heeft, krijgt hem niet nog
@@ -4147,12 +5024,19 @@
       setNextBlocked(false);
     }
 
+    // Boven een volle pagina (stap zonder target): een icoontje of
+    // een vinkje, zoals in de instelassistent.
+    const TOUR_HEROES = {
+      new: '<div class="setup-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></div>',
+      done: '<div class="setup-done-mark"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div>'
+    };
+
     function fillOnboardingContent(step) {
       const total = activeTour.steps.length;
       const isLast = onboardingStepIndex === total - 1;
       onboardingLabel.textContent = activeTour.label;
-      onboardingProgress.textContent = `${onboardingStepIndex + 1} / ${total}`;
-      onboardingProgressFill.style.width = `${((onboardingStepIndex + 1) / total) * 100}%`;
+      onboardingDots.innerHTML = activeTour.steps.map((item, i) => `<span${i === onboardingStepIndex ? ' class="on"' : ''}></span>`).join('');
+      onboardingHero.innerHTML = step.target ? '' : TOUR_HEROES[step.hero || (isLast ? 'done' : 'new')];
       onboardingTitle.textContent = step.title;
       onboardingText.textContent = step.text;
       onboardingBullets.innerHTML = '';
@@ -4162,12 +5046,9 @@
         onboardingBullets.appendChild(item);
       });
       onboardingBullets.classList.toggle('hidden', !step.bullets);
-      if (step.choices) renderOnboardingChoices();
-      else onboardingChoices.innerHTML = '';
-      onboardingChoices.classList.toggle('hidden', !step.choices);
       onboardingPrev.classList.toggle('hidden', onboardingStepIndex === 0);
       onboardingChangelog.classList.toggle('hidden', !(isLast && activeTour.showChangelog));
-      onboardingNext.textContent = isLast ? 'Klaar' : (onboardingStepIndex === 0 && !step.target ? 'Laten zien' : 'Volgende');
+      onboardingNext.textContent = isLast ? 'Klaar' : (onboardingStepIndex === 0 && !step.target ? 'Laat maar zien' : 'Ga door');
     }
 
     async function positionOnboardingStep({ animate = true } = {}) {
@@ -4207,6 +5088,7 @@
       fillOnboardingContent(step);
       onboardingTooltip.classList.toggle('centered', !step.target);
       onboardingOverlay.classList.toggle('no-target', !step.target);
+      document.documentElement.classList.toggle('tour-page', !step.target);
 
       // Wacht een frame zodat het instellingenscherm (indien net geopend of
       // gewisseld) en de nieuwe tekst hun layout hebben voordat we meten.
@@ -4251,8 +5133,10 @@
       positionOnboardingStep({ animate: false });
     }
 
+    // De uitleg van de app (eerste keer, of via Instellingen > Algemeen >
+    // "Rondleiding opnieuw volgen"): de uitlegpagina's van de instelassistent.
     function startOnboarding() {
-      startTour(FULL_TOUR);
+      openSetup({ tour: true });
     }
 
     function stopOnboarding() {
@@ -4261,6 +5145,7 @@
       stopThemeDemo();
       onboardingOverlay.classList.add('hidden');
       onboardingOverlay.classList.remove('above-settings', 'no-target');
+      document.documentElement.classList.remove('tour-page');
       window.electronAPI.notifyOnboardingEnded();
       if (settingsOpenedByOnboarding) {
         closeSettingsPanel();
@@ -4279,7 +5164,6 @@
       // van het instellingenscherm), waardoor het scherm per ongeluk sluit.
       event.stopPropagation();
       if (!activeTour) return;
-      if (activeTour.steps[onboardingStepIndex].choices) markPreferencesChosen();
       if (onboardingStepIndex >= activeTour.steps.length - 1) {
         stopOnboarding();
         return;
@@ -4300,7 +5184,6 @@
     // rondleiding sluiten, anders flitst de pagina even op.
     onboardingChangelog.addEventListener('click', async (event) => {
       event.stopPropagation();
-      if (activeTour && activeTour.steps[onboardingStepIndex].choices) markPreferencesChosen();
       showChangelogOverlay('Changelog', await window.electronAPI.getChangelog());
       stopOnboarding();
     });
@@ -4320,19 +5203,21 @@
       if (activeTour) positionOnboardingStep({ animate: false });
     });
 
-    // Start de volledige rondleiding pas zodra de eerste tab echt bestaat (na
-    // het accepteren van de welkomstmelding), en na de intro van de tabs.
+    // Start de instelassistent (vragen en/of uitleg) pas zodra de eerste tab
+    // echt bestaat (na het accepteren van de welkomstmelding), en na de intro
+    // van de tabs.
     const TOUR_START_DELAY_MS = 1400;
     window.electronAPI.on('tab-created', () => {
       if (onboardingStarted) return;
       onboardingStarted = true;
+      // Komt er direct hierna een 'whats-new' (update), dan neemt die het
+      // over (setupTimer).
       if (wantsOnboarding) {
-        setTimeout(startOnboarding, TOUR_START_DELAY_MS);
-      } else if (!preferencesChosen) {
-        // Geen rondleiding, maar nog niet gekozen: alleen het keuzescherm.
-        // Komt er direct hierna een 'whats-new' (update), dan neemt die het
-        // over en zet het keuzescherm achter de "nieuw"-rondleiding.
-        preferencesTourTimer = setTimeout(() => startPreferencesTour(), TOUR_START_DELAY_MS);
+        setupTimer = setTimeout(() => openSetup({ questions: setupNeeded(), tour: true }), TOUR_START_DELAY_MS);
+      } else {
+        setupTimer = setTimeout(() => {
+          if (setupNeeded()) openSetup({ questions: true });
+        }, TOUR_START_DELAY_MS);
       }
     });
 
@@ -4340,34 +5225,40 @@
     // main.js. Volgorde van voorrang:
     //   1. Volledige rondleiding loopt (nieuwe gebruiker of vinkje aan): die
     //      laat alles al zien, dus de "nieuw"-rondleidingen als gezien markeren.
-    //   2. Nog niet geziene "Nieuw in deze versie"-rondleiding(en): tonen.
-    //   3. Anders: de laatste changelog-entry, zoals voorheen.
-    // Nog geen keuze gemaakt voor thema/klokmelding (bv. bestaande gebruiker
-    // na deze update)? Dan komt het keuzescherm achteraan bij 2, of in plaats
-    // van 3 (met de knop "Changelog" erop).
-    window.electronAPI.on('whats-new', ({ isNewInstall, changelog, seenTours, preferencesChosen: chosen }) => {
+    //   2. Instelassistent nog niet (in deze versie) doorlopen: eerst die,
+    //      daarna de nog niet geziene "Nieuw in deze versie"-rondleiding(en).
+    //      Zijn die er niet, dan staat op de laatste pagina een link naar de
+    //      changelog.
+    //   3. Nog niet geziene "Nieuw in deze versie"-rondleiding(en): tonen.
+    //   4. Anders: de laatste changelog-entry, zoals voorheen.
+    window.electronAPI.on('whats-new', ({ isNewInstall, changelog, seenTours, preferencesChosen: chosen, setupVersion }) => {
       const unseen = WHATS_NEW_TOURS.filter(tour => !(seenTours || []).includes(tour.id));
       const unseenIds = unseen.map(tour => tour.id);
       preferencesChosen = !!chosen;
+      if (Number.isInteger(setupVersion)) setupDoneVersion = setupVersion;
 
       if (isNewInstall || wantsOnboarding) {
         if (unseenIds.length > 0) window.electronAPI.markWhatsNewSeen(unseenIds);
         return;
       }
 
-      clearTimeout(preferencesTourTimer);
-      if (unseen.length > 0) {
-        setTimeout(() => startTour({
+      clearTimeout(setupTimer);
+      const whatsNewTour = unseen.length > 0
+        ? () => startTour({
           label: 'Nieuw in deze versie',
-          steps: [...unseen.flatMap(tour => tour.steps), ...(preferencesChosen ? [] : [PREFERENCES_STEP])],
+          steps: unseen.flatMap(tour => tour.steps),
           showChangelog: true,
           onFinish: () => window.electronAPI.markWhatsNewSeen(unseenIds)
-        }), TOUR_START_DELAY_MS);
+        })
+        : null;
+
+      if (setupNeeded()) {
+        setupTimer = setTimeout(() => openSetup({ questions: true, next: whatsNewTour, changelog: whatsNewTour ? null : changelog }), TOUR_START_DELAY_MS);
         return;
       }
 
-      if (!preferencesChosen) {
-        setTimeout(() => startPreferencesTour({ showChangelog: true }), TOUR_START_DELAY_MS);
+      if (whatsNewTour) {
+        setTimeout(whatsNewTour, TOUR_START_DELAY_MS);
         return;
       }
 
@@ -5449,6 +6340,7 @@
       card.className = 'theme-card';
       card.setAttribute('role', 'radio');
       card.dataset.value = theme.id;
+      card.title = theme.description;
 
       const preview = document.createElement('div');
       preview.className = 'theme-preview';
@@ -5460,6 +6352,7 @@
         }
         preview.style.setProperty(prefix + 'wallpaper', colors.wallpaper ? `url("${colors.wallpaper}")` : 'none');
         preview.style.setProperty(prefix + 'motion', colors.motion ? `url("${colors.motion}")` : 'none');
+        preview.style.setProperty(prefix + 'ambient', colors.ambient ? `url("${colors.ambient}")` : 'none');
       }
       if (theme.font) preview.style.setProperty('--p-font', theme.font);
       if (theme.displayFont) preview.style.setProperty('--p-display-font', theme.displayFont);
@@ -5506,6 +6399,7 @@
       if (Array.isArray(state.themes)) appThemes = state.themes;
       if (state.previewFontCss !== undefined) document.getElementById('theme-preview-fonts').textContent = state.previewFontCss;
       if (state.themesAvailable !== undefined) {
+        themesOffered = !!state.themesAvailable;
         themesNavItem.classList.toggle('hidden', !state.themesAvailable);
         // Bèta uitgezet terwijl dit tabblad open stond: terug naar Weergave.
         if (!state.themesAvailable && themesNavItem.classList.contains('active')) setSettingsSection('weergave');
@@ -5761,6 +6655,12 @@
 
     changelogOverlay.addEventListener('click', (event) => {
       if (event.target === changelogOverlay) hideChangelogOverlay();
+    });
+
+    // Net als de rondleiding: eerst openen, dan het paneel sluiten.
+    document.getElementById('restart-setup-btn').addEventListener('click', () => {
+      openSetup();
+      closeSettingsPanel();
     });
 
     restartOnboardingBtn.addEventListener('click', () => {

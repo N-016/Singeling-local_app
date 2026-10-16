@@ -3,7 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
 const { DARK_MODE_BACKGROUND, DARK_MODE_CSS } = require('./dark-mode');
-const { PAGE_TWEAKS_CSS } = require('./page-tweaks');
+const { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT } = require('./page-tweaks');
 const { SOFT_MODE_BACKGROUND, SOFT_DARK_BACKGROUND, SOFT_MODE_CSS } = require('./soft-mode');
 const themes = require('./themes');
 
@@ -76,6 +76,7 @@ let appSettings = {
   blockCtrlB: false,
   notClockedMode: 'aan', // melding "Niet geklokt op een order": 'aan' (oranje balk), 'subtiel' of 'uit'
   preferencesChosen: false, // keuzescherm (thema + klokmelding) al gezien
+  setupVersion: 0, // versie van de instelassistent die al doorlopen is (SETUP_VERSION in index.html)
   darkMode: false,
   softColors: true, // leescomfort: zachtere kleuren (licht: zachtgrijs, donker: donkergrijs; soft-mode.js). Standaard aan.
   betaUpdates: RUNNING_PRERELEASE, // ook bètaversies (GitHub pre-releases) als update aanbieden
@@ -136,6 +137,7 @@ function loadSettings() {
       blockCtrlB: typeof parsed.blockCtrlB === 'boolean' ? parsed.blockCtrlB : false,
       notClockedMode: notClockedModeFrom(parsed),
       preferencesChosen: typeof parsed.preferencesChosen === 'boolean' ? parsed.preferencesChosen : false,
+      setupVersion: Number.isInteger(parsed.setupVersion) ? parsed.setupVersion : 0,
       darkMode: typeof parsed.darkMode === 'boolean' ? parsed.darkMode : false,
       softColors: typeof parsed.softColors === 'boolean' ? parsed.softColors : true,
       betaUpdates: typeof parsed.betaUpdates === 'boolean' ? parsed.betaUpdates : RUNNING_PRERELEASE,
@@ -291,7 +293,8 @@ function maybeShowChangelogNotice() {
     isNewInstall: previousVersion === null,
     changelog: getLatestChangelogEntry(),
     seenTours: appSettings.seenWhatsNewTours,
-    preferencesChosen: appSettings.preferencesChosen
+    preferencesChosen: appSettings.preferencesChosen,
+    setupVersion: appSettings.setupVersion
   });
 }
 
@@ -940,6 +943,7 @@ function applyDarkMode(view) {
   view.webContents.executeJavaScript(
     `document.documentElement.classList.toggle('dark', ${darkActive()});
      document.documentElement.classList.toggle('sg-original', ${themes.isOriginal(activeTheme())});
+     document.documentElement.classList.toggle('sg-wallpaper', ${themes.hasWallpaper(activeTheme())});
      document.documentElement.classList.toggle('sg-soft', ${softLightActive()});
      document.documentElement.classList.toggle('sg-soft-dark', ${softDarkActive()});
      for (const name of ${JSON.stringify(themes.THEME_CLASSES)}) {
@@ -986,6 +990,8 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       view.webContents.insertCSS(SOFT_MODE_CSS).catch(() => {});
       view.webContents.insertCSS(PAGE_TWEAKS_CSS).catch(() => {});
       insertThemeCss(view);
+      // Doorzichtige tinten dicht maken (alleen actief bij html.sg-wallpaper).
+      view.webContents.executeJavaScript(SOLID_TINTS_SCRIPT).catch(() => {});
     }
     applyDarkMode(view);
     applyPageTweaks(view);
@@ -2366,6 +2372,7 @@ ipcMain.handle('get-settings', (event) => {
     // Keuzescherm (thema + klokmelding) al gezien? Zonder dit veld dacht
     // index.html bij elke start van niet en kwam het scherm steeds terug.
     preferencesChosen: appSettings.preferencesChosen,
+    setupVersion: appSettings.setupVersion,
     darkMode: appSettings.darkMode,
     softColors: appSettings.softColors,
     themeMode: appSettings.themeMode,
@@ -2780,6 +2787,13 @@ ipcMain.on('changelog-notice-opened', (event) => {
 // Keuzescherm na de rondleiding (thema + klokmelding) is doorlopen.
 ipcMain.on('mark-preferences-chosen', (event) => {
   if (event.sender !== mainWindow.webContents) return;
+  appSettings.preferencesChosen = true;
+  saveSettings();
+});
+// Instelassistent doorlopen (bevat ook het oude keuzescherm).
+ipcMain.on('mark-setup-done', (event, version) => {
+  if (event.sender !== mainWindow.webContents || !Number.isInteger(version)) return;
+  appSettings.setupVersion = Math.max(appSettings.setupVersion, version);
   appSettings.preferencesChosen = true;
   saveSettings();
 });
