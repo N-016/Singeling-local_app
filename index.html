@@ -1433,6 +1433,7 @@
 
     .tp-title {
       position: relative;
+      font-family: var(--p-display-font, inherit);
       font-size: 14px;
       font-weight: 700;
       line-height: 1.2;
@@ -5461,6 +5462,7 @@
         preview.style.setProperty(prefix + 'motion', colors.motion ? `url("${colors.motion}")` : 'none');
       }
       if (theme.font) preview.style.setProperty('--p-font', theme.font);
+      if (theme.displayFont) preview.style.setProperty('--p-display-font', theme.displayFont);
       if (theme.radius) preview.style.setProperty('--p-radius', theme.radius);
       preview.innerHTML = `
         <div class="tp-bar"><span class="tp-tab"></span><span class="tp-tab tp-active"></span></div>

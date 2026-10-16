@@ -331,10 +331,12 @@ const HAVEN = {
 
 // Arcade: spelletjes uit de jaren 80/90. Eigen pixelkunst (overdag wolken,
 // heuvels en munten; 's nachts sterren, een planeet en ruimtewezens),
-// pixellettertype Pixelify Sans (OFL) en geen afgeronde hoeken.
+// pixellettertype Pixelify Sans (OFL) voor de koppen, Rubik (OFL) voor de
+// lopende tekst (een pixellettertype leest niet goed), en geen afgeronde
+// hoeken.
 const ARCADE = {
   name: 'Arcade',
-  description: 'Pixels uit de spelletjestijd: overdag wolken en munten, \'s nachts de ruimte. Lettertype Pixelify Sans.',
+  description: 'Pixels uit de spelletjestijd: overdag wolken en munten, \'s nachts de ruimte. Koppen in Pixelify Sans, tekst in Rubik.',
   palettes: {
     light: {
       canvas: '#f2f4ff', surface: '#ffffff', raised: '#e6e9ff', sunk: '#e9ecff',
@@ -356,6 +358,11 @@ const ARCADE = {
     dark: 'assets/themes/arcade/pixel-dark.svg'
   },
   font: {
+    family: 'Rubik',
+    fallback: '"Segoe UI", sans-serif',
+    faces: [{ file: 'assets/themes/arcade/Rubik-Variable.woff2', weight: '300 800' }]
+  },
+  displayFont: {
     family: 'Pixelify Sans',
     fallback: 'Consolas, monospace',
     faces: [{ file: 'assets/themes/arcade/PixelifySans-Variable.woff2', weight: '400 700' }]
@@ -476,6 +483,7 @@ function themeCatalog() {
       description: theme.description || '',
       kind: theme.font || theme.radius ? 'thema' : 'kleurenset',
       font: theme.font ? fontStack(theme) : null,
+      displayFont: theme.font ? displayStack(theme) : null,
       radius: theme.radius || null,
       preview
     };
@@ -664,8 +672,12 @@ function wallpaperUrl(file) {
 // ---------- Lettertype en vorm ----------
 
 // Eigen naam, zodat een op de pc geïnstalleerde versie niet meedoet.
-const fontFamily = (theme) => `"SG ${theme.font.family}"`;
-const fontStack = (theme) => `${fontFamily(theme)}, ${theme.font.fallback}`;
+// font = het lettertype voor alles; displayFont (optioneel) = alleen voor
+// koppen, bv. een pixellettertype dat voor lopende tekst niet leesbaar is.
+const familyOf = (font) => `"SG ${font.family}"`;
+const stackOf = (font) => `${familyOf(font)}, ${font.fallback}`;
+const fontStack = (theme) => stackOf(theme.font);
+const displayStack = (theme) => stackOf(theme.displayFont || theme.font);
 
 const fontDataUrl = (file) => {
   if (!wallpaperCache.has(file)) {
@@ -684,18 +696,18 @@ const fontDataUrl = (file) => {
 // data:, die mogen niet van de schijf laden), een relatief pad voor
 // index.html en detached.html (die staan zelf in de app-map).
 function fontFaceCss(theme, urlFor) {
-  if (!theme.font) return '';
-  return theme.font.faces.map(face => {
+  const fonts = [theme.font, theme.displayFont].filter(Boolean);
+  return fonts.map(font => font.faces.map(face => {
     const url = urlFor(face.file);
     return url ? `
   @font-face {
-    font-family: ${fontFamily(theme)};
+    font-family: ${familyOf(font)};
     src: url("${url}") format("woff2");
     font-weight: ${face.weight};
     font-style: normal;
     font-display: block;
   }` : '';
-  }).join('');
+  }).join('')).join('');
 }
 
 // Lettertype en afronding van de webapp zelf (app-CSS, oktober 2026). Papier
@@ -718,14 +730,17 @@ function pageShapeCss(id, theme) {
   if (theme.font) {
     css += fontFaceCss(theme, fontDataUrl) + `
   ${t} {
-    --font-display: ${fontStack(theme)};
+    --font-display: ${displayStack(theme)};
     --font-body: ${fontStack(theme)};
     --font-mono: ${fontStack(theme)};
   }
   ${t} body,
   ${t} body *:not(${PAPER}, ${PAPER} *) {
     font-family: ${fontStack(theme)} !important;
-  }
+  }${theme.displayFont ? `
+  ${t} body :is(h1, h2, h3, h4, h5, h6, .font-display):not(${PAPER}, ${PAPER} *) {
+    font-family: ${displayStack(theme)} !important;
+  }` : ''}
   ${t} ${PAPER} {
     --font-display: ${APP_FONT};
     --font-body: ${APP_FONT};
@@ -1056,7 +1071,10 @@ function chromeShapeCss(theme) {
   html.chrome-theme select,
   html.chrome-theme textarea {
     font-family: ${fontStack(theme)} !important;
-  }
+  }${theme.displayFont ? `
+  html.chrome-theme :is(h1, h2, h3, h4) {
+    font-family: ${displayStack(theme)} !important;
+  }` : ''}
 `;
   }
   if (theme.radius) css += `\n  html.chrome-theme { --radius: ${theme.radius}; }\n`;
