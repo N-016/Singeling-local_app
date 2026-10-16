@@ -3789,9 +3789,17 @@
         return group;
       };
 
-      const themeGroup = addQuestion('Weergave');
-      buildChoiceGroup(themeGroup, THEME_CHOICES, darkModeBtn.classList.contains('active') ? 'dark' : 'light',
-        value => setThemeDirect(value === 'dark'));
+      // Automatisch = zon op/onder (de standaard). Licht of Donker kiezen
+      // zet het wisselen op handmatig, anders draait de zon het weer om.
+      const themeGroup = addQuestion('Weergave', null,
+        'Automatisch = licht overdag, donker na zonsondergang. Later aan te passen bij Instellingen > Weergave.');
+      const currentWeergave = themeMode === 'zon' ? 'auto' : (darkModeBtn.classList.contains('active') ? 'dark' : 'light');
+      buildChoiceGroup(themeGroup, PREFERENCE_THEME_CHOICES, currentWeergave, value => {
+        themeMode = value === 'auto' ? 'zon' : 'handmatig';
+        saveThemeSchedule();
+        renderThemeSchedule();
+        if (value !== 'auto') setThemeDirect(value === 'dark');
+      });
 
       const softGroup = addQuestion('Leescomfort', null,
         'Zachter = minder fel contrast: zachtgrijs in licht, donkergrijs in donker.');
@@ -5225,7 +5233,8 @@
       { value: 'subtiel', label: 'Subtiel' },
       { value: 'uit', label: 'Uit' }
     ];
-    const THEME_CHOICES = [
+    const PREFERENCE_THEME_CHOICES = [
+      { value: 'auto', label: 'Automatisch' },
       { value: 'light', label: 'Licht' },
       { value: 'dark', label: 'Donker' }
     ];
@@ -5292,7 +5301,7 @@
     const themeTimeLight = document.getElementById('theme-time-light');
     const themeSunOffset = document.getElementById('theme-sun-offset');
     const themeSunInfo = document.getElementById('theme-sun-info');
-    let themeMode = 'handmatig';
+    let themeMode = 'zon'; // standaard (main.js); getSettings zet de echte stand
 
     async function refreshThemeSunInfo() {
       if (themeMode !== 'zon') return;

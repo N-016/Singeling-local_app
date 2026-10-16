@@ -82,7 +82,8 @@ let appSettings = {
   appTheme: themes.DEFAULT_THEME, // kleurenthema (themes.js); voorlopig alleen met bèta-updates aan
   // Licht/donker automatisch (zie "Licht/donker automatisch"):
   // 'handmatig' | 'systeem' | 'tijden' | 'zon'
-  themeMode: 'handmatig',
+  themeMode: 'zon', // standaard: zon op/onder (sinds 1.3.0; zie SUN_DEFAULT in loadSettings)
+  sunDefaultDone: true,
   themeTimes: { dark: '18:00', light: '07:00' }, // bij 'tijden'
   themeSunOffset: 0 // bij 'zon': minuten later (+) of eerder (-) dan zon op/onder
 };
@@ -139,7 +140,13 @@ function loadSettings() {
       softColors: typeof parsed.softColors === 'boolean' ? parsed.softColors : true,
       betaUpdates: typeof parsed.betaUpdates === 'boolean' ? parsed.betaUpdates : RUNNING_PRERELEASE,
       appTheme: themes.isTheme(parsed.appTheme) ? parsed.appTheme : themes.DEFAULT_THEME,
-      themeMode: THEME_MODES.includes(parsed.themeMode) ? parsed.themeMode : 'handmatig',
+      // Eenmalig (1.3.0): wie nog op de oude standaard "handmatig" stond, gaat
+      // naar zon op/onder. Wie bewust systeem of vaste tijden koos, houdt dat;
+      // daarna blijft ieders eigen keuze gewoon bewaard (sunDefaultDone).
+      themeMode: (parsed.sunDefaultDone !== true && (parsed.themeMode === 'handmatig' || parsed.themeMode === undefined))
+        ? 'zon'
+        : (THEME_MODES.includes(parsed.themeMode) ? parsed.themeMode : 'zon'),
+      sunDefaultDone: true,
       themeTimes: validThemeTimes(parsed.themeTimes),
       themeSunOffset: validSunOffset(parsed.themeSunOffset)
     };
