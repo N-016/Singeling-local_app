@@ -2,6 +2,16 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.2.4] - 2026-10-16
+
+### Toegevoegd
+- **Tabbalk uitschakelen** (Instellingen > Algemeen): één scherm zonder tabbladen, bijvoorbeeld voor een vaste werkplek. Links en knoppen openen in hetzelfde scherm, en bovenin blijven alleen zoom, licht/donker, het kevertje en het instellingen-icoon over. Opent een knop een preview (bv. een specificatie of PDF), dan verschijnt die even als tabblad zodat je hem weer kunt sluiten. Weer inschakelen vraagt eerst om bevestiging.
+
+### Opgelost
+- In de donkere modus bleven sommige kaarten licht met lichte tekst erop, zoals de jobkaarten op Laser Jobs. Ze zijn nu donker en goed leesbaar (ook met leescomfort aan).
+- De knoppen "Edit with Lovable" en het zwevende sneltoetsenknopje rechtsonder op de pagina zijn weg. De sneltoets ? werkt nog gewoon.
+- Het label "bèta" naast het versienummer in de instellingen stond altijd aan, ook bij een gewone versie.
+
 ## [1.2.3] - 2026-10-15
 
 ### Toegevoegd
