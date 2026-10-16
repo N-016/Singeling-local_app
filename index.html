@@ -167,11 +167,12 @@
       -webkit-app-region: drag; /* Maakt de tabbar sleepbaar voor het venster */
     }
 
-    /* Tabbalk uit (Instellingen > Algemeen): één scherm. Alleen het
-       instellingen-icoon en de vensterknoppen blijven over; de balk blijft
-       sleepbaar. Is er toch een tweede tab (een preview via window.open),
-       dan verschijnen de tabs even, zodat je die kunt sluiten. */
-    html.tabbar-off #tab-bar > :not(#settings-btn, #window-controls, #tab-scroll) {
+    /* Tabbalk uit (Instellingen > Algemeen): één scherm. Alleen zoom,
+       licht/donker, het kevertje, instellingen en de vensterknoppen blijven
+       over; de balk blijft sleepbaar. Is er toch een tweede tab (een preview
+       via window.open), dan verschijnen de tabs even, zodat je die kunt
+       sluiten. */
+    html.tabbar-off #tab-bar > :not(#tabbar-zoom, #dark-mode-btn, #help-btn, #settings-btn, #window-controls, #tab-scroll) {
       display: none !important;
     }
 
@@ -179,8 +180,34 @@
       display: none !important;
     }
 
-    html.tabbar-off #settings-btn {
+    html.tabbar-off #tabbar-zoom {
       margin-left: auto;
+    }
+
+    /* Waarschuwing bij het weer inschakelen van de tabbalk. Zelfde opmaak
+       als de updatemelding (.critical-panel). */
+    #tabbar-confirm {
+      position: fixed;
+      inset: 0;
+      z-index: 45;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: var(--overlay);
+      backdrop-filter: blur(3px);
+      animation: fade-in 0.25s var(--ease);
+      -webkit-app-region: no-drag;
+    }
+
+    #tabbar-confirm.hidden {
+      display: none;
+    }
+
+    #tabbar-confirm h2 {
+      margin: 14px 0 8px;
+      font-size: 20px;
+      color: var(--text);
     }
 
     #navigation-buttons {
@@ -3022,7 +3049,7 @@
       <label class="general-toggle">
         <span class="toggle-text">
           Tabbalk uitschakelen
-          <span class="settings-hint">Eén scherm zonder tabbladen: links openen in hetzelfde scherm en de balk bovenin toont alleen dit instellingen-icoon. Opent een knop een preview (bv. een specificatie of PDF), dan verschijnt die even als tabblad zodat je hem weer kunt sluiten. Bij het aanzetten worden de andere open tabbladen gesloten.</span>
+          <span class="settings-hint">Eén scherm zonder tabbladen: links openen in hetzelfde scherm en de balk bovenin toont alleen nog zoom, licht/donker, het kevertje en dit instellingen-icoon. Opent een knop een preview (bv. een specificatie of PDF), dan verschijnt die even als tabblad zodat je hem weer kunt sluiten. Bij het aanzetten worden de andere open tabbladen gesloten.</span>
         </span>
         <input type="checkbox" class="switch" id="tab-bar-disabled-checkbox">
       </label>
@@ -3146,6 +3173,22 @@
 
   <!-- Updatemelding (zie "Updatemelding" in main.js): elke gevonden update
        komt hier in beeld; .critical = de zware stand voor een kritieke update. -->
+  <section id="tabbar-confirm" class="hidden" role="alertdialog" aria-modal="true" aria-labelledby="tabbar-confirm-title">
+    <div class="critical-panel">
+      <div class="critical-label">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        <span>Let op</span>
+      </div>
+      <h2 id="tabbar-confirm-title">Tabbalk weer inschakelen?</h2>
+      <p class="critical-text">Hiermee zet je de tabbalk weer aan, met tabbladen en alle knoppen. Op sommige pc's is de tabbalk <b>bewust uitgezet</b>, bijvoorbeeld op een werkplek in de productie.</p>
+      <p class="critical-text">Zet hem alleen aan als je weet wat je doet. <b>Weet je dit niet? Gebruik deze knop dan niet</b> en vraag het eerst na.</p>
+      <div class="critical-actions">
+        <button id="tabbar-confirm-cancel" type="button">Annuleren</button>
+        <button id="tabbar-confirm-ok" type="button" class="primary">Tabbalk inschakelen</button>
+      </div>
+    </div>
+  </section>
+
   <section id="update-notice" class="hidden" role="alertdialog" aria-modal="true" aria-labelledby="update-notice-title">
     <div class="critical-panel">
       <div class="critical-label">
@@ -4772,9 +4815,37 @@
       document.documentElement.classList.toggle('tabbar-off', !!disabled);
     }
 
+    const tabBarConfirm = document.getElementById('tabbar-confirm');
+
+    function closeTabBarConfirm() {
+      tabBarConfirm.classList.add('hidden');
+      tabBarDisabledCheckbox.focus();
+    }
+
     tabBarDisabledCheckbox.addEventListener('change', () => {
-      renderTabBarDisabled(tabBarDisabledCheckbox.checked);
-      window.electronAPI.setTabBarDisabled(tabBarDisabledCheckbox.checked);
+      if (tabBarDisabledCheckbox.checked) {
+        renderTabBarDisabled(true);
+        window.electronAPI.setTabBarDisabled(true);
+        return;
+      }
+      // Weer inschakelen: eerst waarschuwen (op sommige pc's staat hij
+      // bewust uit). Tot de bevestiging blijft de schakelaar zoals hij was.
+      tabBarDisabledCheckbox.checked = true;
+      tabBarConfirm.classList.remove('hidden');
+      document.getElementById('tabbar-confirm-cancel').focus();
+    });
+
+    document.getElementById('tabbar-confirm-cancel').addEventListener('click', closeTabBarConfirm);
+    document.getElementById('tabbar-confirm-ok').addEventListener('click', () => {
+      closeTabBarConfirm();
+      renderTabBarDisabled(false);
+      window.electronAPI.setTabBarDisabled(false);
+    });
+    tabBarConfirm.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        closeTabBarConfirm();
+      }
     });
 
     const tabCountTarget = document.getElementById('tabs');
