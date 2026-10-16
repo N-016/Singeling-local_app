@@ -181,7 +181,7 @@ const TERMINAL = {
 // achtergronden van ons (assets/themes/noorderlicht/BRON.md).
 const NOORDERLICHT = {
   name: 'Noorderlicht',
-  description: 'Bewegend noorderlicht boven de bergen. Lettertype Lexend.',
+  description: 'Bewegend noorderlicht boven de bergen; overdag een dennenbos met ochtendmist. Lettertype Lexend.',
   palettes: {
     light: {
       canvas: '#f2f7f8', surface: '#fbfdfd', raised: '#e6eff1', sunk: '#e9f1f3',

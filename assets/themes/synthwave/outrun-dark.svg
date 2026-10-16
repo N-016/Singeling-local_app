@@ -1,58 +1,71 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1200" preserveAspectRatio="xMidYMax slice">
+  <!-- Synthwave (jaren 80): zelf gemaakt voor de Singeling App (gegenereerd). -->
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#171520"/>
-      <stop offset="0.55" stop-color="#241b2f"/>
-      <stop offset="0.78" stop-color="#3b1f4a"/>
-      <stop offset="0.8" stop-color="#5a2257"/>
+      <stop offset="0" stop-color="#120f1d"/><stop offset="0.5" stop-color="#241b2f"/><stop offset="0.72" stop-color="#3b1f4a"/><stop offset="0.8" stop-color="#6a2460"/>
     </linearGradient>
     <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#fede5d"/>
       <stop offset="0.55" stop-color="#f97e72"/>
       <stop offset="1" stop-color="#ff7edb"/>
     </linearGradient>
-    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2a1b3d"/>
-      <stop offset="1" stop-color="#171520"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.8" r="0.5">
-      <stop offset="0" stop-color="#ff7edb" stop-opacity="0.35"/>
+    <radialGradient id="sunGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.35" stop-color="#ff7edb" stop-opacity="0.35"/>
       <stop offset="1" stop-color="#ff7edb" stop-opacity="0"/>
     </radialGradient>
-    <mask id="sunStripes">
-      <rect width="1920" height="1200" fill="#fff"/>
-      <rect x="0" y="790" width="1920" height="6" fill="#000"/>
-      <rect x="0" y="830" width="1920" height="9" fill="#000"/>
-      <rect x="0" y="868" width="1920" height="12" fill="#000"/>
-      <rect x="0" y="902" width="1920" height="15" fill="#000"/>
-      <rect x="0" y="934" width="1920" height="18" fill="#000"/>
-    </mask>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a1b3d"/>
+      <stop offset="1" stop-color="#120f1d"/>
+    </linearGradient>
+    <filter id="neon" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <mask id="sunStripes"><rect width="1920" height="1200" fill="#fff"/><rect x="0" y="790" width="1920" height="5" fill="#000"/><rect x="0" y="821" width="1920" height="8" fill="#000"/><rect x="0" y="854" width="1920" height="11" fill="#000"/><rect x="0" y="889" width="1920" height="14" fill="#000"/><rect x="0" y="926" width="1920" height="17" fill="#000"/><rect x="0" y="965" width="1920" height="20" fill="#000"/></mask>
     <clipPath id="floorClip"><rect x="0" y="960" width="1920" height="240"/></clipPath>
+    <pattern id="vhs" width="6" height="6" patternUnits="userSpaceOnUse">
+      <rect width="6" height="1" fill="#ffffff" fill-opacity="0.025"/>
+    </pattern>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="4" cy="4" r="2.4" fill="#ff7edb"/>
+    </pattern>
   </defs>
   <rect width="1920" height="1200" fill="url(#sky)"/>
-  <rect width="1920" height="1200" fill="url(#glow)"/>
-  <g fill="#e0dfe7" opacity="0.55">
-    <circle cx="210" cy="140" r="2"/><circle cx="520" cy="260" r="1.5"/><circle cx="760" cy="90" r="1.5"/>
-    <circle cx="1180" cy="200" r="2"/><circle cx="1460" cy="110" r="1.5"/><circle cx="1720" cy="300" r="2"/>
-    <circle cx="340" cy="420" r="1.5"/><circle cx="1590" cy="470" r="1.5"/><circle cx="980" cy="330" r="1.2"/>
+  <g fill="#f4eeff"><circle cx="120" cy="90" r="1.2" opacity="0.6"/><circle cx="310" cy="210" r="1.6" opacity="0.6"/><circle cx="460" cy="70" r="2" opacity="0.6"/><circle cx="830" cy="60" r="1.2" opacity="0.6"/><circle cx="1010" cy="150" r="1.6" opacity="0.6"/><circle cx="1190" cy="80" r="2" opacity="0.6"/><circle cx="1530" cy="100" r="1.2" opacity="0.6"/><circle cx="1700" cy="190" r="1.6" opacity="0.6"/><circle cx="1850" cy="60" r="2" opacity="0.6"/><circle cx="720" cy="330" r="1.2" opacity="0.6"/><circle cx="1260" cy="360" r="1.6" opacity="0.6"/></g>
+
+  <!-- Memphis-vormen in de lucht -->
+  <g fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.75" filter="url(#neon)">
+    <path d="M250 300 L330 170 L410 300 Z" stroke="#36f9f6"/>
+    <path d="M1520 210 l40 -40 l40 40 l40 -40 l40 40 l40 -40" stroke="#fede5d"/>
+    <circle cx="1720" cy="420" r="36" stroke="#ff7edb"/>
+    <path d="M520 470 q30 -40 60 0 t60 0 t60 0" stroke="#fede5d"/>
+    <rect x="1330" y="430" width="54" height="54" transform="rotate(20 1357 457)" stroke="#36f9f6"/>
   </g>
-  <circle cx="960" cy="800" r="250" fill="url(#sun)" mask="url(#sunStripes)"/>
-  <path d="M0 960 L0 900 L160 930 L320 870 L470 925 L600 890 L700 960 Z" fill="#1d1628"/>
-  <path d="M1920 960 L1920 880 L1760 925 L1620 860 L1480 930 L1340 895 L1220 960 Z" fill="#1d1628"/>
+  <rect x="120" y="440" width="150" height="110" fill="url(#dots)" opacity="0.44999999999999996"/>
+  <rect x="1580" y="560" width="170" height="90" fill="url(#dots)" opacity="0.44999999999999996"/>
+
+  <!-- Zon met gloed -->
+  <circle cx="960" cy="800" r="420" fill="url(#sunGlow)"/>
+  <circle cx="960" cy="800" r="260" fill="url(#sun)" mask="url(#sunStripes)"/>
+
+  <!-- Wireframe-bergen -->
+  <path d="M0 905 L130 830 L250 890 L380 780 L520 880 L640 850 L720 960 L720 960 L0 960 Z" fill="#1a1428"/>
+  <g fill="none" stroke="#36f9f6" stroke-width="2" stroke-linejoin="round" filter="url(#neon)"><path d="M0 905 L130 830 L250 890 L380 780 L520 880 L640 850 L720 960"/><path d="M130 830 L70 960 M130 830 L190 960 M250 890 L190 960 M250 890 L310 960 M380 780 L320 960 M380 780 L440 960 M520 880 L460 960 M520 880 L580 960 M640 850 L580 960 M640 850 L700 960" stroke-opacity="0.45"/></g>
+  <path d="M1200 960 L1300 860 L1430 790 L1560 880 L1680 820 L1800 900 L1920 860 L1920 960 L1200 960 Z" fill="#1a1428"/>
+  <g fill="none" stroke="#36f9f6" stroke-width="2" stroke-linejoin="round" filter="url(#neon)"><path d="M1200 960 L1300 860 L1430 790 L1560 880 L1680 820 L1800 900 L1920 860"/><path d="M1300 860 L1240 960 M1300 860 L1360 960 M1430 790 L1370 960 M1430 790 L1490 960 M1560 880 L1500 960 M1560 880 L1620 960 M1680 820 L1620 960 M1680 820 L1740 960 M1800 900 L1740 960 M1800 900 L1860 960" stroke-opacity="0.45"/></g>
+
+  <!-- Vloer met neonraster -->
   <rect x="0" y="960" width="1920" height="240" fill="url(#floor)"/>
-  <g clip-path="url(#floorClip)" stroke="#36f9f6" stroke-opacity="0.55" stroke-width="2" fill="none">
-    <line x1="0" y1="962" x2="1920" y2="962" stroke="#ff7edb" stroke-opacity="0.9" stroke-width="3"/>
-    <line x1="0" y1="975" x2="1920" y2="975"/>
-    <line x1="0" y1="994" x2="1920" y2="994"/>
-    <line x1="0" y1="1021" x2="1920" y2="1021"/>
-    <line x1="0" y1="1058" x2="1920" y2="1058"/>
-    <line x1="0" y1="1108" x2="1920" y2="1108"/>
-    <line x1="0" y1="1175" x2="1920" y2="1175"/>
-    <line x1="960" y1="960" x2="960" y2="1200"/>
-    <line x1="960" y1="960" x2="760" y2="1200"/><line x1="960" y1="960" x2="1160" y2="1200"/>
-    <line x1="960" y1="960" x2="520" y2="1200"/><line x1="960" y1="960" x2="1400" y2="1200"/>
-    <line x1="960" y1="960" x2="200" y2="1200"/><line x1="960" y1="960" x2="1720" y2="1200"/>
-    <line x1="960" y1="960" x2="-280" y2="1200"/><line x1="960" y1="960" x2="2200" y2="1200"/>
-    <line x1="960" y1="960" x2="-900" y2="1200"/><line x1="960" y1="960" x2="2820" y2="1200"/>
+  <g clip-path="url(#floorClip)" stroke="#36f9f6" stroke-opacity="0.6" stroke-width="2" fill="none" filter="url(#neon)">
+    <line x1="0" y1="962" x2="1920" y2="962" stroke="#ff7edb" stroke-opacity="1" stroke-width="3"/>
+    <line x1="0" y1="975" x2="1920" y2="975"/><line x1="0" y1="994" x2="1920" y2="994"/><line x1="0" y1="1021" x2="1920" y2="1021"/><line x1="0" y1="1058" x2="1920" y2="1058"/><line x1="0" y1="1108" x2="1920" y2="1108"/><line x1="0" y1="1175" x2="1920" y2="1175"/><line x1="960" y1="960" x2="960" y2="1200"/><line x1="960" y1="960" x2="760" y2="1200"/><line x1="960" y1="960" x2="1160" y2="1200"/><line x1="960" y1="960" x2="520" y2="1200"/><line x1="960" y1="960" x2="1400" y2="1200"/><line x1="960" y1="960" x2="200" y2="1200"/><line x1="960" y1="960" x2="1720" y2="1200"/><line x1="960" y1="960" x2="-280" y2="1200"/><line x1="960" y1="960" x2="2200" y2="1200"/><line x1="960" y1="960" x2="-900" y2="1200"/><line x1="960" y1="960" x2="2820" y2="1200"/><line x1="960" y1="960" x2="-1640" y2="1200"/><line x1="960" y1="960" x2="3560" y2="1200"/>
   </g>
+
+  <!-- Palmbomen -->
+  <g fill="#0c0914"><path d="M141 1200 Q156 914 207 680 L213 680 Q168 914 159 1200 Z"/><path d="M210 680 Q102.5 600.8 -5.1 735.6 Q102.5 654.8 210 684 Z"/><path d="M210 680 Q126.3 549.6 42.7 679.2 Q126.3 603.6 210 684 Z"/><path d="M210 680 Q172.7 517.2 135.3 643.6 Q172.7 571.2 210 684 Z"/><path d="M210 680 Q247.3 517.2 284.7 643.6 Q247.3 571.2 210 684 Z"/><path d="M210 680 Q293.7 549.6 377.3 679.2 Q293.7 603.6 210 684 Z"/><path d="M210 680 Q317.5 600.8 425.1 735.6 Q317.5 654.8 210 684 Z"/><path d="M210 680 Q315.5 648.1 421.0 787.5 Q315.5 702.1 210 684 Z"/></g>
+  <g fill="#0c0914"><path d="M291 1200 Q286 991 257 820 L263 820 Q298 991 309 1200 Z"/><path d="M260 820 Q181.4 753.0 102.8 860.6 Q181.4 807.0 260 824 Z"/><path d="M260 820 Q198.9 715.6 137.7 819.4 Q198.9 769.6 260 824 Z"/><path d="M260 820 Q232.7 691.9 205.4 793.4 Q232.7 745.9 260 824 Z"/><path d="M260 820 Q287.3 691.9 314.6 793.4 Q287.3 745.9 260 824 Z"/><path d="M260 820 Q321.1 715.6 382.3 819.4 Q321.1 769.6 260 824 Z"/><path d="M260 820 Q338.6 753.0 417.2 860.6 Q338.6 807.0 260 824 Z"/><path d="M260 820 Q337.1 787.5 414.2 898.6 Q337.1 841.5 260 824 Z"/></g>
+  <g fill="#0c0914"><path d="M1751 1200 Q1740 892 1687 640 L1693 640 Q1752 892 1769 1200 Z"/><path d="M1690 640 Q1574.2 557.4 1458.4 699.9 Q1574.2 611.4 1690 644 Z"/><path d="M1690 640 Q1599.9 502.2 1509.8 639.2 Q1599.9 556.2 1690 644 Z"/><path d="M1690 640 Q1649.8 467.3 1609.6 600.8 Q1649.8 521.3 1690 644 Z"/><path d="M1690 640 Q1730.2 467.3 1770.4 600.8 Q1730.2 521.3 1690 644 Z"/><path d="M1690 640 Q1780.1 502.2 1870.2 639.2 Q1780.1 556.2 1690 644 Z"/><path d="M1690 640 Q1805.8 557.4 1921.6 699.9 Q1805.8 611.4 1690 644 Z"/><path d="M1690 640 Q1803.6 608.2 1917.2 755.8 Q1803.6 662.2 1690 644 Z"/></g>
+  <g fill="#0c0914"><path d="M1611 1200 Q1620 1002 1647 840 L1653 840 Q1632 1002 1629 1200 Z"/><path d="M1650 840 Q1575.5 774.7 1501.1 878.5 Q1575.5 828.7 1650 844 Z"/><path d="M1650 840 Q1592.1 739.3 1534.2 839.5 Q1592.1 793.3 1650 844 Z"/><path d="M1650 840 Q1624.1 716.8 1598.3 814.8 Q1624.1 770.8 1650 844 Z"/><path d="M1650 840 Q1675.9 716.8 1701.7 814.8 Q1675.9 770.8 1650 844 Z"/><path d="M1650 840 Q1707.9 739.3 1765.8 839.5 Q1707.9 793.3 1650 844 Z"/><path d="M1650 840 Q1724.5 774.7 1798.9 878.5 Q1724.5 828.7 1650 844 Z"/><path d="M1650 840 Q1723.0 807.4 1796.0 914.4 Q1723.0 861.4 1650 844 Z"/></g>
+
+  <rect width="1920" height="1200" fill="url(#vhs)"/>
 </svg>

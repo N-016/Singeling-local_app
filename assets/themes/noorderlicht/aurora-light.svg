@@ -1,24 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 1200" preserveAspectRatio="none">
-  <!-- Losse laag boven de lucht; themes.js laat hem langzaam verschuiven. -->
+  <!-- Bewegende laag overdag: zachte ochtendmist boven de bomen (themes.js laat hem verschuiven). -->
   <defs>
-    <linearGradient id="band1" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5fd6b1" stop-opacity="0"/>
-      <stop offset="0.45" stop-color="#5fd6b1" stop-opacity="0.32"/>
-      <stop offset="0.75" stop-color="#7cc6ee" stop-opacity="0.16"/>
-      <stop offset="1" stop-color="#7cc6ee" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="band2" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#b9a6f2" stop-opacity="0"/>
-      <stop offset="0.5" stop-color="#b9a6f2" stop-opacity="0.28"/>
-      <stop offset="1" stop-color="#5fd6b1" stop-opacity="0"/>
-    </linearGradient>
-    <filter id="soft" x="-10%" y="-30%" width="120%" height="160%">
-      <feGaussianBlur stdDeviation="28"/>
+    <filter id="soft" x="-10%" y="-50%" width="120%" height="200%">
+      <feGaussianBlur stdDeviation="30"/>
     </filter>
   </defs>
-  <g filter="url(#soft)">
-    <path d="M-100 330 C 300 180, 600 420, 1000 300 S 1700 140, 2100 320 S 2500 260, 2600 300 L 2600 560 C 2200 520, 1800 640, 1400 540 S 600 620, 200 560 S -100 600, -100 600 Z" fill="url(#band1)"/>
-    <path d="M-100 200 C 400 120, 800 300, 1200 220 S 2000 120, 2600 240 L 2600 380 C 2100 330, 1700 420, 1200 360 S 300 400, -100 380 Z" fill="url(#band2)"/>
-    <path d="M300 420 C 700 360, 1000 520, 1400 440 S 2000 360, 2300 460 L 2300 620 C 1900 600, 1500 680, 1100 610 S 500 660, 300 640 Z" fill="url(#band1)" opacity="0.6"/>
+  <g filter="url(#soft)" fill="#ffffff">
+    <ellipse cx="500" cy="900" rx="520" ry="55" opacity="0.55"/>
+    <ellipse cx="1300" cy="960" rx="640" ry="60" opacity="0.5"/>
+    <ellipse cx="2000" cy="880" rx="480" ry="50" opacity="0.55"/>
+    <ellipse cx="900" cy="1060" rx="700" ry="50" opacity="0.4"/>
+    <ellipse cx="1900" cy="1080" rx="560" ry="45" opacity="0.35"/>
+  </g>
+  <g filter="url(#soft)" fill="#cfeee0" opacity="0.35">
+    <ellipse cx="1200" cy="250" rx="900" ry="60"/>
   </g>
 </svg>
