@@ -388,12 +388,12 @@ const METAAL = {
   radius: '4px'
 };
 
-// Japans: wabi-sabi. Rustig, veel lucht: rijstpapier en inkt, een tak met
+// Rijstpapier: wabi-sabi. Rustig, veel lucht: rijstpapier en inkt, een tak met
 // bloesem, een half open ensō en een kleine hanko. Accent olijf-matcha (ver
 // van het "klaar"-groen). Shippori Mincho B1 voor de koppen, Zen Kaku Gothic
 // New voor de tekst (beide OFL, alleen de Latijnse tekens).
-const JAPANS = {
-  name: 'Japans',
+const RIJSTPAPIER = {
+  name: 'Rijstpapier',
   description: 'Wabi-sabi: rijstpapier en inkt, een bloesemtak en een ensō.',
   palettes: {
     light: {
@@ -412,23 +412,23 @@ const JAPANS = {
     }
   },
   wallpaper: {
-    light: 'assets/themes/japans/papier-light.svg',
-    dark: 'assets/themes/japans/papier-dark.svg'
+    light: 'assets/themes/rijstpapier/papier-light.svg',
+    dark: 'assets/themes/rijstpapier/papier-dark.svg'
   },
   font: {
     family: 'Zen Kaku Gothic New',
     fallback: '"Segoe UI", sans-serif',
     faces: [
-      { file: 'assets/themes/japans/ZenKakuGothicNew-Regular.woff2', weight: '100 500' },
-      { file: 'assets/themes/japans/ZenKakuGothicNew-Bold.woff2', weight: '600 900' }
+      { file: 'assets/themes/rijstpapier/ZenKakuGothicNew-Regular.woff2', weight: '100 500' },
+      { file: 'assets/themes/rijstpapier/ZenKakuGothicNew-Bold.woff2', weight: '600 900' }
     ]
   },
   displayFont: {
     family: 'Shippori Mincho B1',
     fallback: 'Georgia, serif',
     faces: [
-      { file: 'assets/themes/japans/ShipporiMinchoB1-Regular.woff2', weight: '100 500' },
-      { file: 'assets/themes/japans/ShipporiMinchoB1-Bold.woff2', weight: '600 900' }
+      { file: 'assets/themes/rijstpapier/ShipporiMinchoB1-Regular.woff2', weight: '100 500' },
+      { file: 'assets/themes/rijstpapier/ShipporiMinchoB1-Bold.woff2', weight: '600 900' }
     ]
   },
   radius: '2px'
@@ -569,7 +569,7 @@ const THEMES = {
   rosepine: ROSE_PINE,
   cassette: CASSETTE,
   metaal: METAAL,
-  japans: JAPANS,
+  rijstpapier: RIJSTPAPIER,
   terminal: TERMINAL,
   noorderlicht: NOORDERLICHT,
   werkplaats: WERKPLAATS,
@@ -643,6 +643,15 @@ const STANDARD_PREVIEW = {
   }
 };
 
+// Voorbeeldplaatje naast een achtergrond (<naam>.preview.png), of de
+// achtergrond zelf als dat plaatje (nog) ontbreekt.
+const previewFileFor = (file) => file.replace(/\.[a-z]+$/i, '.preview.png');
+function previewImage(file) {
+  if (!file) return null;
+  const preview = previewFileFor(file);
+  return fs.existsSync(path.join(__dirname, preview)) ? preview : file;
+}
+
 // Alles wat het tabblad Thema's in de instellingen nodig heeft. Twee soorten:
 // een kleurenset verandert alleen kleuren (en eventueel de achtergrond), een
 // thema gaat verder (eigen lettertype en vormen). Paden zijn relatief aan
@@ -660,12 +669,10 @@ function themeCatalog() {
           canvas: p.canvas.hex, surface: p.surface.hex, sidebar: p.sidebar.hex, bar: p.bar.hex,
           border: p.border.hex, text: p.fg1.hex, muted: p.fg3.hex, accent: p.accent, onAccent: p.onAccent
         } : theme.original ? ORIGINAL_PREVIEW : STANDARD_PREVIEW[mode]),
-        wallpaper: pick(theme.wallpaper),
-        // In het kleine voorbeeld beweegt alleen een laag bovenin (noorderlicht);
-        // een laag die op de achtergrond moet passen (cover) of onderin zit,
-        // komt stilstaand mee, net als de ambient-laag (molenwieken e.d.).
-        motion: (pick(theme.motion) && theme.motionSize !== 'cover' && (!theme.motionArea || theme.motionArea === 'top')) ? pick(theme.motion) : null,
-        ambient: pick(theme.ambient) || (theme.motionSize === 'cover' && pick(theme.motion)) || null
+        // Alleen de stilstaande achtergrond, als klein plaatje (scripts/
+        // theme-previews.js): bewegende lagen en tientallen SVG's opnieuw
+        // uitrekenen bij elke licht/donker-wissel maakten de instellingen traag.
+        wallpaper: previewImage(pick(theme.wallpaper))
       };
     }
     return {

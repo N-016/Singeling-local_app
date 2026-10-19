@@ -951,19 +951,33 @@ function pageBackground() {
   return softLightActive() ? SOFT_MODE_BACKGROUND : '#ffffff';
 }
 
-function applyDarkMode(view) {
+// fade: het oude beeld loopt in 0,6 s over in het nieuwe (View Transitions:
+// één momentopname die vervaagt, i.p.v. elk element apart laten meekleuren,
+// wat op de zware pagina's hapert). Met "animaties uit" in Windows direct.
+const PAGE_FADE_CSS = '::view-transition-group(root),::view-transition-old(root),::view-transition-new(root){animation-duration:600ms;animation-timing-function:ease}';
+
+function applyDarkMode(view, { fade = false } = {}) {
   if (view.webContents.isDestroyed()) return;
   const internal = isInternalUrl(view.webContents.getURL());
   view.setBackgroundColor(internal ? pageBackground() : '#ffffff');
   if (!internal) return;
-  view.webContents.executeJavaScript(
-    `document.documentElement.classList.toggle('dark', ${darkActive()});
+  const toggle = `document.documentElement.classList.toggle('dark', ${darkActive()});
      document.documentElement.classList.toggle('sg-original', ${themes.isOriginal(activeTheme())});
      document.documentElement.classList.toggle('sg-wallpaper', ${themes.hasWallpaper(activeTheme())});
      document.documentElement.classList.toggle('sg-soft', ${softLightActive()});
      for (const name of ${JSON.stringify(themes.THEME_CLASSES)}) {
        document.documentElement.classList.toggle(name, name === ${JSON.stringify('sg-theme-' + activeTheme())});
-     }`
+     }`;
+  view.webContents.executeJavaScript(fade
+    ? `(() => {
+        const run = () => { ${toggle} };
+        if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return run();
+        const style = document.createElement('style');
+        style.textContent = ${JSON.stringify(PAGE_FADE_CSS)};
+        document.head.appendChild(style);
+        document.startViewTransition(run).finished.finally(() => style.remove());
+      })()`
+    : toggle
   ).catch(() => {});
 }
 
@@ -2378,6 +2392,16 @@ ipcMain.handle('get-settings', (event) => {
     openAllLinksInNewTab: appSettings.openAllLinksInNewTab,
     tabBarDisabled: appSettings.tabBarDisabled,
     showOnboarding: appSettings.showOnboarding,
+    // Eerste start na een update (niet na een nieuwe installatie): dan is de
+    // korte "Nieuw in deze versie"-rondleiding verplicht (welkomstscherm in
+    // index.html). lastSeenChangelogVersion wordt pas bijgewerkt na "Start"
+    // (maybeShowChangelogNotice).
+    // Instellingen > Debug alleen bij npm start.
+    debugAvailable: !app.isPackaged,
+    // Eerste start na een installatie: de volledige uitleg is dan verplicht.
+    firstStartAfterInstall: appSettings.lastSeenChangelogVersion === null,
+    firstStartAfterUpdate: appSettings.lastSeenChangelogVersion !== null
+      && appSettings.lastSeenChangelogVersion !== app.getVersion(),
     blockCtrlB: appSettings.blockCtrlB,
     notClockedMode: appSettings.notClockedMode,
     // Keuzescherm (thema + klokmelding) al gezien? Zonder dit veld dacht
@@ -2694,27 +2718,19 @@ ipcMain.on('set-dark-mode', (event, value) => {
 });
 
 function applyDarkModeChange(value) {
-  // Eerst het gordijn in de oude kleur over de actieve tab, dan pas het
-  // thema wisselen: zo komt het nieuwe thema er rustig onder vandaan in
-  // plaats van in één klap om te springen.
-  const previousColor = curtainColor();
+  // De pagina loopt rustig over in de nieuwe kleuren (applyDarkMode fade),
+  // in hetzelfde tempo als de tabbalk, i.p.v. in één klap om te springen.
   const wasDark = darkActive();
   appSettings.darkMode = !!value;
   saveSettings();
   if (darkActive() === wasDark) return; // bv. bij het thema "Origineel"
   fadeTitleBarOverlay(wasDark, darkActive(), CURTAIN_THEME_FADE_MS);
-  if (activeTabId && tabs.has(activeTabId)) {
-    coverActiveView(tabs.get(activeTabId), {
-      color: previousColor,
-      revealDelay: CURTAIN_THEME_DELAY_MS,
-      fadeMs: CURTAIN_THEME_FADE_MS,
-      waitForLoad: false
-    });
-  }
   // Direct effect voor al open tabs, zonder herladen. Ook in losse vensters.
-  for (const view of tabs.values()) applyDarkMode(view);
+  // Wat je ziet (de actieve tab, losse vensters) loopt rustig over, net als
+  // de tabbalk; de rest wisselt direct.
+  for (const [id, view] of tabs) applyDarkMode(view, { fade: id === activeTabId });
   for (const detached of detachedWindows.values()) {
-    applyDarkMode(detached.view);
+    applyDarkMode(detached.view, { fade: true });
     if (!detached.window.isDestroyed()) {
       detached.window.setBackgroundColor(detachedBarColor());
       detached.window.webContents.send('detached-theme', darkActive());
@@ -2811,6 +2827,32 @@ ipcMain.on('mark-setup-done', (event, version) => {
   appSettings.setupVersion = Math.max(appSettings.setupVersion, version);
   appSettings.preferencesChosen = true;
   saveSettings();
+});
+// Instellingen > Debug (alleen bij npm start, nooit in de geïnstalleerde app):
+// de app herstarten alsof hij net geïnstalleerd of bijgewerkt is, zodat je de
+// echte schermen bij de start ziet (welkomstscherm, instelassistent, "Nieuw in
+// deze versie"). Alleen de velden daarvoor gaan terug; tabs, thema en de
+// rest van de instellingen blijven.
+ipcMain.on('debug-simulate-start', (event, { mode, fromVersion, seenTours } = {}) => {
+  if (event.sender !== mainWindow.webContents || app.isPackaged) return;
+  if (mode === 'install') {
+    Object.assign(appSettings, {
+      lastSeenChangelogVersion: null, setupVersion: 0, preferencesChosen: false,
+      seenWhatsNewTours: [], showOnboarding: true
+    });
+  } else if (mode === 'update' && typeof fromVersion === 'string' && Array.isArray(seenTours)) {
+    // Zoals iemand die op fromVersion zat: keuzescherm toen al gezien, de
+    // instelassistent (nieuwer) nog niet.
+    Object.assign(appSettings, {
+      lastSeenChangelogVersion: fromVersion, setupVersion: 0, preferencesChosen: true,
+      seenWhatsNewTours: seenTours.map(String)
+    });
+  } else {
+    return;
+  }
+  saveSettings();
+  app.relaunch();
+  app.quit();
 });
 ipcMain.on('mark-whats-new-seen', (event, ids) => {
   if (event.sender !== mainWindow.webContents || !Array.isArray(ids)) return;

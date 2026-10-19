@@ -114,6 +114,11 @@ for (const [id, theme] of Object.entries(themes.THEMES)) {
   for (const file of files) {
     if (!fs.existsSync(path.join(__dirname, '..', file))) problems.push(`${theme.name} (${id}): bestand ontbreekt: ${file}`);
   }
+  // Voorbeeldplaatje voor de instellingen (npm run previews).
+  for (const file of Object.values(theme.wallpaper || {})) {
+    const preview = file.replace(/\.[a-z]+$/i, '.preview.png');
+    if (!fs.existsSync(path.join(__dirname, '..', preview))) problems.push(`${theme.name} (${id}): voorbeeld ontbreekt: ${preview} (npm run previews)`);
+  }
 }
 
 if (problems.length) {
