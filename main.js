@@ -86,7 +86,8 @@ let appSettings = {
   themeMode: 'zon', // standaard: zon op/onder (sinds 1.3.0; zie SUN_DEFAULT in loadSettings)
   sunDefaultDone: true,
   themeTimes: { dark: '18:00', light: '07:00' }, // bij 'tijden'
-  themeSunOffset: 0 // bij 'zon': minuten later (+) of eerder (-) dan zon op/onder
+  // bij 'zon': minuten later (+) of eerder (-) dan zon op (licht) en zon onder (donker)
+  themeSunOffset: { light: 0, dark: 0 }
 };
 
 function getSettingsPath() {
@@ -115,6 +116,19 @@ function validThemeTimes(times) {
 
 function validSunOffset(offset) {
   return Number.isFinite(offset) ? Math.max(-120, Math.min(120, Math.round(offset))) : 0;
+}
+
+// Tot en met 1.3.0-beta.1 was er één verschuiving voor zon op én zon onder (een
+// getal). Wie dat al had, houdt die verschuiving voor allebei.
+function validSunOffsets(offsets) {
+  if (typeof offsets === 'number') {
+    const offset = validSunOffset(offsets);
+    return { light: offset, dark: offset };
+  }
+  return {
+    light: validSunOffset(Number(offsets && offsets.light)),
+    dark: validSunOffset(Number(offsets && offsets.dark))
+  };
 }
 
 function loadSettings() {
@@ -150,7 +164,7 @@ function loadSettings() {
         : (THEME_MODES.includes(parsed.themeMode) ? parsed.themeMode : 'zon'),
       sunDefaultDone: true,
       themeTimes: validThemeTimes(parsed.themeTimes),
-      themeSunOffset: validSunOffset(parsed.themeSunOffset)
+      themeSunOffset: validSunOffsets(parsed.themeSunOffset)
     };
     if (!zoomResetDone) saveSettings();
   } catch {
@@ -2506,8 +2520,9 @@ ipcMain.on('set-not-clocked-mode', (event, mode) => {
 // Naast handmatig (de knop in de tabbalk) kan het thema automatisch wisselen:
 //   - 'systeem': volgt de Windows-instelling (licht/donker voor apps)
 //   - 'tijden':  donker tussen twee vaste tijden (bv. 18:00 - 07:00)
-//   - 'zon':     donker na zonsondergang tot zonsopkomst, met een
-//                verschuiving in minuten. Zon op/onder wordt hier berekend
+//   - 'zon':     donker na zonsondergang tot zonsopkomst, met voor licht en
+//                donker elk een eigen verschuiving in minuten. Zon op/onder
+//                wordt hier berekend
 //                voor Singeling in Wormerveer (geen internet nodig).
 // De knop in de tabbalk werkt dan als tijdelijke uitzondering: die geldt tot
 // het volgende omslagmoment (of tot Windows wisselt), daarna neemt de
@@ -2563,12 +2578,13 @@ function themeMoments(now) {
     }
     return moments;
   }
-  const offsetMs = appSettings.themeSunOffset * 60000;
+  const lightMs = appSettings.themeSunOffset.light * 60000;
+  const darkMs = appSettings.themeSunOffset.dark * 60000;
   const moments = [];
   for (const day of [-1, 0, 1]) {
     const { sunrise, sunset } = sunTimes(addDays(now, day));
-    if (sunrise) moments.push({ at: new Date(sunrise.getTime() + offsetMs), dark: false });
-    if (sunset) moments.push({ at: new Date(sunset.getTime() + offsetMs), dark: true });
+    if (sunrise) moments.push({ at: new Date(sunrise.getTime() + lightMs), dark: false });
+    if (sunset) moments.push({ at: new Date(sunset.getTime() + darkMs), dark: true });
   }
   return moments;
 }
@@ -2640,13 +2656,13 @@ function formatClock(date) {
 // Voor het instellingenscherm: wanneer het vandaag licht/donker wordt.
 function themeScheduleInfo() {
   const { sunrise, sunset } = sunTimes(new Date());
-  const offsetMs = appSettings.themeSunOffset * 60000;
+  const { light, dark } = appSettings.themeSunOffset;
   const scheduled = scheduledTheme();
   return {
     sunrise: formatClock(sunrise),
     sunset: formatClock(sunset),
-    lightFrom: formatClock(sunrise && new Date(sunrise.getTime() + offsetMs)),
-    darkFrom: formatClock(sunset && new Date(sunset.getTime() + offsetMs)),
+    lightFrom: formatClock(sunrise && new Date(sunrise.getTime() + light * 60000)),
+    darkFrom: formatClock(sunset && new Date(sunset.getTime() + dark * 60000)),
     nextChange: scheduled && scheduled.nextChange ? formatClock(scheduled.nextChange) : null,
     overridden: !!themeOverride
   };
@@ -2661,7 +2677,7 @@ ipcMain.on('set-theme-schedule', (event, { mode, times, sunOffset } = {}) => {
   if (event.sender !== mainWindow.webContents || !THEME_MODES.includes(mode)) return;
   appSettings.themeMode = mode;
   if (times) appSettings.themeTimes = validThemeTimes(times);
-  if (sunOffset !== undefined) appSettings.themeSunOffset = validSunOffset(Number(sunOffset));
+  if (sunOffset !== undefined) appSettings.themeSunOffset = validSunOffsets(sunOffset);
   saveSettings();
   themeOverride = null;
   applyThemeSchedule();

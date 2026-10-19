@@ -3955,16 +3955,11 @@
           <label>Licht vanaf <input type="time" id="theme-time-light" required></label>
         </div>
         <div id="theme-sun-fields" class="theme-schedule-fields hidden">
-          <label>Verschuiving
-            <select id="theme-sun-offset">
-              <option value="-60">1 uur eerder</option>
-              <option value="-30">30 min eerder</option>
-              <option value="-15">15 min eerder</option>
-              <option value="0">precies op tijd</option>
-              <option value="15">15 min later</option>
-              <option value="30">30 min later</option>
-              <option value="60">1 uur later</option>
-            </select>
+          <label>Licht vanaf
+            <select id="theme-sun-offset-light" data-sun-event="zon op"></select>
+          </label>
+          <label>Donker vanaf
+            <select id="theme-sun-offset-dark" data-sun-event="zon onder"></select>
           </label>
           <span id="theme-sun-info" class="settings-hint"></span>
         </div>
@@ -6191,9 +6186,29 @@
     const themeSunFields = document.getElementById('theme-sun-fields');
     const themeTimeDark = document.getElementById('theme-time-dark');
     const themeTimeLight = document.getElementById('theme-time-light');
-    const themeSunOffset = document.getElementById('theme-sun-offset');
+    const themeSunOffsetLight = document.getElementById('theme-sun-offset-light');
+    const themeSunOffsetDark = document.getElementById('theme-sun-offset-dark');
     const themeSunInfo = document.getElementById('theme-sun-info');
     let themeMode = 'zon'; // standaard (main.js); getSettings zet de echte stand
+
+    // Zelfde keuzes voor licht (zon op) en donker (zon onder), elk apart in te stellen.
+    const SUN_OFFSET_CHOICES = [-60, -45, -30, -15, 0, 15, 30, 45, 60];
+    for (const select of [themeSunOffsetLight, themeSunOffsetDark]) {
+      const sunEvent = select.dataset.sunEvent;
+      for (const minutes of SUN_OFFSET_CHOICES) {
+        const amount = Math.abs(minutes) === 60 ? '1 uur' : `${Math.abs(minutes)} min`;
+        const option = document.createElement('option');
+        option.value = String(minutes);
+        option.textContent = minutes === 0 ? sunEvent : `${amount} ${minutes < 0 ? 'vóór' : 'na'} ${sunEvent}`;
+        select.append(option);
+      }
+    }
+
+    // Onbekende waarde (bv. handmatig in het bestand gezet): dichtstbijzijnde optie.
+    function selectNearestSunOffset(select, offset) {
+      const nearest = SUN_OFFSET_CHOICES.reduce((best, value) => Math.abs(value - offset) < Math.abs(best - offset) ? value : best);
+      select.value = String(nearest);
+    }
 
     async function refreshThemeSunInfo() {
       if (themeMode !== 'zon') return;
@@ -6208,10 +6223,9 @@
         themeTimeDark.value = themeTimes.dark;
         themeTimeLight.value = themeTimes.light;
       }
-      if (offset !== undefined) {
-        // Onbekende waarde (bv. handmatig in het bestand gezet): dichtstbijzijnde optie.
-        const options = [...themeSunOffset.options].map(option => Number(option.value));
-        themeSunOffset.value = String(options.reduce((best, value) => Math.abs(value - offset) < Math.abs(best - offset) ? value : best));
+      if (offset) {
+        selectNearestSunOffset(themeSunOffsetLight, offset.light);
+        selectNearestSunOffset(themeSunOffsetDark, offset.dark);
       }
       document.querySelectorAll('.choice-group[data-choice="theme-mode"]').forEach(group => {
         buildChoiceGroup(group, THEME_MODE_CHOICES, themeMode, value => {
@@ -6230,7 +6244,7 @@
       window.electronAPI.setThemeSchedule({
         mode: themeMode,
         times: { dark: themeTimeDark.value || '18:00', light: themeTimeLight.value || '07:00' },
-        sunOffset: Number(themeSunOffset.value)
+        sunOffset: { light: Number(themeSunOffsetLight.value), dark: Number(themeSunOffsetDark.value) }
       });
     }
 
@@ -6239,12 +6253,14 @@
         if (input.value) saveThemeSchedule();
       });
     }
-    themeSunOffset.addEventListener('change', async () => {
-      saveThemeSchedule();
-      // main.js moet de nieuwe verschuiving eerst opslaan.
-      await new Promise(resolve => setTimeout(resolve, 50));
-      refreshThemeSunInfo();
-    });
+    for (const select of [themeSunOffsetLight, themeSunOffsetDark]) {
+      select.addEventListener('change', async () => {
+        saveThemeSchedule();
+        // main.js moet de nieuwe verschuiving eerst opslaan.
+        await new Promise(resolve => setTimeout(resolve, 50));
+        refreshThemeSunInfo();
+      });
+    }
 
     window.electronAPI.getSettings().then(settings => {
       if (settings) renderThemeSchedule(settings);
