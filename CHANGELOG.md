@@ -2,6 +2,29 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.3.0-beta.2] - 2026-10-19
+
+Bètaversie: alleen voor wie "Bèta-versies ontvangen" aan heeft staan.
+
+### Toegevoegd
+- **Nieuwe thema's**: Blauwdruk (een technische tekening waarop een plotter tekent) en Laser (een plaat op de lasersnijder) bewegen rustig mee. Metaal (geborsteld rvs) en Rijstpapier (papier en inkt) zijn rustige thema's.
+- **Hoog contrast**: het thema Hal, in een eigen groep. Zwart op wit (of wit op zwart), duidelijke randen en statuskleuren, en een goed zichtbare rand om wat je met het toetsenbord selecteert. Bedoeld voor schermen en tablets op de werkvloer.
+- **Nieuw in deze versie**: na een update zie je in een paar schermen wat er nieuw is, in dezelfde stijl als de instelassistent.
+
+### Gewijzigd
+- De thema's zijn opnieuw ingedeeld: zes die bewegen (Noorderlicht, Werkplaats, Haven, Arcade, Blauwdruk en Laser) en zes rustige (Rosé Pine, Cassette, Metaal, Rijstpapier, Terminal en Delfts blauw). Gruvbox is verdwenen; had je dat gekozen, dan krijg je weer de Singeling-kleuren.
+- Sommige thema's zijn er alleen in donker (Werkplaats, Blauwdruk, Noorderlicht, Terminal) of alleen in licht (Laser, Delfts blauw). De licht/donker-knop verdwijnt dan even; je eigen keuze blijft bewaard en geldt weer bij een ander thema.
+- Wisselen tussen licht en donker gaat nu rustig over, ook op de pagina's zelf.
+- Instellingen > Thema's is overzichtelijker: per groep op één rij, met grotere voorbeelden.
+- Leescomfort heet nu Oogcomfort en werkt alleen in de lichte weergave.
+- Zon op/onder: je kunt de verschuiving voor licht en donker apart instellen.
+- Na een update of bij de eerste start loop je altijd even door de uitleg.
+
+### Opgelost
+- In de Scheduler was de stippellijn van de capaciteit in de donkere modus niet te zien.
+- Bij een thema met een eigen lettertype konden vastgezette tabs over elkaar heen schuiven.
+- Instellingen > Thema's haperde bij het wisselen tussen licht en donker.
+
 ## [1.3.0-beta.1] - 2026-10-16
 
 Bètaversie: alleen voor wie "Bèta-versies ontvangen" aan heeft staan.
