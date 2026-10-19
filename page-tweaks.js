@@ -107,12 +107,6 @@ const PAGE_TWEAKS_CSS = `
   html.sg-soft .sg-app .navg .sub {
     border-left-color: #c9c9c4;
   }
-
-  /* Leescomfort in donker: zijbalk donkergrijs, net iets lichter dan de pagina. */
-  html.dark.sg-soft-dark .sg-app .side {
-    background: #2a2d33;
-    border-right-color: rgba(255, 255, 255, 0.08);
-  }
 `;
 
 // Doorzichtige tinten dicht maken bij een thema met een achtergrondafbeelding

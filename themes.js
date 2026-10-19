@@ -439,9 +439,9 @@ const DEFAULT_THEME = 'standaard';
 
 // Lichtheid (%) per rol, per variant, voor afgeleide thema's. sat =
 // verzadiging van de vlakken bij tint 1; tekst krijgt de helft daarvan.
-// Leescomfort (soft) verlaagt vooral het contrast (lichtheid), niet de tint:
-// anders wordt elk thema grijs. In donker iets meer verzadiging, anders is
-// de tint bij zo weinig licht nauwelijks te zien.
+// Leescomfort (soft, alleen in licht) verlaagt vooral het contrast
+// (lichtheid), niet de tint: anders wordt elk thema grijs. In donker iets
+// meer verzadiging, anders is de tint bij zo weinig licht nauwelijks te zien.
 const VARIANTS = {
   light: {
     sat: 30, canvas: 96, surface: 99.5, raised: 94, sunk: 93, bar: 99.5, tab: 99.5,
@@ -457,18 +457,13 @@ const VARIANTS = {
     sat: 26, canvas: 86, surface: 94, raised: 89, sunk: 84, bar: 88, tab: 88,
     sidebar: 82, secondary: 89, border: 78, borderStrong: 69,
     fg1: 19, fg2: 30, fg3: 41, fg4: 56, mix: 88.5, mixBorder: 80
-  },
-  softDark: {
-    sat: 30, canvas: 15, surface: 18.5, raised: 22, sunk: 16, bar: 13, tab: 16.5,
-    sidebar: 18, secondary: 22, border: 27, borderStrong: 35,
-    fg1: 87, fg2: 74, fg3: 62, fg4: 45, mix: 15, mixBorder: 27
   }
 };
 
-const isDarkVariant = (variant) => variant === 'dark' || variant === 'softDark';
+const isDarkVariant = (variant) => variant === 'dark';
 
 function variantFor(dark, soft) {
-  if (dark) return soft ? 'softDark' : 'dark';
+  if (dark) return 'dark';
   return soft ? 'softLight' : 'light';
 }
 
@@ -820,14 +815,14 @@ function pageShapeCss(id, theme) {
 
 // Elk blok geldt voor precies één variant, dus de volgorde maakt niet uit.
 // De dubbele class houdt de specificiteit boven die van dark-mode.js,
-// soft-mode.js en page-tweaks.js (bv. html.dark.sg-soft-dark, 0,2,1).
+// soft-mode.js en page-tweaks.js (bv. html.sg-soft, html.dark). Alle drie
+// even specifiek (0,4,1); vandaar ook .dark.dark.
 function variantSelector(id, variant) {
   const t = `html.sg-theme-${id}.sg-theme-${id}`;
   return {
     light: `${t}:not(.dark):not(.sg-soft)`,
     softLight: `${t}.sg-soft:not(.dark)`,
-    dark: `${t}.dark:not(.sg-soft-dark)`,
-    softDark: `${t}.dark.sg-soft-dark`
+    dark: `${t}.dark.dark`
   }[variant];
 }
 
@@ -1166,7 +1161,8 @@ const THEME_CLASSES = Object.keys(THEMES).map(id => `sg-theme-${id}`);
 //
 // Zelfde variabelen en classes als index.html en detached.html (theme-light,
 // theme-soft), onder de extra class "chrome-theme". Specificiteit (0,3,1)
-// wint van de leescomfort-regels daar (0,2,1).
+// wint van de leescomfort-regels daar (0,2,1). In donker staat theme-soft er
+// soms ook op (de instelling zelf), maar leescomfort doet dan niets.
 
 function chromeVariantCss(theme, variant) {
   const p = palette(theme, variant);
@@ -1174,8 +1170,7 @@ function chromeVariantCss(theme, variant) {
   const sel = {
     light: 'html.chrome-theme.theme-light:not(.theme-soft)',
     softLight: 'html.chrome-theme.theme-light.theme-soft',
-    dark: 'html.chrome-theme:not(.theme-light):not(.theme-soft)',
-    softDark: 'html.chrome-theme.theme-soft:not(.theme-light)'
+    dark: 'html.chrome-theme.chrome-theme:not(.theme-light)'
   }[variant];
   const backdropBase = p.dark ? p.canvas.hex : p.surface.hex;
   return `
@@ -1248,8 +1243,7 @@ function helpPopoverThemeCss(id) {
     const sel = {
       light: 'html.themed.light:not(.soft)',
       softLight: 'html.themed.light.soft',
-      dark: 'html.themed:not(.light):not(.soft)',
-      softDark: 'html.themed.soft:not(.light)'
+      dark: 'html.themed.themed:not(.light)'
     }[variant];
     return `${sel} { --bg: ${p.surface.hex}; --border: ${p.dark ? rgba('#ffffff', 0.1) : p.border.hex}; --text: ${p.fg1.hex}; --text-2: ${p.fg2.hex}; --muted: ${p.fg3.hex}; --accent: ${p.accent}; }`;
   }).join('\n') + (theme.font

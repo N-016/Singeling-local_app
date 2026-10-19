@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { DARK_MODE_BACKGROUND, DARK_MODE_CSS } = require('./dark-mode');
 const { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT } = require('./page-tweaks');
-const { SOFT_MODE_BACKGROUND, SOFT_DARK_BACKGROUND, SOFT_MODE_CSS } = require('./soft-mode');
+const { SOFT_MODE_BACKGROUND, SOFT_MODE_CSS } = require('./soft-mode');
 const themes = require('./themes');
 
 // Zonder deze lock start elke nieuwe poging een los proces dat om dezelfde
@@ -78,7 +78,7 @@ let appSettings = {
   preferencesChosen: false, // keuzescherm (thema + klokmelding) al gezien
   setupVersion: 0, // versie van de instelassistent die al doorlopen is (SETUP_VERSION in index.html)
   darkMode: false,
-  softColors: true, // leescomfort: zachtere kleuren (licht: zachtgrijs, donker: donkergrijs; soft-mode.js). Standaard aan.
+  softColors: true, // leescomfort: zachtere kleuren (alleen in licht: zachtgrijs; soft-mode.js). Standaard aan.
   betaUpdates: RUNNING_PRERELEASE, // ook bètaversies (GitHub pre-releases) als update aanbieden
   appTheme: themes.DEFAULT_THEME, // kleurenthema (themes.js); voorlopig alleen met bèta-updates aan
   // Licht/donker automatisch (zie "Licht/donker automatisch"):
@@ -901,8 +901,8 @@ function findOtherPageIndex(navigationHistory, direction) {
 // inhoud (bv. de specificatie-preview: HTML die de app in een leeg venster
 // schrijft en die van een witte pagina uitgaat, of een PDF) houdt wit, anders
 // schijnt de donkere achtergrond door en staat de zwarte tekst op zwart.
-// Leescomfort (zachtere kleuren, zie soft-mode.js): in licht zachtgrijs i.p.v.
-// fel wit, in donker donkergrijs i.p.v. bijna zwart.
+// Leescomfort (zachtere kleuren, zie soft-mode.js): alleen in licht,
+// zachtgrijs i.p.v. fel wit. Donker blijft zoals het is.
 // Donker zoals het er nu echt uitziet. Het thema "Standaard" (de app zoals
 // hij is, themes.js isOriginal) kent geen licht/donker: dan altijd licht. De
 // keuze zelf (appSettings.darkMode, ook de automatische wissel) blijft
@@ -913,16 +913,15 @@ function darkActive() {
 
 // Leescomfort geldt niet bij een thema met een vast palet (themes.js): dat
 // heeft zijn eigen uitstraling. De instelling zelf blijft bewaard.
+// softActive() is de stand zelf (de chrome, losse vensters en het
+// hulpkaartje krijgen die als class en kijken zelf of het licht is);
+// softLightActive() is of de pagina's nu echt zachter worden.
 function softActive() {
   return !!appSettings.softColors && themes.supportsSoft(activeTheme());
 }
 
 function softLightActive() {
   return softActive() && !darkActive();
-}
-
-function softDarkActive() {
-  return softActive() && darkActive();
 }
 
 // Thema's zijn nog bèta: alleen wie bèta-updates aan heeft ziet de keuze en
@@ -945,7 +944,7 @@ function themedBackground() {
 function pageBackground() {
   const themed = themedBackground();
   if (themed) return themed;
-  if (darkActive()) return softDarkActive() ? SOFT_DARK_BACKGROUND : DARK_MODE_BACKGROUND;
+  if (darkActive()) return DARK_MODE_BACKGROUND;
   return softLightActive() ? SOFT_MODE_BACKGROUND : '#ffffff';
 }
 
@@ -959,7 +958,6 @@ function applyDarkMode(view) {
      document.documentElement.classList.toggle('sg-original', ${themes.isOriginal(activeTheme())});
      document.documentElement.classList.toggle('sg-wallpaper', ${themes.hasWallpaper(activeTheme())});
      document.documentElement.classList.toggle('sg-soft', ${softLightActive()});
-     document.documentElement.classList.toggle('sg-soft-dark', ${softDarkActive()});
      for (const name of ${JSON.stringify(themes.THEME_CLASSES)}) {
        document.documentElement.classList.toggle(name, name === ${JSON.stringify('sg-theme-' + activeTheme())});
      }`
@@ -1688,7 +1686,7 @@ let curtainWaitingFor = null;
 function curtainColor() {
   const themed = themedBackground();
   if (themed) return themed;
-  if (darkActive()) return softDarkActive() ? SOFT_DARK_BACKGROUND : DARK_MODE_BACKGROUND;
+  if (darkActive()) return DARK_MODE_BACKGROUND;
   return softLightActive() ? SOFT_MODE_BACKGROUND : LIGHT_MODE_BACKGROUND;
 }
 
@@ -1758,10 +1756,6 @@ const HELP_POPOVER_HTML = `<!doctype html><html><head><meta charset="utf-8"><sty
   html.light {
     --bg: #ffffff; --border: #dfe2e6; --text: #16181d;
     --text-2: #32363c; --muted: #6b7178; --shadow: 0 12px 30px rgba(22, 24, 29, 0.16);
-  }
-  html.soft:not(.light) {
-    --bg: #2a2d33; --border: rgba(255, 255, 255, 0.1); --text: #dfe1e4;
-    --text-2: #c2c6cc; --muted: #9a9fa7;
   }
   html.light.soft {
     --bg: #efefec; --border: #cdcdc8; --text: #2b2d31;

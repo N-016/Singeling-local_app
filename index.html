@@ -71,33 +71,10 @@
         linear-gradient(155deg, #ffffff 0%, #f7f8f9 60%, #f3efec 100%);
     }
 
-    /* Leescomfort in donker (Instellingen > Algemeen > Leescomfort):
-       donkergrijs i.p.v. bijna zwart, en iets minder felle tekst. Zelfde
-       kleuren als soft-mode.js (sg-soft-dark) voor de pagina's. */
-    html.theme-soft:not(.theme-light) {
-      --app-bg: #23262a;
-      --bar-bg: #1f2226;
-      --bar-border: #3a3f47;
-      --tab-bg: #262a2f;
-      --surface: #2a2d33;
-      --surface-raised: #32363d;
-      --field-bg: rgba(0, 0, 0, 0.18);
-      --border: rgba(255, 255, 255, 0.1);
-      --border-strong: rgba(255, 255, 255, 0.18);
-      --text: #dfe1e4;
-      --text-2: #c2c6cc;
-      --text-muted: #9a9fa7;
-      --text-faint: #6c727b;
-      --overlay: rgba(12, 13, 15, 0.6);
-      --panel-bg: rgba(42, 45, 51, 0.75);
-      --backdrop:
-        radial-gradient(circle at 88% 4%, rgba(255, 110, 40, 0.2), transparent 40%),
-        radial-gradient(circle at 60% 0%, rgba(255, 81, 0, 0.1), transparent 45%),
-        linear-gradient(155deg, #2a2d33 0%, #23262a 60%, #27231f 100%);
-    }
-
-    /* Leescomfort in licht: zachtgrijs i.p.v. fel wit, met minder contrast.
-       Zelfde kleuren als soft-mode.js (sg-soft) voor de pagina's. */
+    /* Leescomfort (Instellingen > Weergave), alleen in licht: zachtgrijs i.p.v.
+       fel wit, met minder contrast. Zelfde kleuren als soft-mode.js (sg-soft)
+       voor de pagina's. In donker staat theme-soft er soms ook op (de
+       instelling zelf), maar dan verandert er niets. */
     html.theme-light.theme-soft {
       --app-bg: #dfdfdb;
       --bar-bg: #e1e1de;
@@ -2064,7 +2041,7 @@
       --shadow: 0 16px 40px rgba(22, 24, 29, 0.16);
     }
 
-    html.chrome-theme:not(.theme-light):not(.theme-soft) #beta-notice {
+    html.chrome-theme:not(.theme-light) #beta-notice {
       --surface: #1e2127;
       --surface-raised: #262a31;
       --field-bg: rgba(0, 0, 0, 0.25);
@@ -2095,23 +2072,6 @@
       --text-faint: #9aa0a8;
       --overlay: rgba(22, 24, 29, 0.45);
       --shadow: 0 16px 40px rgba(22, 24, 29, 0.16);
-    }
-
-    html.theme-soft:not(.theme-light) #beta-notice,
-    html.chrome-theme.theme-soft:not(.theme-light) #beta-notice {
-      --surface: #1e2127;
-      --surface-raised: #262a31;
-      --field-bg: rgba(0, 0, 0, 0.25);
-      --border: rgba(255, 255, 255, 0.1);
-      --border-strong: rgba(255, 255, 255, 0.2);
-      --hover: rgba(255, 255, 255, 0.06);
-      --hover-strong: rgba(255, 255, 255, 0.12);
-      --text: #f4f5f6;
-      --text-2: #c5c9cf;
-      --text-muted: #9da3ac;
-      --text-faint: #5f6670;
-      --overlay: rgba(8, 9, 11, 0.72);
-      --shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
     }
 
     .notice-panel {
@@ -3043,6 +3003,14 @@
       outline-offset: 3px;
     }
 
+    /* Nog niets gekozen (de themapagina, de eerste keer). */
+    .setup-next:disabled {
+      background: var(--surface-raised);
+      color: var(--text-muted);
+      cursor: default;
+      transform: none;
+    }
+
     .setup-link {
       padding: 4px 8px;
       border: 0;
@@ -3967,7 +3935,7 @@
       <label id="soft-colors-row" class="general-toggle">
         <span class="toggle-text">
           Leescomfort: zachtere kleuren
-          <span class="settings-hint">Minder fel contrast, prettiger voor je ogen bij lang lezen. Licht wordt rustig zachtgrijs in plaats van fel wit; donker wordt donkergrijs in plaats van bijna zwart.</span>
+          <span class="settings-hint">Minder fel contrast, prettiger voor je ogen bij lang lezen. In licht wordt de app rustig zachtgrijs in plaats van fel wit, met net wat diepere kleuren. Donker blijft zoals het is.</span>
           <span id="soft-colors-theme-hint" class="settings-hint">Het gekozen thema heeft zijn eigen kleuren, daarom werkt leescomfort hier niet. Kies bij Thema's een kleurenset (bv. Neutraal) om het weer te gebruiken.</span>
         </span>
         <input type="checkbox" class="switch" id="soft-colors-checkbox">
@@ -4191,7 +4159,7 @@
         <h1 id="setup-title-leescomfort">Leescomfort</h1>
         <p class="setup-lead">Zachtere kleuren geven minder fel contrast. Prettig voor je ogen als je lang achter het scherm zit.</p>
         <div id="setup-soft-options" class="setup-options" role="radiogroup" aria-label="Leescomfort"></div>
-        <p class="setup-note">Zachter = zachtgrijs in plaats van fel wit, en donkergrijs in plaats van bijna zwart.</p>
+        <p class="setup-note">Zachter = zachtgrijs in plaats van fel wit, met net wat diepere kleuren. Geldt in licht; donker blijft zoals het is.</p>
       </div>
 
       <div class="setup-page" data-page="melding">
@@ -4480,6 +4448,10 @@
     let setupDoneVersion = SETUP_VERSION; // pas na getSettings bekend
     let preferencesChosen = true; // idem: oude keuzescherm al gezien?
     let themesOffered = false; // thema's beschikbaar (bèta), zie renderAppThemeChoice
+    // De eerste keer staat er op de themapagina nog niets aangevinkt: je kiest
+    // zelf (tot dan blijft het huidige thema gewoon actief). "Ga door" kan pas
+    // na een klik op een thema. Bij opnieuw doorlopen staat je thema er al.
+    let setupThemePicked = true;
     window.electronAPI.getSettings().then(settings => {
       if (!settings) return;
       setupDoneVersion = settings.setupVersion || 0;
@@ -4508,7 +4480,6 @@
       light: { bg: '#f7f8f9', bar: '#ffffff', panel: '#ffffff', line: '#c5c9cf', border: '#dfe2e6' },
       dark: { bg: '#14161a', bar: '#0f1115', panel: '#1e2127', line: '#4a5059', border: '#2b2f36' },
       softLight: { bg: '#dfdfdb', bar: '#e1e1de', panel: '#f3f3f0', line: '#b6b6b1', border: '#cdcdc8' },
-      softDark: { bg: '#23262a', bar: '#1f2226', panel: '#2a2d33', line: '#50555d', border: '#3a3f47' },
       current: { bg: 'var(--app-bg)', bar: 'var(--bar-bg)', panel: 'var(--surface)', line: 'var(--border-strong)', border: 'var(--border)' }
     };
     let setupMockCount = 0;
@@ -4630,8 +4601,8 @@
 
     function renderSetupSoft() {
       buildSetupOptions(document.getElementById('setup-soft-options'), [
-        { value: 'gewoon', label: 'Gewoon', desc: 'Helder wit en diep donker', mock: mockWindow(MOCK_COLORS.light, { split: MOCK_COLORS.dark }) },
-        { value: 'zachter', label: 'Zachter', desc: 'Rustiger voor je ogen', mock: mockWindow(MOCK_COLORS.softLight, { split: MOCK_COLORS.softDark }) }
+        { value: 'gewoon', label: 'Gewoon', desc: 'Helder wit', mock: mockWindow(MOCK_COLORS.light) },
+        { value: 'zachter', label: 'Zachter', desc: 'Rustiger voor je ogen', mock: mockWindow(MOCK_COLORS.softLight) }
       ], softColors ? 'zachter' : 'gewoon', value => setSoftColors(value === 'zachter'));
     }
 
@@ -4690,14 +4661,23 @@
       }
       setupAssistant.setAttribute('aria-labelledby', `setup-title-${id}`);
       setupBack.classList.toggle('hidden', index === 0);
-      setupNext.textContent = last ? 'Aan de slag' : 'Ga door';
+      renderSetupNext();
       setupChangelog.classList.toggle('hidden', !(last && setupRun.changelog));
       setupDots.innerHTML = pages.map((page, i) => `<span${i === index ? ' class="on"' : ''}></span>`).join('');
       setupNext.focus({ preventScroll: true });
     }
 
+    function renderSetupNext() {
+      const pages = visibleSetupPages();
+      const last = pages.findIndex(page => page.id === setupPageId) === pages.length - 1;
+      const waiting = setupPageId === 'thema' && !setupThemePicked;
+      setupNext.disabled = waiting;
+      setupNext.textContent = waiting ? 'Kies eerst een thema' : last ? 'Aan de slag' : 'Ga door';
+    }
+
     function stepSetup(delta) {
       if (!setupRun) return;
+      if (delta > 0 && setupNext.disabled) return;
       const current = setupOrder(setupPageId);
       const pages = visibleSetupPages();
       const target = delta > 0
@@ -4724,6 +4704,8 @@
       clearTimeout(setupTimer);
       if (activeTour) stopOnboarding();
       setupRun = run;
+      setupThemePicked = !(run.questions && setupDoneVersion < SETUP_VERSION);
+      renderThemeCardChecks();
       onboardingStarted = true;
       window.electronAPI.notifyOnboardingStarted();
       document.documentElement.classList.add('setup-open');
@@ -6296,9 +6278,9 @@
       }, THEME_SWITCH_MS + 100);
     });
 
-    // Leescomfort: zachtere kleuren (html.theme-soft; in licht zachtgrijs, in
-    // donker donkergrijs). main.js zet dezelfde stand op de pagina's
-    // (soft-mode.js).
+    // Leescomfort: zachtere kleuren (html.theme-soft; alleen in licht
+    // zachtgrijs, donker blijft gelijk). main.js zet dezelfde stand op de
+    // pagina's (soft-mode.js).
     const softColorsCheckbox = document.getElementById('soft-colors-checkbox');
     let softColors = true; // standaard aan (zie main.js); getSettings zet de echte stand
     let softSupported = true; // false bij een thema met een eigen palet (themes.js)
@@ -6398,14 +6380,26 @@
 
       card.append(preview, name, description);
       card.addEventListener('click', () => {
-        if (appTheme === theme.id) return;
-        appTheme = theme.id;
-        for (const other of document.querySelectorAll('.theme-card')) {
-          other.setAttribute('aria-checked', String(other.dataset.value === appTheme));
+        // In de instelassistent telt ook een klik op het thema dat al actief is.
+        if (!setupThemePicked && card.closest('.setup-themes')) {
+          setupThemePicked = true;
+          renderSetupNext();
         }
-        window.electronAPI.setAppTheme(theme.id);
+        if (appTheme !== theme.id) {
+          appTheme = theme.id;
+          window.electronAPI.setAppTheme(theme.id);
+        }
+        renderThemeCardChecks();
       });
       return card;
+    }
+
+    // Vinkje bij het actieve thema; in de instelassistent pas na een keuze.
+    function renderThemeCardChecks() {
+      for (const card of document.querySelectorAll('.theme-card')) {
+        const unchosen = !setupThemePicked && card.closest('.setup-themes');
+        card.setAttribute('aria-checked', String(!unchosen && card.dataset.value === appTheme));
+      }
     }
 
     let themeCardsBuiltFor = null;
@@ -6430,9 +6424,7 @@
           }
         }
       }
-      for (const card of document.querySelectorAll('.theme-card')) {
-        card.setAttribute('aria-checked', String(card.dataset.value === appTheme));
-      }
+      renderThemeCardChecks();
     }
 
     window.electronAPI.on('chrome-theme-changed', (state) => {

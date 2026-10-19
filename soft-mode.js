@@ -1,10 +1,8 @@
 // Leescomfort: zachtere kleuren voor de Lovable-app (instelling softColors).
 //
-//   - licht (class "sg-soft"):      zachtgrijze vlakken met donkergrijze tekst
-//                                   i.p.v. fel wit met zwart
-//   - donker (class "sg-soft-dark", samen met "dark"): donkergrijze vlakken
-//                                   met iets minder felle tekst i.p.v. bijna
-//                                   zwart met wit
+// Alleen in licht (class "sg-soft"): zachtgrijze vlakken met donkergrijze
+// tekst i.p.v. fel wit met zwart, en wat diepere tinten in de gekleurde
+// vlakken. Donker is al rustig genoeg en blijft zoals het is.
 // Minder contrast, prettiger bij lang lezen. Kleuren als het oranje en de
 // statuskleuren blijven gewoon bestaan. main.js zet de class op <html>.
 //
@@ -16,7 +14,6 @@ const { WHITE_SURFACES, PAPER, TAILWIND_COLORS, tailwindGradientRules } = requir
 
 // Achtergrond van de tab tijdens het laden (= --background hieronder).
 const SOFT_MODE_BACKGROUND = '#dfdfdb';
-const SOFT_DARK_BACKGROUND = '#23262a'; // = --background bij sg-soft-dark
 
 // Pagina (87%) en kaarten/vlakken (95%) duidelijk uit elkaar, zodat bv. de
 // orderkaarten in QRM Connect loskomen van de achtergrond; nog steeds geen
@@ -97,37 +94,6 @@ const SOFT_PAPER = `
   }
 `;
 
-// Donker: lichter dan het gewone donker (dark-mode.js: canvas 9%, vlakken 13%)
-// en tekst iets minder fel. Specificiteit (0,2,1) wint van html.dark (0,1,1).
-const SOFT_DARK_VARIABLES = `
-  html.dark.sg-soft-dark {
-    --background: 220 8% 15%;
-    --foreground: 214 9% 87%;
-    --card: 220 8% 18%;
-    --card-foreground: 214 9% 87%;
-    --popover: 220 8% 18%;
-    --popover-foreground: 214 9% 87%;
-    --secondary: 220 7% 22%;
-    --secondary-foreground: 214 9% 87%;
-    --muted: 220 7% 22%;
-    --muted-foreground: 214 6% 64%;
-    --accent: 220 7% 22%;
-    --accent-foreground: 214 9% 87%;
-    --border: 220 8% 27%;
-    --input: 220 8% 27%;
-    --bg-canvas: hsl(220 8% 15%);
-    --bg-surface: hsl(220 8% 18%);
-    --bg-sunk: hsl(220 8% 16%);
-    --fg-1: hsl(214 9% 87%);
-    --fg-2: hsl(214 7% 72%);
-    --fg-3: hsl(214 6% 58%);
-    --border-1: hsl(220 8% 26%);
-    --border-2: hsl(220 8% 32%);
-    --border-strong: hsl(214 9% 80%);
-  }
-  html.dark.sg-soft-dark body { background-color: hsl(var(--background)); }
-`;
+const SOFT_MODE_CSS = SOFT_VARIABLES + SOFT_SURFACES + softTailwindRules() + SOFT_PAPER;
 
-const SOFT_MODE_CSS = SOFT_VARIABLES + SOFT_SURFACES + softTailwindRules() + SOFT_PAPER + SOFT_DARK_VARIABLES;
-
-module.exports = { SOFT_MODE_BACKGROUND, SOFT_DARK_BACKGROUND, SOFT_MODE_CSS };
+module.exports = { SOFT_MODE_BACKGROUND, SOFT_MODE_CSS };
