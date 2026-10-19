@@ -1,5 +1,5 @@
 // Thema's (bèta): een vaste set kleurensets van ons, bovenop licht/donker en
-// leescomfort. Twee soorten:
+// oogcomfort. Twee soorten:
 //
 //   1. Afgeleid: alleen een recept, de kleuren worden berekend.
 //        hue    - tint van de achtergronden en tekst (0-360, kleurenwiel)
@@ -10,7 +10,7 @@
 //
 //   2. Vast palet (palettes.light / palettes.dark): de kleuren van een bestaand
 //      thema letterlijk overgenomen, eventueel met een achtergrondafbeelding
-//      (wallpaper) achter de pagina's. Leescomfort verandert hier (voorlopig)
+//      (wallpaper) achter de pagina's. Oogcomfort verandert hier (voorlopig)
 //      niets aan: het thema heeft zijn eigen uitstraling.
 //
 // Waar de kleuren terechtkomen:
@@ -410,15 +410,15 @@ const ARCADE = {
 
 const THEMES = {
   // De app precies zoals de webapp hem maakt: geen licht/donker, geen
-  // leescomfort, geen aangepaste kleuren of zijbalk (main.js darkActive,
+  // oogcomfort, geen aangepaste kleuren of zijbalk (main.js darkActive,
   // class sg-original op de pagina's; page-tweaks.js).
-  origineel: { name: 'Standaard', description: 'De app precies zoals hij is, zonder aanpassingen: geen licht/donker of leescomfort.', original: true },
+  origineel: { name: 'Standaard', description: 'De app precies zoals hij is, zonder aanpassingen: geen licht/donker of oogcomfort.', original: true },
   // id "standaard" blijft (bewaard in ieders instellingen, en de standaard
   // voor iedereen): de Singeling-kleuren van de app, met licht/donker en
-  // leescomfort.
+  // oogcomfort.
   standaard: { name: 'Neutraal', description: 'De Singeling-kleuren: grijs met oranje.' },
   // Pastelkleurensets (afgeleid: tint + accent). Alleen kleuren, met
-  // licht/donker en leescomfort.
+  // licht/donker en oogcomfort.
   blauw: { name: 'Blauw', description: 'Koel en rustig blauw.', hue: 215, tint: 1, accent: '#2f7fe0' },
   groen: { name: 'Groen', description: 'Zacht saliegroen.', hue: 150, tint: 0.85, accent: '#2e8b57' },
   roze: { name: 'Roze', description: 'Poederroze.', hue: 340, tint: 0.8, accent: '#d0457e' },
@@ -439,7 +439,7 @@ const DEFAULT_THEME = 'standaard';
 
 // Lichtheid (%) per rol, per variant, voor afgeleide thema's. sat =
 // verzadiging van de vlakken bij tint 1; tekst krijgt de helft daarvan.
-// Leescomfort (soft, alleen in licht) verlaagt vooral het contrast
+// Oogcomfort (soft, alleen in licht) verlaagt vooral het contrast
 // (lichtheid), niet de tint: anders wordt elk thema grijs. In donker iets
 // meer verzadiging, anders is de tint bij zo weinig licht nauwelijks te zien.
 const VARIANTS = {
@@ -542,9 +542,9 @@ function previewFontCss() {
   return Object.values(THEMES).map(theme => fontFaceCss(theme, file => file)).join('');
 }
 
-// Leescomfort werkt bij het standaardthema en de afgeleide thema's; een vast
+// Oogcomfort werkt bij het standaardthema en de afgeleide thema's; een vast
 // palet heeft zijn eigen uitstraling (zie boven), en "zoals hij is"
-// (original) heeft geen leescomfort.
+// (original) heeft geen oogcomfort.
 function supportsSoft(id) {
   const theme = THEMES[id];
   return !theme || (!theme.palettes && !theme.original);
@@ -1161,8 +1161,8 @@ const THEME_CLASSES = Object.keys(THEMES).map(id => `sg-theme-${id}`);
 //
 // Zelfde variabelen en classes als index.html en detached.html (theme-light,
 // theme-soft), onder de extra class "chrome-theme". Specificiteit (0,3,1)
-// wint van de leescomfort-regels daar (0,2,1). In donker staat theme-soft er
-// soms ook op (de instelling zelf), maar leescomfort doet dan niets.
+// wint van de oogcomfort-regels daar (0,2,1). In donker staat theme-soft er
+// soms ook op (de instelling zelf), maar oogcomfort doet dan niets.
 
 function chromeVariantCss(theme, variant) {
   const p = palette(theme, variant);

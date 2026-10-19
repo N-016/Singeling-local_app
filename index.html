@@ -71,7 +71,7 @@
         linear-gradient(155deg, #ffffff 0%, #f7f8f9 60%, #f3efec 100%);
     }
 
-    /* Leescomfort (Instellingen > Weergave), alleen in licht: zachtgrijs i.p.v.
+    /* Oogcomfort (Instellingen > Weergave), alleen in licht: zachtgrijs i.p.v.
        fel wit, met minder contrast. Zelfde kleuren als soft-mode.js (sg-soft)
        voor de pagina's. In donker staat theme-soft er soms ook op (de
        instelling zelf), maar dan verandert er niets. */
@@ -1194,8 +1194,10 @@
       display: block;
     }
 
-    /* Leescomfort bij een thema met een eigen palet (themes.js): uitgeschakeld. */
-    #soft-colors-theme-hint {
+    /* Oogcomfort uitgeschakeld: bij een thema met een eigen palet (themes.js,
+       class no-theme) of in donker (class in-dark; werkt alleen in licht). */
+    #soft-colors-theme-hint,
+    #soft-colors-dark-hint {
       display: none;
       color: var(--accent);
     }
@@ -1205,11 +1207,12 @@
     }
 
     #soft-colors-row.unavailable .switch,
-    #soft-colors-row.unavailable .toggle-text > :not(#soft-colors-theme-hint) {
+    #soft-colors-row.unavailable .toggle-text > :not(#soft-colors-theme-hint, #soft-colors-dark-hint) {
       opacity: 0.45;
     }
 
-    #soft-colors-row.unavailable #soft-colors-theme-hint {
+    #soft-colors-row.no-theme #soft-colors-theme-hint,
+    #soft-colors-row.in-dark #soft-colors-dark-hint {
       display: block;
     }
 
@@ -2023,7 +2026,7 @@
     }
 
     /* Het welkomstscherm (net als het laadscherm) altijd in de gewone kleuren,
-       ook als Leescomfort aanstaat: hier de gewone waarden terugzetten. Bij een
+       ook als Oogcomfort aanstaat: hier de gewone waarden terugzetten. Bij een
        thema (chrome-theme) ook, alleen de accentkleur volgt het thema. */
     html.chrome-theme.theme-light:not(.theme-soft) #beta-notice {
       --surface: #ffffff;
@@ -3910,7 +3913,7 @@
 
     <div class="settings-section hidden" data-section="weergave">
       <h3>Weergave</h3>
-      <p class="settings-intro">Licht of donker, leescomfort en hoe meldingen bovenaan de pagina eruitzien.</p>
+      <p class="settings-intro">Licht of donker, oogcomfort en hoe meldingen bovenaan de pagina eruitzien.</p>
       <div id="theme-schedule-row" class="general-choice">
         <span class="toggle-text">
           Licht/donker wisselen
@@ -3934,9 +3937,10 @@
       </div>
       <label id="soft-colors-row" class="general-toggle">
         <span class="toggle-text">
-          Leescomfort: zachtere kleuren
-          <span class="settings-hint">Minder fel contrast, prettiger voor je ogen bij lang lezen. In licht wordt de app rustig zachtgrijs in plaats van fel wit, met net wat diepere kleuren. Donker blijft zoals het is.</span>
-          <span id="soft-colors-theme-hint" class="settings-hint">Het gekozen thema heeft zijn eigen kleuren, daarom werkt leescomfort hier niet. Kies bij Thema's een kleurenset (bv. Neutraal) om het weer te gebruiken.</span>
+          Oogcomfort: zachtere kleuren
+          <span class="settings-hint">Alleen voor de lichte weergave. Minder fel contrast, prettiger voor je ogen: de app wordt rustig zachtgrijs in plaats van fel wit, met net wat diepere kleuren.</span>
+          <span id="soft-colors-dark-hint" class="settings-hint">Werkt alleen in de lichte modus. Zet licht aan om oogcomfort aan of uit te zetten.</span>
+          <span id="soft-colors-theme-hint" class="settings-hint">Het gekozen thema heeft zijn eigen kleuren, daarom werkt oogcomfort hier niet. Kies bij Thema's een kleurenset (bv. Neutraal) om het weer te gebruiken.</span>
         </span>
         <input type="checkbox" class="switch" id="soft-colors-checkbox">
       </label>
@@ -4156,10 +4160,10 @@
         <div class="setup-icon" aria-hidden="true">
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
         </div>
-        <h1 id="setup-title-leescomfort">Leescomfort</h1>
-        <p class="setup-lead">Zachtere kleuren geven minder fel contrast. Prettig voor je ogen als je lang achter het scherm zit.</p>
-        <div id="setup-soft-options" class="setup-options" role="radiogroup" aria-label="Leescomfort"></div>
-        <p class="setup-note">Zachter = zachtgrijs in plaats van fel wit, met net wat diepere kleuren. Geldt in licht; donker blijft zoals het is.</p>
+        <h1 id="setup-title-leescomfort">Oogcomfort</h1>
+        <p class="setup-lead">Zachtere kleuren geven minder fel contrast. Prettig voor je ogen als je lang achter het scherm zit. Alleen voor de lichte weergave.</p>
+        <div id="setup-soft-options" class="setup-options" role="radiogroup" aria-label="Oogcomfort"></div>
+        <p class="setup-note">Zachter = zachtgrijs in plaats van fel wit, met net wat diepere kleuren. Donker blijft zoals het is.</p>
       </div>
 
       <div class="setup-page" data-page="melding">
@@ -4431,12 +4435,13 @@
     // gebruiker krijgt ze allebei achter elkaar.
     // when: pagina alleen als hij nu zin heeft. Dat wordt bij elke stap
     // opnieuw bekeken: het gekozen thema bepaalt of licht/donker en
-    // leescomfort werken.
+    // oogcomfort werken.
     const SETUP_PAGES = [
       { id: 'intro' },
       { id: 'thema', when: () => setupRun.questions && themesOffered },
       { id: 'weergave', when: () => setupRun.questions && !originalTheme },
-      { id: 'leescomfort', when: () => setupRun.questions && softSupported },
+      // Oogcomfort werkt alleen in licht: na een keuze voor donker overslaan.
+      { id: 'leescomfort', when: () => setupRun.questions && softSupported && document.documentElement.classList.contains('theme-light') },
       { id: 'melding', when: () => setupRun.questions },
       { id: 'uitleg-tabs', when: () => setupRun.tour },
       { id: 'uitleg-balk', when: () => setupRun.tour },
@@ -4475,7 +4480,7 @@
 
     // ---- Tekeningetjes van het venster bij de keuzes ----
     // Kleuren als CSS-waarde, dus ook var(...): de melding-voorbeelden volgen
-    // zo het huidige thema, licht/donker en leescomfort tonen vaste kleuren.
+    // zo het huidige thema, licht/donker en oogcomfort tonen vaste kleuren.
     const MOCK_COLORS = {
       light: { bg: '#f7f8f9', bar: '#ffffff', panel: '#ffffff', line: '#c5c9cf', border: '#dfe2e6' },
       dark: { bg: '#14161a', bar: '#0f1115', panel: '#1e2127', line: '#4a5059', border: '#2b2f36' },
@@ -6257,11 +6262,31 @@
     // bewaarde keuze ook is. De knop houdt die keuze (active) wel bij.
     let originalTheme = false;
 
+    // Oogcomfort: zachtere kleuren (html.theme-soft; alleen in licht
+    // zachtgrijs, donker blijft gelijk). main.js zet dezelfde stand op de
+    // pagina's (soft-mode.js). Hier al, omdat renderDarkModeButton de
+    // schakelaar bijwerkt.
+    const softColorsCheckbox = document.getElementById('soft-colors-checkbox');
+    let softColors = true; // standaard aan (zie main.js); getSettings zet de echte stand
+    let softSupported = true; // false bij een thema met een eigen palet (themes.js)
+
     function renderDarkModeButton(enabled) {
       document.documentElement.classList.toggle('theme-light', !enabled || originalTheme);
       darkModeBtn.classList.toggle('active', enabled);
       darkModeBtn.setAttribute('aria-pressed', String(enabled));
       darkModeBtn.title = enabled ? 'Donkere modus uitzetten' : 'Donkere modus aanzetten';
+      renderSoftRow();
+    }
+
+    // Schakelaar vast (grijs, met uitleg) bij een thema met een eigen palet of
+    // in donker. De keuze zelf blijft bewaard.
+    function renderSoftRow() {
+      const inDark = !document.documentElement.classList.contains('theme-light');
+      const row = document.getElementById('soft-colors-row');
+      row.classList.toggle('no-theme', !softSupported);
+      row.classList.toggle('in-dark', softSupported && inDark);
+      row.classList.toggle('unavailable', !softSupported || inDark);
+      softColorsCheckbox.disabled = !softSupported || inDark;
     }
 
     const THEME_SWITCH_MS = 600;
@@ -6278,13 +6303,6 @@
       }, THEME_SWITCH_MS + 100);
     });
 
-    // Leescomfort: zachtere kleuren (html.theme-soft; alleen in licht
-    // zachtgrijs, donker blijft gelijk). main.js zet dezelfde stand op de
-    // pagina's (soft-mode.js).
-    const softColorsCheckbox = document.getElementById('soft-colors-checkbox');
-    let softColors = true; // standaard aan (zie main.js); getSettings zet de echte stand
-    let softSupported = true; // false bij een thema met een eigen palet (themes.js)
-
     function setSoftColors(enabled, { save = true } = {}) {
       softColors = !!enabled;
       softColorsCheckbox.checked = softColors;
@@ -6299,8 +6317,6 @@
       document.documentElement.classList.toggle('theme-soft', softColors && softSupported);
     }
 
-    // Leescomfort werkt niet bij een thema met een eigen palet: schakelaar
-    // grijs, met uitleg. De keuze zelf blijft bewaard.
     function renderOriginalTheme(original) {
       if (original === undefined) return;
       originalTheme = !!original;
@@ -6312,8 +6328,7 @@
     function renderSoftSupport(supported) {
       if (supported === undefined) return;
       softSupported = !!supported;
-      softColorsCheckbox.disabled = !softSupported;
-      document.getElementById('soft-colors-row').classList.toggle('unavailable', !softSupported);
+      renderSoftRow();
       document.documentElement.classList.toggle('theme-soft', softColors && softSupported);
     }
 

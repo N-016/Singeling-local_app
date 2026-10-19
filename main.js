@@ -78,7 +78,7 @@ let appSettings = {
   preferencesChosen: false, // keuzescherm (thema + klokmelding) al gezien
   setupVersion: 0, // versie van de instelassistent die al doorlopen is (SETUP_VERSION in index.html)
   darkMode: false,
-  softColors: true, // leescomfort: zachtere kleuren (alleen in licht: zachtgrijs; soft-mode.js). Standaard aan.
+  softColors: true, // oogcomfort: zachtere kleuren (alleen in licht: zachtgrijs; soft-mode.js). Standaard aan.
   betaUpdates: RUNNING_PRERELEASE, // ook bètaversies (GitHub pre-releases) als update aanbieden
   appTheme: themes.DEFAULT_THEME, // kleurenthema (themes.js); voorlopig alleen met bèta-updates aan
   // Licht/donker automatisch (zie "Licht/donker automatisch"):
@@ -901,7 +901,7 @@ function findOtherPageIndex(navigationHistory, direction) {
 // inhoud (bv. de specificatie-preview: HTML die de app in een leeg venster
 // schrijft en die van een witte pagina uitgaat, of een PDF) houdt wit, anders
 // schijnt de donkere achtergrond door en staat de zwarte tekst op zwart.
-// Leescomfort (zachtere kleuren, zie soft-mode.js): alleen in licht,
+// Oogcomfort (zachtere kleuren, zie soft-mode.js): alleen in licht,
 // zachtgrijs i.p.v. fel wit. Donker blijft zoals het is.
 // Donker zoals het er nu echt uitziet. Het thema "Standaard" (de app zoals
 // hij is, themes.js isOriginal) kent geen licht/donker: dan altijd licht. De
@@ -911,7 +911,7 @@ function darkActive() {
   return !!appSettings.darkMode && !themes.isOriginal(activeTheme());
 }
 
-// Leescomfort geldt niet bij een thema met een vast palet (themes.js): dat
+// Oogcomfort geldt niet bij een thema met een vast palet (themes.js): dat
 // heeft zijn eigen uitstraling. De instelling zelf blijft bewaard.
 // softActive() is de stand zelf (de chrome, losse vensters en het
 // hulpkaartje krijgen die als class en kijken zelf of het licht is);
@@ -2400,10 +2400,10 @@ ipcMain.handle('get-settings', (event) => {
     updateVersion: updateAvailableInfo ? updateAvailableInfo.version : null
   };
 });
-// Leescomfort: zachtere kleuren aan/uit. Net als bij licht/donker eerst het
+// Oogcomfort: zachtere kleuren aan/uit. Net als bij licht/donker eerst het
 // gordijn in de oude kleur, zodat de nieuwe kleuren er rustig onder vandaan
 // komen.
-// Kleurenthema (themes.js). Zelfde overgang als bij leescomfort.
+// Kleurenthema (themes.js). Zelfde overgang als bij oogcomfort.
 ipcMain.on('set-app-theme', (event, id) => {
   if (event.sender !== mainWindow.webContents || !themes.isTheme(id) || !themesAvailable()) return;
   if (id === appSettings.appTheme) return;
@@ -3370,7 +3370,7 @@ function createWindow() {
   // Thema en versie meegeven, zodat het splash-scherm meteen in licht/donker
   // verschijnt en altijd het echte versienummer toont.
   splashWindow.loadFile('splash.html', {
-    // Laadscherm altijd in de gewone kleuren (ook met Leescomfort aan); bij
+    // Laadscherm altijd in de gewone kleuren (ook met Oogcomfort aan); bij
     // een thema volgt alleen de laadbalk de accentkleur.
     query: {
       theme: darkActive() ? 'dark' : 'light',

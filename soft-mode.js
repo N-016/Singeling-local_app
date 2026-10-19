@@ -1,4 +1,4 @@
-// Leescomfort: zachtere kleuren voor de Lovable-app (instelling softColors).
+// Oogcomfort: zachtere kleuren voor de Lovable-app (instelling softColors).
 //
 // Alleen in licht (class "sg-soft"): zachtgrijze vlakken met donkergrijze
 // tekst i.p.v. fel wit met zwart, en wat diepere tinten in de gekleurde

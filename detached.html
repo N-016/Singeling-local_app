@@ -6,7 +6,7 @@
     <script>
         // main.js geeft het thema mee (?theme=light|dark), zodat de balk meteen
         // in de juiste kleuren verschijnt.
-        // ?soft=1: Leescomfort (zachtere kleuren), zoals de tabbalk.
+        // ?soft=1: Oogcomfort (zachtere kleuren), zoals de tabbalk.
         if (new URLSearchParams(location.search).get('soft') === '1') {
             document.documentElement.classList.add('theme-soft');
         }
@@ -43,7 +43,7 @@
             --text-faint: #9aa0a8;
         }
 
-        /* Leescomfort (alleen in licht): dezelfde zachtere kleuren als de
+        /* Oogcomfort (alleen in licht): dezelfde zachtere kleuren als de
            tabbalk (index.html). */
         html.theme-light.theme-soft {
             --bar-bg: #e1e1de;
