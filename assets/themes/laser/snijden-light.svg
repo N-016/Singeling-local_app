@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1200" preserveAspectRatio="xMidYMax slice">
+  <!-- Laser: de kop snijdt een onderdeel uit. Zelf gemaakt voor de Singeling App (gegenereerd). -->
+  <style>
+    .line{fill:none;stroke-dasharray:1;stroke-linecap:round;stroke-linejoin:round}
+    .glow{stroke:#8b3fd9;stroke-width:12;stroke-opacity:0.22}.core{stroke:#8b3fd9;stroke-width:2.6}
+    .l1{animation:l1 12s linear infinite}.l2{animation:l2 12s linear infinite}
+    @keyframes l1{0%,6%{stroke-dashoffset:1;opacity:0}6.01%{stroke-dashoffset:1;opacity:1}32%,90%{stroke-dashoffset:0;opacity:1}97%,100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes l2{0%,36%{stroke-dashoffset:1;opacity:0}36.01%{stroke-dashoffset:1;opacity:1}72%,90%{stroke-dashoffset:0;opacity:1}97%,100%{stroke-dashoffset:0;opacity:0}}
+    .head{opacity:0;offset-rotate:0deg}
+    .h1{offset-path:path('M1705,1030 A30,30 0 1 1 1645,1030 A30,30 0 1 1 1705,1030');animation:h1 12s linear infinite}
+    .h2{offset-path:path('M1578,960 H1772 A18,18 0 0 1 1790,978 V1082 A18,18 0 0 1 1772,1100 H1578 A18,18 0 0 1 1560,1082 V978 A18,18 0 0 1 1578,960 Z');animation:h2 12s linear infinite}
+    @keyframes h1{0%,6%{offset-distance:0%;opacity:0}7%{opacity:1}32%{offset-distance:100%;opacity:1}33%,100%{offset-distance:100%;opacity:0}}
+    @keyframes h2{0%,36%{offset-distance:0%;opacity:0}37%{opacity:1}72%{offset-distance:100%;opacity:1}73%,100%{offset-distance:100%;opacity:0}}
+    .part{opacity:0.5;animation:part 12s linear infinite}
+    @keyframes part{0%,72%{opacity:0}76%,90%{opacity:0.5}97%,100%{opacity:0}}
+    @media (prefers-reduced-motion: reduce) { .l1,.l2,.h1,.h2,.part{animation:none} }
+  </style>
+  <path class="part" d="M1578,960 H1772 A18,18 0 0 1 1790,978 V1082 A18,18 0 0 1 1772,1100 H1578 A18,18 0 0 1 1560,1082 V978 A18,18 0 0 1 1578,960 Z M1705,1030 A30,30 0 1 1 1645,1030 A30,30 0 1 1 1705,1030" fill-rule="evenodd" fill="#0d0f11"/>
+  <path class="line glow l1" pathLength="1" d="M1705,1030 A30,30 0 1 1 1645,1030 A30,30 0 1 1 1705,1030"/><path class="line core l1" pathLength="1" d="M1705,1030 A30,30 0 1 1 1645,1030 A30,30 0 1 1 1705,1030"/>
+  <path class="line glow l2" pathLength="1" d="M1578,960 H1772 A18,18 0 0 1 1790,978 V1082 A18,18 0 0 1 1772,1100 H1578 A18,18 0 0 1 1560,1082 V978 A18,18 0 0 1 1578,960 Z"/><path class="line core l2" pathLength="1" d="M1578,960 H1772 A18,18 0 0 1 1790,978 V1082 A18,18 0 0 1 1772,1100 H1578 A18,18 0 0 1 1560,1082 V978 A18,18 0 0 1 1578,960 Z"/>
+  <g class="head h1"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <g class="head h2"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+</svg>

@@ -15,15 +15,15 @@
       50% { transform: translate(var(--mx), var(--my)); opacity: 0.9; }
       100% { transform: translate(var(--x), var(--y)); opacity: 0; }
     }
-    .flicker { transform-origin: 1100px 832px; animation: flicker 0.32s steps(4) infinite; }
-    .wallglow { animation: wallglow 0.5s steps(5) infinite; }
+    /* Rustig golvend i.p.v. flikkeren: snel knipperen (10+ keer per seconde) is
+       vermoeiend en kan klachten geven bij lichtgevoelige mensen. */
+    .flicker { transform-origin: 1100px 832px; animation: flicker 1.2s ease-in-out infinite; }
+    .wallglow { animation: wallglow 2.4s ease-in-out infinite; }
     @keyframes flicker {
       0%, 100% { transform: scale(1); opacity: 1; }
-      25% { transform: scale(0.8); opacity: 0.75; }
-      50% { transform: scale(1.15); opacity: 1; }
-      75% { transform: scale(0.9); opacity: 0.85; }
+      50% { transform: scale(0.92); opacity: 0.85; }
     }
-    @keyframes wallglow { 0%, 100% { opacity: 1; } 20% { opacity: 0.7; } 40% { opacity: 0.95; } 60% { opacity: 0.6; } 80% { opacity: 0.9; } }
+    @keyframes wallglow { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
     @media (prefers-reduced-motion: reduce) { .s, .flicker, .wallglow { animation: none; } .s { opacity: 0; } }
   </style>
   <ellipse class="wallglow" cx="1100" cy="792" rx="420" ry="300" fill="url(#wall)"/>

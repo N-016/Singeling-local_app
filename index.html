@@ -1169,13 +1169,16 @@
     }
 
     /* Instelling met een keuze uit een paar standen i.p.v. aan/uit. */
-    /* Thema "Standaard" (de app zoals hij is): geen licht/donker. De knop in
-       de balk verdwijnt en het wisselen in Weergave staat grijs. */
-    html.theme-original #dark-mode-btn {
+    /* Thema "Origineel" (de app zoals hij is) of een thema met maar één stand
+       (alleen licht of alleen donker): geen licht/donker. De knop in de balk
+       verdwijnt en het wisselen in Weergave staat grijs. */
+    html.theme-original #dark-mode-btn,
+    html.theme-fixed-mode #dark-mode-btn {
       display: none !important;
     }
 
-    #theme-schedule-original-hint {
+    #theme-schedule-original-hint,
+    #theme-schedule-fixed-hint {
       display: none;
       color: var(--accent);
     }
@@ -1185,12 +1188,13 @@
     }
 
     #theme-schedule-row.unavailable > :not(.toggle-text),
-    #theme-schedule-row.unavailable .toggle-text > :not(#theme-schedule-original-hint) {
+    #theme-schedule-row.unavailable .toggle-text > :not(#theme-schedule-original-hint, #theme-schedule-fixed-hint) {
       opacity: 0.45;
       pointer-events: none;
     }
 
-    #theme-schedule-row.unavailable #theme-schedule-original-hint {
+    html.theme-original #theme-schedule-row.unavailable #theme-schedule-original-hint,
+    html.theme-fixed-mode:not(.theme-original) #theme-schedule-row.unavailable #theme-schedule-fixed-hint {
       display: block;
     }
 
@@ -3918,7 +3922,8 @@
         <span class="toggle-text">
           Licht/donker wisselen
           <span id="theme-schedule-hint" class="settings-hint"></span>
-          <span id="theme-schedule-original-hint" class="settings-hint">Het thema Standaard toont de app zoals hij is, zonder licht/donker. Kies bij Thema's een ander thema om licht/donker weer te gebruiken.</span>
+          <span id="theme-schedule-original-hint" class="settings-hint">Het thema Origineel toont de app zoals hij is, zonder licht/donker. Kies bij Thema's een ander thema om licht/donker weer te gebruiken.</span>
+          <span id="theme-schedule-fixed-hint" class="settings-hint">Het gekozen thema heeft maar één stand (alleen licht of alleen donker). Je keuze hieronder blijft bewaard en geldt weer bij een ander thema.</span>
         </span>
         <div class="choice-group" role="radiogroup" aria-label="Licht/donker wisselen" data-choice="theme-mode"></div>
         <div id="theme-times-fields" class="theme-schedule-fields hidden">
@@ -3940,7 +3945,7 @@
           Oogcomfort: zachtere kleuren
           <span class="settings-hint">Alleen voor de lichte weergave. Minder fel contrast, prettiger voor je ogen: de app wordt rustig zachtgrijs in plaats van fel wit, met net wat diepere kleuren.</span>
           <span id="soft-colors-dark-hint" class="settings-hint">Werkt alleen in de lichte modus. Zet licht aan om oogcomfort aan of uit te zetten.</span>
-          <span id="soft-colors-theme-hint" class="settings-hint">Het gekozen thema heeft zijn eigen kleuren, daarom werkt oogcomfort hier niet. Kies bij Thema's een kleurenset (bv. Neutraal) om het weer te gebruiken.</span>
+          <span id="soft-colors-theme-hint" class="settings-hint">Het gekozen thema heeft zijn eigen kleuren, daarom werkt oogcomfort hier niet. Kies bij Thema's een kleurenset (bv. Singeling) om het weer te gebruiken.</span>
         </span>
         <input type="checkbox" class="switch" id="soft-colors-checkbox">
       </label>
@@ -3972,9 +3977,14 @@
         <div class="theme-grid" data-theme-kind="kleurenset" role="radiogroup" aria-label="Kleurensets"></div>
       </div>
       <div class="theme-group">
-        <h4 class="theme-group-title">Standaard</h4>
+        <h4 class="theme-group-title">Hoog contrast</h4>
+        <p class="settings-hint">Voor schermen en tablets op de werkvloer: zwart op wit (of wit op zwart), dikke randen en duidelijke statuskleuren. Goed leesbaar in fel licht en vanaf een afstand.</p>
+        <div class="theme-grid" data-theme-kind="contrast" role="radiogroup" aria-label="Hoog contrast"></div>
+      </div>
+      <div class="theme-group">
+        <h4 class="theme-group-title">Zonder aanpassingen</h4>
         <p class="settings-hint">De app precies zoals hij gemaakt is, zonder aanpassingen van deze app.</p>
-        <div class="theme-grid" data-theme-kind="standaard" role="radiogroup" aria-label="Standaard"></div>
+        <div class="theme-grid" data-theme-kind="standaard" role="radiogroup" aria-label="Zonder aanpassingen"></div>
       </div>
     </div>
 
@@ -4139,9 +4149,14 @@
             <div class="theme-grid" data-theme-kind="kleurenset" role="radiogroup" aria-label="Kleurensets"></div>
           </div>
           <div class="theme-group">
-            <h4 class="theme-group-title">Standaard</h4>
+            <h4 class="theme-group-title">Hoog contrast</h4>
+            <p class="settings-hint">Goed leesbaar in fel licht en vanaf een afstand.</p>
+            <div class="theme-grid" data-theme-kind="contrast" role="radiogroup" aria-label="Hoog contrast"></div>
+          </div>
+          <div class="theme-group">
+            <h4 class="theme-group-title">Zonder aanpassingen</h4>
             <p class="settings-hint">De app precies zoals hij gemaakt is.</p>
-            <div class="theme-grid" data-theme-kind="standaard" role="radiogroup" aria-label="Standaard"></div>
+            <div class="theme-grid" data-theme-kind="standaard" role="radiogroup" aria-label="Zonder aanpassingen"></div>
           </div>
         </div>
       </div>
@@ -4439,7 +4454,7 @@
     const SETUP_PAGES = [
       { id: 'intro' },
       { id: 'thema', when: () => setupRun.questions && themesOffered },
-      { id: 'weergave', when: () => setupRun.questions && !originalTheme },
+      { id: 'weergave', when: () => setupRun.questions && !originalTheme && !fixedMode },
       // Oogcomfort werkt alleen in licht: na een keuze voor donker overslaan.
       { id: 'leescomfort', when: () => setupRun.questions && softSupported && document.documentElement.classList.contains('theme-light') },
       { id: 'melding', when: () => setupRun.questions },
@@ -6258,9 +6273,11 @@
 
     // De tabbalk en de rest van de chrome volgen dezelfde keuze als de
     // pagina's (zie de theme-light-variabelen in de CSS).
-    // Thema "Standaard" (main.js darkActive): de balk altijd licht, wat de
+    // Thema "Origineel" (main.js darkActive): de balk altijd licht, wat de
     // bewaarde keuze ook is. De knop houdt die keuze (active) wel bij.
+    // Zo ook een thema met maar één stand (fixedMode 'light' of 'dark').
     let originalTheme = false;
+    let fixedMode = null;
 
     // Oogcomfort: zachtere kleuren (html.theme-soft; alleen in licht
     // zachtgrijs, donker blijft gelijk). main.js zet dezelfde stand op de
@@ -6271,7 +6288,9 @@
     let softSupported = true; // false bij een thema met een eigen palet (themes.js)
 
     function renderDarkModeButton(enabled) {
-      document.documentElement.classList.toggle('theme-light', !enabled || originalTheme);
+      const light = fixedMode ? fixedMode === 'light' : (!enabled || originalTheme);
+      document.documentElement.classList.toggle('theme-light', light);
+      document.getElementById('theme-schedule-row').classList.toggle('unavailable', originalTheme || !!fixedMode);
       darkModeBtn.classList.toggle('active', enabled);
       darkModeBtn.setAttribute('aria-pressed', String(enabled));
       darkModeBtn.title = enabled ? 'Donkere modus uitzetten' : 'Donkere modus aanzetten';
@@ -6321,7 +6340,13 @@
       if (original === undefined) return;
       originalTheme = !!original;
       document.documentElement.classList.toggle('theme-original', originalTheme);
-      document.getElementById('theme-schedule-row').classList.toggle('unavailable', originalTheme);
+      renderDarkModeButton(darkModeBtn.classList.contains('active'));
+    }
+
+    function renderFixedMode(mode) {
+      if (mode === undefined) return;
+      fixedMode = mode || null;
+      document.documentElement.classList.toggle('theme-fixed-mode', !!fixedMode);
       renderDarkModeButton(darkModeBtn.classList.contains('active'));
     }
 
@@ -6448,6 +6473,7 @@
       applyChromeTheme(state.css);
       renderSoftSupport(state.softSupported);
       renderOriginalTheme(state.originalTheme);
+      renderFixedMode(state.fixedMode);
       renderAppThemeChoice(state);
       themeSwitchTimer = setTimeout(() => {
         document.documentElement.classList.remove('theme-switching');
@@ -6472,6 +6498,7 @@
       setSoftColors(!!settings.softColors, { save: false });
       renderSoftSupport(settings.softSupported);
       renderOriginalTheme(settings.originalTheme);
+      renderFixedMode(settings.fixedMode);
       applyChromeTheme(settings.chromeThemeCss);
       renderAppThemeChoice(settings);
       updateZoomLabel(settings.zoomFactor);

@@ -6,6 +6,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "check:themes": "node scripts/check-themes.js",
+    "prebuild": "node scripts/check-themes.js",
     "build": "electron-builder"
   },
   "keywords": [],
@@ -27,6 +29,7 @@
       "!dist{,/**/*}",
       "!dist-*{,/**/*}",
       "!.claude{,/**/*}",
+      "!scripts{,/**/*}",
       "!supabase{,/**/*}"
     ],
     "win": {

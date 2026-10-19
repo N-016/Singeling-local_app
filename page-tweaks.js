@@ -48,7 +48,7 @@ const PAGE_TWEAKS_CSS = `
   /* Navigatie (zijbalk links). De webapp maakt die altijd bijna zwart
      (--sg-ink); hier volgt hij de donkere modus: heel donkergrijs in donker,
      lichtgrijs met donkere tekst in licht. Kleuren = de tabbalk (index.html).
-     Niet bij het thema "Standaard" (class sg-original): dan blijft de
+     Niet bij het thema "Origineel" (class sg-original): dan blijft de
      zijbalk zoals de webapp hem maakt. */
   html.dark .sg-app .side {
     background: #1e2127;

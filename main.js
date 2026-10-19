@@ -903,11 +903,14 @@ function findOtherPageIndex(navigationHistory, direction) {
 // schijnt de donkere achtergrond door en staat de zwarte tekst op zwart.
 // Oogcomfort (zachtere kleuren, zie soft-mode.js): alleen in licht,
 // zachtgrijs i.p.v. fel wit. Donker blijft zoals het is.
-// Donker zoals het er nu echt uitziet. Het thema "Standaard" (de app zoals
+// Donker zoals het er nu echt uitziet. Het thema "Origineel" (de app zoals
 // hij is, themes.js isOriginal) kent geen licht/donker: dan altijd licht. De
 // keuze zelf (appSettings.darkMode, ook de automatische wissel) blijft
-// bewaard en geldt weer bij een ander thema.
+// bewaard en geldt weer bij een ander thema. Zo ook bij een thema met maar één
+// stand (themes.js fixedMode): dan altijd die stand.
 function darkActive() {
+  const mode = themes.fixedMode(activeTheme());
+  if (mode) return mode === 'dark';
   return !!appSettings.darkMode && !themes.isOriginal(activeTheme());
 }
 
@@ -2393,6 +2396,7 @@ ipcMain.handle('get-settings', (event) => {
     themesAvailable: themesAvailable(),
     softSupported: themes.supportsSoft(activeTheme()),
     originalTheme: themes.isOriginal(activeTheme()),
+    fixedMode: themes.fixedMode(activeTheme()),
     chromeThemeCss: themes.chromeThemeCss(activeTheme()),
     customWindowControls: CUSTOM_WINDOW_CONTROLS,
     appVersion: app.getVersion(),
@@ -2427,6 +2431,7 @@ function sendChromeTheme() {
     themesAvailable: themesAvailable(),
     softSupported: themes.supportsSoft(activeTheme()),
     originalTheme: themes.isOriginal(activeTheme()),
+    fixedMode: themes.fixedMode(activeTheme()),
     css: themes.chromeThemeCss(activeTheme())
   });
 }
@@ -2696,7 +2701,7 @@ function applyDarkModeChange(value) {
   const wasDark = darkActive();
   appSettings.darkMode = !!value;
   saveSettings();
-  if (darkActive() === wasDark) return; // bv. bij het thema "Standaard"
+  if (darkActive() === wasDark) return; // bv. bij het thema "Origineel"
   fadeTitleBarOverlay(wasDark, darkActive(), CURTAIN_THEME_FADE_MS);
   if (activeTabId && tabs.has(activeTabId)) {
     coverActiveView(tabs.get(activeTabId), {

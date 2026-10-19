@@ -5,13 +5,20 @@
 //        hue    - tint van de achtergronden en tekst (0-360, kleurenwiel)
 //        tint   - hoe sterk die tint is (1 = normaal, 0 = grijs)
 //        accent - accentkleur i.p.v. het Singeling-oranje
-//      De vier varianten (licht, donker, en van allebei de zachte versie)
-//      komen uit de vaste lichtheden in VARIANTS.
+//      De drie varianten (licht, licht met oogcomfort, donker) komen uit de
+//      vaste lichtheden in VARIANTS.
+//
+// Accentkleuren mogen niet op de statuskleuren van de app lijken (rood,
+// amber, groen); scripts/check-themes.js controleert dat vóór elke build.
 //
 //   2. Vast palet (palettes.light / palettes.dark): de kleuren van een bestaand
 //      thema letterlijk overgenomen, eventueel met een achtergrondafbeelding
 //      (wallpaper) achter de pagina's. Oogcomfort verandert hier (voorlopig)
 //      niets aan: het thema heeft zijn eigen uitstraling.
+//      Met mode: 'dark' of 'light' heeft het thema maar één stand: dan is er
+//      ook maar één palet en één set afbeeldingen, en negeert de app
+//      licht/donker (main.js darkActive; de knop verdwijnt). De automatische
+//      wissel loopt gewoon door en geldt weer bij een ander thema.
 //
 // Waar de kleuren terechtkomen:
 //   - de Singeling-pagina's: pageThemeCss(id), class "sg-theme-<id>" op <html>
@@ -64,7 +71,8 @@ const ROSE_PINE = {
 
 // Cassette: jaren 80 in rustig pastel (Doe Maar-kleuren: lila, roze, geel,
 // blauw). Een cassettebandje ("MIX '86"), een kubuspuzzel en wat Memphis.
-// Licht = lichtlila met roze accent, donker = diep paars met geel accent.
+// Licht = lichtlila met roze accent, donker = diep paars met lichtroze accent
+// (geel zat te dicht bij de "let op"-kleur; geel zit nog in de achtergrond).
 // Tekst in Fredoka, koppen in Righteous (beide OFL); palet en achtergronden
 // van ons (zie assets/themes/cassette/BRON.md).
 const CASSETTE = {
@@ -83,7 +91,7 @@ const CASSETTE = {
       bar: '#170b28', tab: '#2b1847', sidebar: '#1d1033', secondary: '#3a235e',
       border: '#4a3170', borderStrong: '#5f4389',
       fg1: '#fdf3ff', fg2: '#e2cff5', fg3: '#b9a0d8', fg4: '#7f66a3',
-      accent: '#ffe08a', accentStrong: '#8f7020', onAccent: '#24133d'
+      accent: '#ff9fd2', accentStrong: '#b4407f', onAccent: '#24133d'
     }
   },
   wallpaper: {
@@ -105,115 +113,65 @@ const CASSETTE = {
   radius: '14px'
 };
 
-// Gruvbox (retro): palet van morhetz, MIT (zie assets/themes/gruvbox/BRON.md),
-// officieel licht en donker. Achtergrond: eigen SVG.
-const GRUVBOX = {
-  name: 'Gruvbox',
-  description: 'Warm en retro, jaren 70.',
-  palettes: {
-    light: {
-      canvas: '#fbf1c7', surface: '#f9f5d7', raised: '#ebdbb2', sunk: '#f2e5bc',
-      bar: '#f9f5d7', tab: '#f9f5d7', sidebar: '#f2e5bc', secondary: '#ebdbb2',
-      border: '#d5c4a1', borderStrong: '#bdae93',
-      fg1: '#3c3836', fg2: '#504945', fg3: '#665c54', fg4: '#928374',
-      accent: '#b57614', accentStrong: '#8f5b0c', onAccent: '#ffffff'
-    },
-    dark: {
-      canvas: '#282828', surface: '#32302f', raised: '#3c3836', sunk: '#1d2021',
-      bar: '#1d2021', tab: '#32302f', sidebar: '#1d2021', secondary: '#3c3836',
-      border: '#504945', borderStrong: '#665c54',
-      fg1: '#ebdbb2', fg2: '#d5c4a1', fg3: '#bdae93', fg4: '#928374',
-      accent: '#fabd2f', accentStrong: '#a96b0e', onAccent: '#282828'
-    }
-  },
-  wallpaper: {
-    light: 'assets/themes/gruvbox/seventies-light.svg',
-    dark: 'assets/themes/gruvbox/seventies-dark.svg'
-  },
-  // Fraunces (OFL): zachte serif met een jaren-70-gevoel. Variabel lettertype,
-  // één bestand voor alle gewichten.
-  font: {
-    family: 'Fraunces',
-    fallback: 'Georgia, serif',
-    faces: [
-      { file: 'assets/themes/gruvbox/Fraunces-Variable.woff2', weight: '100 900' }
-    ]
-  },
-  radius: '10px'
+// Terminal: gaat verder dan kleur. JetBrains Mono (OFL; zie
+// assets/themes/terminal/BRON.md) voor koppen en getallen; lopende tekst in
+// de gewone app-letter, want mono leest zwaar in tabellen en lange teksten.
+// Strakke hoeken. Een oude monitor met scanlines: groen fosfor op zwart,
+// alleen donker. Het accent is cyaan i.p.v. groen, anders lijkt elke knop het
+// "klaar"-groen van de app. Palet en achtergrond van ons.
+const JETBRAINS_MONO = {
+  family: 'JetBrains Mono',
+  fallback: 'Consolas, "Courier New", monospace',
+  faces: [
+    { file: 'assets/themes/terminal/JetBrainsMono-Regular.woff2', weight: '100 500' },
+    { file: 'assets/themes/terminal/JetBrainsMono-Bold.woff2', weight: '600 900' }
+  ]
 };
 
-// Terminal: gaat verder dan kleur. Eigen lettertype (JetBrains Mono, OFL; zie
-// assets/themes/terminal/BRON.md) en strakke hoeken. Een oude monitor met
-// scanlines: donker = groen fosfor op zwart, licht = een licht groen scherm.
-// Palet en achtergronden van ons.
 const TERMINAL = {
   name: 'Terminal',
-  description: 'Een oude computer: groen fosfor met scanlines en een knipperende cursor.',
+  description: 'Een oude computer: groen fosfor met scanlines. Alleen donker.',
+  mode: 'dark',
   palettes: {
-    light: {
-      canvas: '#f1f5ee', surface: '#fafcf8', raised: '#e6ede2', sunk: '#e9efe5',
-      bar: '#fafcf8', tab: '#fafcf8', sidebar: '#e4ebe0', secondary: '#e6ede2',
-      border: '#c9d6c4', borderStrong: '#aebfa8',
-      fg1: '#102a17', fg2: '#2b4a33', fg3: '#4c6b53', fg4: '#7d9683',
-      accent: '#13803a', accentStrong: '#0d5e2a', onAccent: '#ffffff'
-    },
     dark: {
       canvas: '#0a0e0a', surface: '#0f150f', raised: '#152015', sunk: '#070a07',
       bar: '#060906', tab: '#0f150f', sidebar: '#080c08', secondary: '#142014',
       border: '#1e3320', borderStrong: '#2a4a2d',
       fg1: '#c8f7cf', fg2: '#9fdcaa', fg3: '#6fae7c', fg4: '#47704f',
-      accent: '#39ff6a', accentStrong: '#1c8a3c', onAccent: '#041006'
+      accent: '#3ef2e6', accentStrong: '#127a80', onAccent: '#041006'
     }
   },
   wallpaper: {
-    light: 'assets/themes/terminal/crt-light.svg',
     dark: 'assets/themes/terminal/crt-dark.svg'
   },
-  // De cursor achter de prompt knippert.
-  ambient: {
-    light: 'assets/themes/terminal/cursor-light.svg',
-    dark: 'assets/themes/terminal/cursor-dark.svg'
-  },
-  font: {
-    family: 'JetBrains Mono',
-    fallback: 'Consolas, "Courier New", monospace',
-    faces: [
-      { file: 'assets/themes/terminal/JetBrainsMono-Regular.woff2', weight: '100 500' },
-      { file: 'assets/themes/terminal/JetBrainsMono-Bold.woff2', weight: '600 900' }
-    ]
-  },
+  displayFont: JETBRAINS_MONO,
+  monoFont: JETBRAINS_MONO,
   radius: '2px'
 };
 
 // Noorderlicht: licht geanimeerde achtergrond. De lucht (wallpaper) staat
 // stil; het noorderlicht is een losse laag (motion) die heel langzaam
-// verschuift. Lettertype Lexend (OFL), gemaakt voor leesbaarheid. Palet en
-// achtergronden van ons (assets/themes/noorderlicht/BRON.md).
+// verschuift. Lettertype Lexend (OFL), gemaakt voor leesbaarheid. Accent
+// ijsblauw/cyaan: het groen van het noorderlicht zelf lijkt op het
+// "klaar"-groen. Palet en achtergronden van ons
+// (assets/themes/noorderlicht/BRON.md).
 const NOORDERLICHT = {
   name: 'Noorderlicht',
-  description: 'Een dennenbos: \'s nachts met bewegend noorderlicht, overdag met ochtendmist.',
+  description: 'Een dennenbos bij nacht met bewegend noorderlicht. Alleen donker.',
+  mode: 'dark',
   palettes: {
-    light: {
-      canvas: '#f2f7f8', surface: '#fbfdfd', raised: '#e6eff1', sunk: '#e9f1f3',
-      bar: '#fbfdfd', tab: '#fbfdfd', sidebar: '#e5eef1', secondary: '#e6eff1',
-      border: '#cfdde2', borderStrong: '#b3c7ce',
-      fg1: '#10262e', fg2: '#2b4650', fg3: '#4c6872', fg4: '#7f979f',
-      accent: '#0f8f6c', accentStrong: '#0a6a50', onAccent: '#ffffff'
-    },
     dark: {
       canvas: '#0b1320', surface: '#111c2e', raised: '#172539', sunk: '#081019',
       bar: '#070d17', tab: '#101a2b', sidebar: '#0a1222', secondary: '#17263a',
       border: '#1f3149', borderStrong: '#2b4262',
       fg1: '#e6f1ff', fg2: '#b9cbe3', fg3: '#8aa1bf', fg4: '#5a6f8c',
-      accent: '#4fe3b0', accentStrong: '#1d9a72', onAccent: '#062018'
+      accent: '#5ad8e6', accentStrong: '#177884', onAccent: '#062018'
     }
   },
   wallpaper: {
-    light: 'assets/themes/noorderlicht/lucht-light.svg',
     dark: 'assets/themes/noorderlicht/lucht-dark.svg'
   },
   motion: {
-    light: 'assets/themes/noorderlicht/aurora-light.svg',
     dark: 'assets/themes/noorderlicht/aurora-dark.svg'
   },
   font: {
@@ -229,33 +187,27 @@ const NOORDERLICHT = {
 // Werkplaats: past bij Singeling. Een lastafel in zijaanzicht waar iemand
 // aan het lassen is, tegen een wand van geborsteld staal met
 // waarschuwingsstrepen en een traanplaatvloer. Het laspunt gloeit en de
-// vonken spatten (ambient-laag). Lettertype Barlow (OFL).
+// vonken spatten (ambient-laag). Lettertype Barlow (OFL). Accent = vonk-oranje;
+// het veiligheidsgeel zit in de achtergrond, als accent lijkt het op de
+// "let op"-kleur.
 const WERKPLAATS = {
   name: 'Werkplaats',
-  description: 'Een lastafel in de werkplaats: er wordt gelast en de vonken spatten.',
+  description: 'Een lastafel in de werkplaats: er wordt gelast en de vonken spatten. Alleen donker.',
+  mode: 'dark',
   palettes: {
-    light: {
-      canvas: '#e9ebee', surface: '#f6f7f8', raised: '#dfe2e6', sunk: '#e1e4e8',
-      bar: '#f6f7f8', tab: '#f6f7f8', sidebar: '#d9dde2', secondary: '#e2e5e9',
-      border: '#c4c9d0', borderStrong: '#a9b0b9',
-      fg1: '#1d2228', fg2: '#343b44', fg3: '#555e69', fg4: '#8a929c',
-      accent: '#d99a00', accentStrong: '#8a6200', onAccent: '#1d2228'
-    },
     dark: {
       canvas: '#16191d', surface: '#1e2227', raised: '#272c32', sunk: '#111417',
       bar: '#0e1013', tab: '#1c2025', sidebar: '#121519', secondary: '#272c32',
       border: '#333941', borderStrong: '#454c56',
       fg1: '#e8ebee', fg2: '#c3c8ce', fg3: '#9aa1aa', fg4: '#69717b',
-      accent: '#ffc21a', accentStrong: '#9c7400', onAccent: '#16191d'
+      accent: '#ff7a2e', accentStrong: '#b4500f', onAccent: '#16191d'
     }
   },
   wallpaper: {
-    light: 'assets/themes/werkplaats/staal-light.svg',
     dark: 'assets/themes/werkplaats/staal-dark.svg'
   },
   // Het laspunt: gloed op de muur en spattende vonken.
   ambient: {
-    light: 'assets/themes/werkplaats/vonken-light.svg',
     dark: 'assets/themes/werkplaats/vonken-dark.svg'
   },
   font: {
@@ -269,11 +221,13 @@ const WERKPLAATS = {
   radius: '2px'
 };
 
-// Delfts blauw: porseleinwit met kobaltblauw, Delftse tegels langs de randen;
-// donker = nachtblauw met lichtblauwe lijntjes. Lettertype Lora (OFL).
+// Delfts blauw: porseleinwit met kobaltblauw, Delftse tegels langs de randen.
+// Alleen licht. Lora (OFL) alleen voor de koppen: een schreefletter leest
+// minder goed in drukke tabellen.
 const DELFTS = {
   name: 'Delfts blauw',
-  description: 'Porseleinwit met kobaltblauw en Delftse tegels; een paar bewegen.',
+  description: 'Porseleinwit met kobaltblauw en Delftse tegels. Alleen licht.',
+  mode: 'light',
   palettes: {
     light: {
       canvas: '#f5f8fc', surface: '#ffffff', raised: '#e9eff8', sunk: '#edf2f9',
@@ -281,29 +235,12 @@ const DELFTS = {
       border: '#cfdbee', borderStrong: '#b2c3e2',
       fg1: '#12245a', fg2: '#2a3d78', fg3: '#4a5d96', fg4: '#8593bd',
       accent: '#1f4fa8', accentStrong: '#173d85', onAccent: '#ffffff'
-    },
-    dark: {
-      canvas: '#0e1733', surface: '#15204a', raised: '#1c2a5a', sunk: '#0a1128',
-      bar: '#08102a', tab: '#13204a', sidebar: '#0b1430', secondary: '#1c2a5a',
-      border: '#26376e', borderStrong: '#34488a',
-      fg1: '#eaf0ff', fg2: '#c6d3f5', fg3: '#98a9da', fg4: '#64759f',
-      accent: '#8fb2ff', accentStrong: '#3a5fb8', onAccent: '#0e1733'
     }
   },
   wallpaper: {
-    light: 'assets/themes/delfts/tegels-light.svg',
-    dark: 'assets/themes/delfts/tegels-dark.svg'
+    light: 'assets/themes/delfts/tegels-light.svg'
   },
-  // Drie tegels in de onderste helft bewegen: het molentje draait, het schip
-  // vaart, de tulp wiegt. Niet meer, anders wordt het te druk.
-  motion: {
-    light: 'assets/themes/delfts/tegels-anim-light.svg',
-    dark: 'assets/themes/delfts/tegels-anim-dark.svg'
-  },
-  motionStyle: 'static',
-  motionArea: 'full',
-  motionSize: 'cover',
-  font: {
+  displayFont: {
     family: 'Lora',
     fallback: 'Georgia, serif',
     faces: [{ file: 'assets/themes/delfts/Lora-Variable.woff2', weight: '400 700' }]
@@ -408,31 +345,240 @@ const ARCADE = {
   radius: '0px'
 };
 
+// Metaal: geborsteld rvs, koel grijs, met een donkerblauw accent (gelakt
+// staal, geanodiseerd aluminium). Anders dan Werkplaats (vonk-oranje, alleen
+// donker): rustig en koel. Platen met naden en verzonken bouten, onderin
+// traanplaat.
+const METAAL = {
+  name: 'Metaal',
+  description: 'Geborsteld rvs met naden en verzonken bouten, onderin traanplaat.',
+  palettes: {
+    light: {
+      canvas: '#eceff2', surface: '#f8f9fb', raised: '#e1e5ea', sunk: '#e4e8ec',
+      bar: '#f8f9fb', tab: '#f8f9fb', sidebar: '#dfe3e8', secondary: '#e2e6eb',
+      border: '#c5ccd4', borderStrong: '#a7b0bb',
+      fg1: '#161b22', fg2: '#2c333d', fg3: '#4d5662', fg4: '#848d98',
+      accent: '#1f4f8a', accentStrong: '#173c6b', onAccent: '#ffffff'
+    },
+    dark: {
+      canvas: '#15181c', surface: '#1c2026', raised: '#252a31', sunk: '#101215',
+      bar: '#0c0e11', tab: '#1a1e24', sidebar: '#111418', secondary: '#252a31',
+      border: '#323840', borderStrong: '#444b55',
+      fg1: '#e9ecef', fg2: '#c4c9cf', fg3: '#9aa1a9', fg4: '#69717a',
+      accent: '#7fa8de', accentStrong: '#3f6aa6', onAccent: '#0c0e11'
+    }
+  },
+  wallpaper: {
+    light: 'assets/themes/metaal/rvs-light.svg',
+    dark: 'assets/themes/metaal/rvs-dark.svg'
+  },
+  font: {
+    family: 'Source Sans 3',
+    fallback: '"Segoe UI", sans-serif',
+    faces: [{ file: 'assets/themes/metaal/SourceSans3-Variable.woff2', weight: '200 900' }]
+  },
+  displayFont: {
+    family: 'Zilla Slab',
+    fallback: 'Georgia, serif',
+    faces: [
+      { file: 'assets/themes/metaal/ZillaSlab-Regular.woff2', weight: '100 500' },
+      { file: 'assets/themes/metaal/ZillaSlab-Bold.woff2', weight: '600 900' }
+    ]
+  },
+  radius: '4px'
+};
+
+// Japans: wabi-sabi. Rustig, veel lucht: rijstpapier en inkt, een tak met
+// bloesem, een half open ensō en een kleine hanko. Accent olijf-matcha (ver
+// van het "klaar"-groen). Shippori Mincho B1 voor de koppen, Zen Kaku Gothic
+// New voor de tekst (beide OFL, alleen de Latijnse tekens).
+const JAPANS = {
+  name: 'Japans',
+  description: 'Wabi-sabi: rijstpapier en inkt, een bloesemtak en een ensō.',
+  palettes: {
+    light: {
+      canvas: '#f4f0e6', surface: '#fbf9f3', raised: '#ebe5d8', sunk: '#ede8dc',
+      bar: '#fbf9f3', tab: '#fbf9f3', sidebar: '#e9e3d5', secondary: '#ebe5d8',
+      border: '#d6cebd', borderStrong: '#bcb29d',
+      fg1: '#1e1c18', fg2: '#36332c', fg3: '#57534a', fg4: '#8c867a',
+      accent: '#647336', accentStrong: '#525e2b', onAccent: '#ffffff'
+    },
+    dark: {
+      canvas: '#17171a', surface: '#1e1e22', raised: '#28282d', sunk: '#111113',
+      bar: '#0d0d0f', tab: '#1c1c20', sidebar: '#121215', secondary: '#28282d',
+      border: '#35353b', borderStrong: '#48484f',
+      fg1: '#ece8df', fg2: '#c9c4b8', fg3: '#9f9a8f', fg4: '#6d6960',
+      accent: '#a8b86a', accentStrong: '#6f7d3c', onAccent: '#111113'
+    }
+  },
+  wallpaper: {
+    light: 'assets/themes/japans/papier-light.svg',
+    dark: 'assets/themes/japans/papier-dark.svg'
+  },
+  font: {
+    family: 'Zen Kaku Gothic New',
+    fallback: '"Segoe UI", sans-serif',
+    faces: [
+      { file: 'assets/themes/japans/ZenKakuGothicNew-Regular.woff2', weight: '100 500' },
+      { file: 'assets/themes/japans/ZenKakuGothicNew-Bold.woff2', weight: '600 900' }
+    ]
+  },
+  displayFont: {
+    family: 'Shippori Mincho B1',
+    fallback: 'Georgia, serif',
+    faces: [
+      { file: 'assets/themes/japans/ShipporiMinchoB1-Regular.woff2', weight: '100 500' },
+      { file: 'assets/themes/japans/ShipporiMinchoB1-Bold.woff2', weight: '600 900' }
+    ]
+  },
+  radius: '2px'
+};
+
+// Blauwdruk: een technische tekening, de klassieke blauwdruk (Pruisisch blauw
+// met witte lijnen); alleen donker. Een plotter tekent een flensplaat.
+const BLAUWDRUK = {
+  name: 'Blauwdruk',
+  description: 'Een technische tekening met kader en stempelveld; een plotter tekent een flensplaat. Alleen donker.',
+  mode: 'dark',
+  palettes: {
+    dark: {
+      canvas: '#0f3a66', surface: '#12436f', raised: '#184e7d', sunk: '#0c3157',
+      bar: '#0a2b4d', tab: '#11406b', sidebar: '#0c3259', secondary: '#184e7d',
+      border: '#2a5f8f', borderStrong: '#3b74a6',
+      fg1: '#eef6ff', fg2: '#c4dbf2', fg3: '#93b6d8', fg4: '#6489b0',
+      accent: '#9be7ff', accentStrong: '#3fa9d6', onAccent: '#082744'
+    }
+  },
+  wallpaper: {
+    dark: 'assets/themes/blauwdruk/blad-dark.svg'
+  },
+  ambient: {
+    dark: 'assets/themes/blauwdruk/plotter-dark.svg'
+  },
+  font: {
+    family: 'IBM Plex Sans',
+    fallback: '"Segoe UI", sans-serif',
+    faces: [{ file: 'assets/themes/blauwdruk/IBMPlexSans-Variable.woff2', weight: '100 700' }]
+  },
+  displayFont: {
+    family: 'IBM Plex Mono',
+    fallback: 'Consolas, "Courier New", monospace',
+    faces: [
+      { file: 'assets/themes/blauwdruk/IBMPlexMono-Regular.woff2', weight: '100 500' },
+      { file: 'assets/themes/blauwdruk/IBMPlexMono-Bold.woff2', weight: '600 900' }
+    ]
+  },
+  radius: '2px'
+};
+
+// Laser: een geborstelde plaat met een nesting van onderdelen; rechtsonder
+// snijdt de laserkop een onderdeel uit (fase 2: nesting uit
+// vw_monitor_nestings halen).
+const LASER = {
+  name: 'Laser',
+  description: 'Een geborstelde plaat met nesting; rechtsonder snijdt de laser een onderdeel uit. Alleen licht.',
+  mode: 'light',
+  palettes: {
+    light: {
+      canvas: '#eef0f3', surface: '#fafbfc', raised: '#e3e6ea', sunk: '#e6e9ed',
+      bar: '#fafbfc', tab: '#fafbfc', sidebar: '#e1e4e9', secondary: '#e4e7eb',
+      border: '#c8cdd4', borderStrong: '#aab1ba',
+      fg1: '#191c21', fg2: '#30353d', fg3: '#525a64', fg4: '#878f99',
+      accent: '#8b3fd9', accentStrong: '#6d28b8', onAccent: '#ffffff'
+    }
+  },
+  wallpaper: {
+    light: 'assets/themes/laser/plaat-light.svg'
+  },
+  ambient: {
+    light: 'assets/themes/laser/snijden-light.svg'
+  },
+  font: {
+    family: 'Inter',
+    fallback: '"Segoe UI", sans-serif',
+    faces: [{ file: 'assets/themes/laser/Inter-Variable.woff2', weight: '100 900' }]
+  },
+  displayFont: {
+    family: 'Chakra Petch',
+    fallback: '"Segoe UI", sans-serif',
+    faces: [
+      { file: 'assets/themes/laser/ChakraPetch-Regular.woff2', weight: '100 500' },
+      { file: 'assets/themes/laser/ChakraPetch-Bold.woff2', weight: '600 900' }
+    ]
+  },
+  radius: '4px'
+};
+
+// Hal: hoog contrast voor schermen en tablets op de werkvloer (fel licht,
+// vanaf een afstand). Een eigen groep, geen sfeerthema: alle tekst, het
+// accent en de statuskleuren halen 7:1 (scripts/check-themes.js), randen
+// 4,5:1. Daarbovenop (highContrastCss): dichte randen, een focusrand van
+// 3px en grijze Tailwind-tekst van de app op fg3. Geen achtergrond.
+// Atkinson Hyperlegible Next is gemaakt voor leesbaarheid.
+const HAL = {
+  name: 'Hal',
+  description: 'Hoog contrast voor de werkvloer: goed leesbaar in fel licht en vanaf een afstand.',
+  highContrast: true,
+  palettes: {
+    light: {
+      canvas: '#ffffff', surface: '#ffffff', raised: '#f0f0f0', sunk: '#ebebeb',
+      bar: '#ffffff', tab: '#ffffff', sidebar: '#f0f0f0', secondary: '#ebebeb',
+      border: '#767676', borderStrong: '#000000',
+      fg1: '#000000', fg2: '#1a1a1a', fg3: '#333333', fg4: '#4a4a4a',
+      accent: '#0040c1', accentStrong: '#002f8f', onAccent: '#ffffff'
+    },
+    dark: {
+      canvas: '#000000', surface: '#0d0d0d', raised: '#1a1a1a', sunk: '#000000',
+      bar: '#000000', tab: '#0d0d0d', sidebar: '#000000', secondary: '#1f1f1f',
+      border: '#7a7a7a', borderStrong: '#ffffff',
+      fg1: '#ffffff', fg2: '#f0f0f0', fg3: '#d6d6d6', fg4: '#b0b0b0',
+      accent: '#7ab0ff', accentStrong: '#2f6fe0', onAccent: '#000000'
+    }
+  },
+  // Statuskleuren (--stop/--warn/--ok van de app) met meer contrast.
+  status: {
+    light: { stop: '#96001c', warn: '#743c00', ok: '#00562a' },
+    dark: { stop: '#ff8a8a', warn: '#ffb000', ok: '#3ddc84' }
+  },
+  font: {
+    family: 'Atkinson Hyperlegible Next',
+    fallback: '"Segoe UI", sans-serif',
+    faces: [{ file: 'assets/themes/hal/AtkinsonHyperlegibleNext-Variable.woff2', weight: '200 800' }]
+  },
+  radius: '4px'
+};
+
 const THEMES = {
   // De app precies zoals de webapp hem maakt: geen licht/donker, geen
   // oogcomfort, geen aangepaste kleuren of zijbalk (main.js darkActive,
   // class sg-original op de pagina's; page-tweaks.js).
-  origineel: { name: 'Standaard', description: 'De app precies zoals hij is, zonder aanpassingen: geen licht/donker of oogcomfort.', original: true },
+  origineel: { name: 'Origineel', description: 'De app precies zoals hij is, zonder aanpassingen: geen licht/donker of oogcomfort.', original: true },
   // id "standaard" blijft (bewaard in ieders instellingen, en de standaard
   // voor iedereen): de Singeling-kleuren van de app, met licht/donker en
   // oogcomfort.
-  standaard: { name: 'Neutraal', description: 'De Singeling-kleuren: grijs met oranje.' },
+  standaard: { name: 'Singeling', description: 'De Singeling-kleuren: grijs met oranje.' },
   // Pastelkleurensets (afgeleid: tint + accent). Alleen kleuren, met
   // licht/donker en oogcomfort.
   blauw: { name: 'Blauw', description: 'Koel en rustig blauw.', hue: 215, tint: 1, accent: '#2f7fe0' },
-  groen: { name: 'Groen', description: 'Zacht saliegroen.', hue: 150, tint: 0.85, accent: '#2e8b57' },
+  // Accenten blijven uit de buurt van de statuskleuren (scripts/check-themes.js):
+  // Groen krijgt jadegroen-blauw, Crème terracotta.
+  groen: { name: 'Groen', description: 'Zacht saliegroen met jade.', hue: 150, tint: 0.85, accent: '#1f8a80' },
   roze: { name: 'Roze', description: 'Poederroze.', hue: 340, tint: 0.8, accent: '#d0457e' },
-  creme: { name: 'Crème', description: 'Warm crème met karamel.', hue: 38, tint: 1.1, accent: '#b7791f' },
+  creme: { name: 'Crème', description: 'Warm crème met terracotta.', hue: 38, tint: 1.1, accent: '#b0623a' },
   lavendel: { name: 'Lavendel', description: 'Licht lila.', hue: 262, tint: 0.9, accent: '#7a5af0' },
   rosepine: ROSE_PINE,
   cassette: CASSETTE,
-  gruvbox: GRUVBOX,
+  metaal: METAAL,
+  japans: JAPANS,
   terminal: TERMINAL,
   noorderlicht: NOORDERLICHT,
   werkplaats: WERKPLAATS,
   delfts: DELFTS,
   haven: HAVEN,
-  arcade: ARCADE
+  arcade: ARCADE,
+  blauwdruk: BLAUWDRUK,
+  laser: LASER,
+  hal: HAL
 };
 
 const DEFAULT_THEME = 'standaard';
@@ -507,17 +653,19 @@ function themeCatalog() {
     const preview = {};
     for (const mode of ['light', 'dark']) {
       const p = custom && palette(custom, mode);
+      // Thema met één stand: in beide voorbeelden die ene stand.
+      const pick = (assets) => (assets && (assets[mode] || assets[theme.mode])) || null;
       preview[mode] = {
         ...(p ? {
           canvas: p.canvas.hex, surface: p.surface.hex, sidebar: p.sidebar.hex, bar: p.bar.hex,
           border: p.border.hex, text: p.fg1.hex, muted: p.fg3.hex, accent: p.accent, onAccent: p.onAccent
         } : theme.original ? ORIGINAL_PREVIEW : STANDARD_PREVIEW[mode]),
-        wallpaper: (theme.wallpaper && theme.wallpaper[mode]) || null,
+        wallpaper: pick(theme.wallpaper),
         // In het kleine voorbeeld beweegt alleen een laag bovenin (noorderlicht);
         // een laag die op de achtergrond moet passen (cover) of onderin zit,
         // komt stilstaand mee, net als de ambient-laag (molenwieken e.d.).
-        motion: (theme.motion && theme.motion[mode] && theme.motionSize !== 'cover' && (!theme.motionArea || theme.motionArea === 'top')) ? theme.motion[mode] : null,
-        ambient: (theme.ambient && theme.ambient[mode]) || (theme.motionSize === 'cover' && theme.motion && theme.motion[mode]) || null
+        motion: (pick(theme.motion) && theme.motionSize !== 'cover' && (!theme.motionArea || theme.motionArea === 'top')) ? pick(theme.motion) : null,
+        ambient: pick(theme.ambient) || (theme.motionSize === 'cover' && pick(theme.motion)) || null
       };
     }
     return {
@@ -525,11 +673,13 @@ function themeCatalog() {
       name: theme.name,
       description: theme.description || '',
       // dynamisch = er beweegt iets in de achtergrond; thema = eigen
-      // lettertype/vormen; kleurenset = alleen kleuren.
+      // lettertype/vormen; kleurenset = alleen kleuren; contrast = hoog
+      // contrast (een eigen groep, geen sfeer).
       kind: theme.original ? 'standaard'
-        : (theme.motion || theme.passer || theme.ambient ? 'dynamisch' : (theme.font || theme.radius ? 'thema' : 'kleurenset')),
+        : theme.highContrast ? 'contrast'
+        : (theme.motion || theme.passer || theme.ambient ? 'dynamisch' : (hasOwnFonts(theme) || theme.radius ? 'thema' : 'kleurenset')),
       font: theme.font ? fontStack(theme) : null,
-      displayFont: theme.font ? displayStack(theme) : null,
+      displayFont: theme.font || theme.displayFont ? displayStack(theme) : null,
       radius: theme.radius || null,
       preview
     };
@@ -561,6 +711,12 @@ function hasWallpaper(id) {
 function isOriginal(id) {
   const theme = THEMES[id];
   return !!(theme && theme.original);
+}
+
+// 'dark' of 'light' bij een thema met maar één stand, anders null.
+function fixedMode(id) {
+  const theme = THEMES[id];
+  return (theme && theme.mode) || null;
 }
 
 // ---------- Kleurrekenen ----------
@@ -632,7 +788,8 @@ function accentScale(accent) {
 
 function fixedPalette(theme, variant) {
   const dark = isDarkVariant(variant);
-  const c = theme.palettes[dark ? 'dark' : 'light'];
+  // Thema met één stand (mode): er is maar één palet.
+  const c = theme.palettes[dark ? 'dark' : 'light'] || theme.palettes[theme.mode];
   const roles = {};
   for (const role of ['canvas', 'surface', 'raised', 'sunk', 'bar', 'tab', 'sidebar', 'secondary',
     'border', 'borderStrong', 'fg1', 'fg2', 'fg3', 'fg4']) {
@@ -725,12 +882,17 @@ function wallpaperUrl(file) {
 // ---------- Lettertype en vorm ----------
 
 // Eigen naam, zodat een op de pc geïnstalleerde versie niet meedoet.
-// font = het lettertype voor alles; displayFont (optioneel) = alleen voor
-// koppen, bv. een pixellettertype dat voor lopende tekst niet leesbaar is.
+// Alle drie optioneel:
+//   font        - het lettertype voor alles; zonder: de gewone app-letter
+//   displayFont - alleen voor koppen, bv. een pixel- of schreefletter die
+//                 voor lopende tekst en drukke tabellen niet goed leest
+//   monoFont    - getallen en codes (in de app: .font-mono, .tabular-nums)
 const familyOf = (font) => `"SG ${font.family}"`;
 const stackOf = (font) => `${familyOf(font)}, ${font.fallback}`;
-const fontStack = (theme) => stackOf(theme.font);
-const displayStack = (theme) => stackOf(theme.displayFont || theme.font);
+const fontStack = (theme) => (theme.font ? stackOf(theme.font) : APP_FONT);
+const displayStack = (theme) => (theme.displayFont ? stackOf(theme.displayFont) : fontStack(theme));
+const monoStack = (theme) => (theme.monoFont ? stackOf(theme.monoFont) : fontStack(theme));
+const hasOwnFonts = (theme) => !!(theme.font || theme.displayFont || theme.monoFont);
 
 const fontDataUrl = (file) => {
   if (!wallpaperCache.has(file)) {
@@ -749,7 +911,8 @@ const fontDataUrl = (file) => {
 // data:, die mogen niet van de schijf laden), een relatief pad voor
 // index.html en detached.html (die staan zelf in de app-map).
 function fontFaceCss(theme, urlFor) {
-  const fonts = [theme.font, theme.displayFont].filter(Boolean);
+  const fonts = [theme.font, theme.displayFont, theme.monoFont]
+    .filter((font, index, all) => font && all.findIndex(other => other && other.family === font.family) === index);
   return fonts.map(font => font.faces.map(face => {
     const url = urlFor(face.file);
     return url ? `
@@ -780,19 +943,22 @@ const APP_RADIUS = '.375rem';
 function pageShapeCss(id, theme) {
   const t = `html.sg-theme-${id}.sg-theme-${id}`;
   let css = '';
-  if (theme.font) {
+  if (hasOwnFonts(theme)) {
     css += fontFaceCss(theme, fontDataUrl) + `
   ${t} {
     --font-display: ${displayStack(theme)};
     --font-body: ${fontStack(theme)};
-    --font-mono: ${fontStack(theme)};
-  }
+    --font-mono: ${monoStack(theme)};
+  }${theme.font ? `
   ${t} body,
   ${t} body *:not(${PAPER}, ${PAPER} *) {
     font-family: ${fontStack(theme)} !important;
-  }${theme.displayFont ? `
+  }` : ''}${theme.displayFont ? `
   ${t} body :is(h1, h2, h3, h4, h5, h6, .font-display):not(${PAPER}, ${PAPER} *) {
     font-family: ${displayStack(theme)} !important;
+  }` : ''}${theme.monoFont ? `
+  ${t} body :is(.font-mono, .tabular-nums, code, kbd, pre):not(${PAPER}, ${PAPER} *) {
+    font-family: ${monoStack(theme)} !important;
   }` : ''}
   ${t} ${PAPER} {
     --font-display: ${APP_FONT};
@@ -1105,7 +1271,27 @@ function pageVariantCss(id, theme, variant) {
     background: ${rgba(p.accent, p.dark ? 0.18 : 0.12)};
   }
   ${sel} .sg-app .navg .sub { border-left-color: ${p.borderStrong.hex}; }
+  ${highContrastCss(sel, theme, p)}
 `;
+}
+
+// Hoog contrast (theme.highContrast): de app zelf zet op veel plekken
+// zachtgrijze tekst en lichte statuskleuren (Tailwind-classes, --ok e.d.).
+// Die gaan hier naar de themakleuren; papier blijft het echte document.
+const HC_STATUS_CLASSES = { stop: ['red', 'rose'], warn: ['amber', 'yellow'], ok: ['green', 'emerald'] };
+const HC_GREY_CLASSES = ['gray', 'slate', 'zinc', 'neutral', 'stone'];
+function highContrastCss(sel, theme, p) {
+  if (!theme.highContrast) return '';
+  const status = theme.status[p.dark ? 'dark' : 'light'];
+  const notPaper = `:not(${PAPER} *)`;
+  const textClasses = (names, shades) => names.flatMap(name => shades.map(shade => `.text-${name}-${shade}`)).join(', ');
+  const statusText = Object.entries(HC_STATUS_CLASSES).map(([role, names]) =>
+    `${sel} :is(${textClasses(names, [400, 500, 600, 700, 800, 900])})${notPaper} { color: ${status[role]}; }`).join('\n  ');
+  return `${sel} { --stop: ${status.stop}; --warn: ${status.warn}; --ok: ${status.ok}; }
+  ${statusText}
+  ${sel} :is(${textClasses(HC_GREY_CLASSES, [300, 400, 500, 600])}, .text-muted-foreground)${notPaper} { color: ${p.fg3.hex}; }
+  ${sel} ::placeholder { color: ${p.fg4.hex}; opacity: 1; }
+  ${sel} :focus-visible { outline: 3px solid ${p.accent} !important; outline-offset: 2px; }`;
 }
 
 // Papier blijft het echte document: wit, met de gewone lichte kleuren en
@@ -1185,8 +1371,8 @@ function chromeVariantCss(theme, variant) {
     --surface: ${p.surface.hex};
     --surface-raised: ${p.raised.hex};
     --field-bg: ${p.dark ? 'rgba(0, 0, 0, 0.22)' : p.canvas.hex};
-    --border: ${p.dark ? rgba('#ffffff', 0.1) : p.border.hex};
-    --border-strong: ${p.dark ? rgba('#ffffff', 0.2) : p.borderStrong.hex};
+    --border: ${p.dark && !theme.highContrast ? rgba('#ffffff', 0.1) : p.border.hex};
+    --border-strong: ${p.dark && !theme.highContrast ? rgba('#ffffff', 0.2) : p.borderStrong.hex};
     --hover: ${rgba(ink, p.dark ? 0.06 : 0.05)};
     --hover-strong: ${rgba(ink, p.dark ? 0.12 : 0.09)};
     --text: ${ink};
@@ -1215,21 +1401,21 @@ function chromeThemeCss(id) {
 // en detached.html (die staan in dezelfde map als assets/).
 function chromeShapeCss(theme) {
   let css = '';
-  if (theme.font) {
-    css += fontFaceCss(theme, file => file) + `
+  if (hasOwnFonts(theme)) {
+    css += fontFaceCss(theme, file => file) + (theme.font ? `
   html.chrome-theme body,
   html.chrome-theme button,
   html.chrome-theme input,
   html.chrome-theme select,
   html.chrome-theme textarea {
     font-family: ${fontStack(theme)} !important;
-  }${theme.displayFont ? `
+  }` : '') + (theme.displayFont ? `
   html.chrome-theme :is(h1, h2, h3, h4) {
     font-family: ${displayStack(theme)} !important;
-  }` : ''}
-`;
+  }` : '') + '\n';
   }
   if (theme.radius) css += `\n  html.chrome-theme { --radius: ${theme.radius}; }\n`;
+  if (theme.highContrast) css += `\n  html.chrome-theme :focus-visible { outline: 3px solid var(--accent) !important; outline-offset: 2px; }\n`;
   return css;
 }
 
@@ -1245,9 +1431,11 @@ function helpPopoverThemeCss(id) {
       softLight: 'html.themed.light.soft',
       dark: 'html.themed.themed:not(.light)'
     }[variant];
-    return `${sel} { --bg: ${p.surface.hex}; --border: ${p.dark ? rgba('#ffffff', 0.1) : p.border.hex}; --text: ${p.fg1.hex}; --text-2: ${p.fg2.hex}; --muted: ${p.fg3.hex}; --accent: ${p.accent}; }`;
-  }).join('\n') + (theme.font
-    ? fontFaceCss(theme, fontDataUrl) + `\n  html.themed body { font-family: ${fontStack(theme)} !important; }`
+    return `${sel} { --bg: ${p.surface.hex}; --border: ${p.dark && !theme.highContrast ? rgba('#ffffff', 0.1) : p.border.hex}; --text: ${p.fg1.hex}; --text-2: ${p.fg2.hex}; --muted: ${p.fg3.hex}; --accent: ${p.accent}; }`;
+  }).join('\n') + (hasOwnFonts(theme)
+    ? fontFaceCss(theme, fontDataUrl)
+      + (theme.font ? `\n  html.themed body { font-family: ${fontStack(theme)} !important; }` : '')
+      + (theme.displayFont ? `\n  html.themed h1 { font-family: ${displayStack(theme)} !important; }` : '')
     : '');
 }
 
@@ -1257,6 +1445,7 @@ module.exports = {
   THEME_CLASSES,
   isTheme,
   isOriginal,
+  fixedMode,
   hasWallpaper,
   themeCatalog,
   previewFontCss,
