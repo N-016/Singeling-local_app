@@ -72,6 +72,15 @@ const SINGELING_COMPONENTS = `
   html.dark .sg-app .rstep.done .b { background: color-mix(in srgb, var(--ok) 15%, transparent); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
   html.dark .sg-app .docbadge.miss { background: color-mix(in srgb, var(--stop) 15%, transparent); border-color: color-mix(in srgb, var(--stop) 40%, transparent); }
   html.dark .sg-app .docbadge.ok { background: color-mix(in srgb, var(--ok) 15%, transparent); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+
+  /* Scheduler, weekdiagram: de stippellijn van de capaciteit en het blokje
+     "Capaciteit" in de legenda hebben een vaste bijna-zwarte kleur (#16181D).
+     Gedempt licht: zichtbaar, maar niet feller dan de staven zelf (vaak reikt
+     de capaciteit tot boven de grafiek, dan staan er overal stippelvakken).
+     De legendatekst krijgt zijn kleur inline, vandaar !important. */
+  html.dark .recharts-surface rect[stroke="#16181D" i] { stroke: hsl(var(--foreground) / 0.5); stroke-width: 1.5px; }
+  html.dark .recharts-legend-item path[fill="#16181D" i] { fill: hsl(var(--foreground) / 0.5); }
+  html.dark .recharts-legend-item:has(path[fill="#16181D" i]) .recharts-legend-item-text { color: hsl(var(--foreground) / 0.75) !important; }
 `;
 
 // Tailwind-kleuren: [500, 400, 300] als RGB. De lichte achtergronden (50-200)
