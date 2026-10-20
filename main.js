@@ -1383,6 +1383,24 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           console.log('ELECTRON_FOCUS_EDITABLE:false');
         });
 
+        // Pop-up open (donkere achtergrondlaag van de webapp, shadcn/Radix:
+        // .fixed.inset-0 met data-state="open")? Dan dimt de tabbalk mee in
+        // dezelfde kleur, zie ELECTRON_MODAL in main.js.
+        let modalCheckQueued = false;
+        const reportModal = () => {
+          modalCheckQueued = false;
+          const overlay = [...document.querySelectorAll('.fixed.inset-0[data-state="open"]')]
+            .find(el => !/^(transparent|rgba\\(0, 0, 0, 0\\))$/.test(getComputedStyle(el).backgroundColor));
+          const color = overlay ? getComputedStyle(overlay).backgroundColor : '';
+          if (color === window.__electronModalColor) return;
+          window.__electronModalColor = color;
+          console.log('ELECTRON_MODAL:' + color);
+        };
+        new MutationObserver(() => {
+          if (!modalCheckQueued) { modalCheckQueued = true; requestAnimationFrame(reportModal); }
+        }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-state'] });
+        reportModal();
+
         // Enter in de zoekbalk-pop-up kiest het geselecteerde resultaat. Dat is
         // geen klik, dus hier apart onthouden (capture: vóór de site zelf).
         document.addEventListener('keydown', (event) => {
@@ -1576,6 +1594,12 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
 
     if (message.startsWith('ELECTRON_FOCUS_EDITABLE:')) {
       isFocusOnEditableField = message.endsWith('true');
+      return;
+    }
+
+    if (message.startsWith('ELECTRON_MODAL:')) {
+      // Los venster heeft geen tabbalk om te dimmen.
+      if (!isDetachedTab(tabId)) mainWindow.webContents.send('tab-modal', { tabId, color: message.slice('ELECTRON_MODAL:'.length) });
     }
   });
 }

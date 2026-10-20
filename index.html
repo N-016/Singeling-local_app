@@ -3434,6 +3434,24 @@
       40% { transform: translateX(3px); }
     }
 
+    /* Pop-up open in de actieve tab: zelfde donkere laag als de webapp over
+       de pagina legt, ook over de tabbalk. Alleen visueel; de balk (en de
+       vensterknoppen) blijven klikbaar. */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      background: var(--tab-modal-dim, transparent);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+
+    body.tab-modal-open::after {
+      opacity: 1;
+    }
+
     /* Windows-instelling "Animatie-effecten" uit -> geen beweging. */
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
@@ -4075,6 +4093,14 @@
     document.getElementById('scroll-right').addEventListener('click', () => {
       tabScroll.scrollBy({ left: 240, behavior: 'smooth' });
     });
+    // Scrollwiel (gewoon of horizontaal/touchpad) schuift de tabs opzij;
+    // #tab-scroll heeft overflow: hidden, dus dat doet de browser niet zelf.
+    tabScroll.addEventListener('wheel', (event) => {
+      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      if (!delta) return;
+      event.preventDefault();
+      tabScroll.scrollLeft += delta;
+    }, { passive: false });
 
     const shareLinkBtn = document.getElementById('share-link-btn');
     const copyConfirmation = document.getElementById('copy-confirmation');
@@ -5140,6 +5166,21 @@
     window.electronAPI.on('tab-switched', (tabId) => {
       activeTabId = tabId;
       setActiveTabUI(tabId);
+      updateModalDim();
+    });
+
+    // Pop-up open in een tab: de webapp dimt de pagina, de tabbalk dimt mee
+    // (alleen voor de actieve tab, in de kleur van de webapp-achtergrondlaag).
+    const tabModalColors = new Map();
+    function updateModalDim() {
+      const color = tabModalColors.get(activeTabId);
+      if (color) document.body.style.setProperty('--tab-modal-dim', color);
+      document.body.classList.toggle('tab-modal-open', !!color);
+    }
+    window.electronAPI.on('tab-modal', ({ tabId, color }) => {
+      if (color) tabModalColors.set(tabId, color);
+      else tabModalColors.delete(tabId);
+      updateModalDim();
     });
 
     // Titel van een tab is bijgewerkt (bv. na het laden van de pagina)
@@ -5169,6 +5210,8 @@
       }
       lockedTabIds.delete(tabId);
       tabUrls.delete(tabId);
+      tabModalColors.delete(tabId);
+      updateModalDim();
       updateLockedTabPositions();
     });
 
