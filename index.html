@@ -254,6 +254,28 @@
       transform: rotate(90deg);
     }
 
+    /* + staat direct achter de laatste tab (in #tab-scroll). Sticky: passen
+       de tabs niet meer, dan blijft hij rechts in beeld, met de balkkleur
+       als achtergrond zodat de tabs eronder niet doorschijnen. */
+    #new-tab-btn {
+      position: sticky;
+      right: 0;
+      z-index: 1;
+      align-self: center;
+      margin: 0 4px;
+      background: var(--bar-bg);
+    }
+
+    #new-tab-btn:hover {
+      background: linear-gradient(var(--hover), var(--hover)), var(--bar-bg);
+    }
+
+    /* Tabbalk uit: geen nieuwe tabbladen (de + zit niet meer direct in de
+       balk, dus de regel bij html.tabbar-off hierboven vangt hem niet). */
+    html.tabbar-off #new-tab-btn {
+      display: none;
+    }
+
     #share-link-btn,
     #dark-mode-btn,
     #help-btn,
@@ -1326,6 +1348,14 @@
       padding: 0 2px;
       font-size: 13px;
       font-weight: 600;
+    }
+
+    /* Zon/maan rechts, vlak voor (de plek van) het vinkje: zo staan ze bij
+       alle kaartjes op dezelfde hoogte, hoe lang de naam ook is. */
+    .theme-card-modes {
+      display: inline-flex;
+      margin-left: auto;
+      opacity: 0.6;
     }
 
     .theme-card-check {
@@ -3503,6 +3533,10 @@
       </div>
       <div id="tab-scroll">
         <div id="tabs"></div>
+        <!-- Direct achter de tabs; sticky, dus bij veel tabs blijft hij rechts in beeld. -->
+        <button id="new-tab-btn" type="button" title="Nieuw tabblad" aria-label="Nieuw tabblad">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        </button>
       </div>
       <div id="tab-scroll-buttons">
         <button id="scroll-left" class="tab-scroll-button" type="button" title="Scroll tabs naar links" aria-label="Scroll tabs naar links">
@@ -3512,9 +3546,6 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </button>
       </div>
-      <button id="new-tab-btn" type="button" title="Nieuw tabblad" aria-label="Nieuw tabblad">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-      </button>
       <button id="tab-overview-btn" class="navigation-button" type="button" title="Overzicht van alle tabs" aria-label="Overzicht van alle tabs">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
       </button>
@@ -3652,6 +3683,13 @@
           <span class="settings-hint">Voorkomt dat Ctrl+B (bedoeld om vetgedrukt te typen) de zijbalk van de pagina in-/uitklapt.</span>
         </span>
         <input type="checkbox" class="switch" id="block-ctrl-b-checkbox">
+      </label>
+      <label class="general-toggle">
+        <span class="toggle-text">
+          Windows-meldingen
+          <span class="settings-hint">Komt er iets bij het belletje bij terwijl je niet in de app zit, dan krijg je een melding rechtsonder in Windows; klik erop om de app te openen. Zit je wel in de app, dan zie je een berichtje in de app zelf. Het aantal op het taakbalkicoon blijft altijd zichtbaar.</span>
+        </span>
+        <input type="checkbox" class="switch" id="windows-notifications-checkbox">
       </label>
     </div>
 
@@ -4009,7 +4047,9 @@
   </section>
 
   <script>
-    const tabBar = document.getElementById('tab-bar');
+    // Instellingen bij de start één keer ophalen; alle onderdelen hieronder
+    // lezen dezelfde. Later (bv. bij het openen van het paneel) vers ophalen.
+    const startupSettings = window.electronAPI.getSettings();
     const newTabBtn = document.getElementById('new-tab-btn');
     const tabsContainer = document.getElementById('tabs');
     const tabScroll = document.getElementById('tab-scroll');
@@ -4159,7 +4199,7 @@
     // "Nieuw in deze versie" (zie 'whats-new'). De eigen keuze blijft bewaard
     // voor de volgende starts.
     let onboardingForced = null; // 'install', 'update' of null
-    window.electronAPI.getSettings().then((settings) => {
+    startupSettings.then((settings) => {
       if (!settings) return;
       onboardingForced = settings.firstStartAfterInstall ? 'install' : settings.firstStartAfterUpdate ? 'update' : null;
       showOnboardingCheckbox.checked = !!onboardingForced || settings.showOnboarding !== false;
@@ -4224,7 +4264,7 @@
     function renderSetupLook() {
       setupAssistant.classList.toggle('setup-singeling', !!setupRun && !setupThemeChosen);
     }
-    window.electronAPI.getSettings().then(settings => {
+    startupSettings.then(settings => {
       if (!settings) return;
       setupDoneVersion = settings.setupVersion || 0;
       preferencesChosen = !!settings.preferencesChosen;
@@ -5191,13 +5231,37 @@
       updateModalDim();
     });
 
+    // Aantal meldingen van het belletje als rood rondje op het taakbalkicoon.
+    // Windows wil daar een plaatje voor; dat tekenen we hier (32 px, wordt
+    // op 16 px getoond). 0 = rondje weg.
+    window.electronAPI.on('notification-count', (count) => {
+      if (!count) {
+        window.electronAPI.setTaskbarBadge(null);
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#d92d20';
+      ctx.beginPath();
+      ctx.arc(16, 16, 16, 0, Math.PI * 2);
+      ctx.fill();
+      const label = count > 9 ? '9+' : String(count);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${label.length > 1 ? 17 : 21}px "Segoe UI", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, 16, 17);
+      window.electronAPI.setTaskbarBadge(canvas.toDataURL('image/png'));
+    });
+
     // Titel van een tab is bijgewerkt (bv. na het laden van de pagina)
     window.electronAPI.on('update-tab-url', ({ tabId, url }) => {
       const tab = tabElements.get(tabId);
-      if (tab) {
-        tab.querySelector('.tab-title').textContent = formatTabTitle(url);
-        updateLockedTabPositions();
-      }
+      // Een late melding van een net gesloten tab niet meer bewaren.
+      if (!tab) return;
+      tab.querySelector('.tab-title').textContent = formatTabTitle(url);
+      updateLockedTabPositions();
       tabUrls.set(tabId, url);
     });
 
@@ -5421,6 +5485,7 @@
         openAllLinksNewTabCheckbox.checked = !!settings.openAllLinksInNewTab;
         renderTabBarDisabled(settings.tabBarDisabled);
         blockCtrlBCheckbox.checked = !!settings.blockCtrlB;
+        windowsNotificationsCheckbox.checked = settings.windowsNotifications !== false;
         renderNotClockedChoice(settings.notClockedMode);
         renderThemeSchedule(settings);
         softColorsCheckbox.checked = !!settings.softColors;
@@ -5491,7 +5556,7 @@
     // van toen al gezien.
     const DEBUG_FROM_VERSION = '1.2.4';
     const debugPortCheckbox = document.getElementById('debug-port-checkbox');
-    window.electronAPI.getSettings().then(settings => {
+    startupSettings.then(settings => {
       document.getElementById('settings-nav-debug').classList.toggle('hidden', !(settings && settings.debugAvailable));
       if (!settings) return;
       debugPortCheckbox.checked = !!settings.debugPort;
@@ -5519,6 +5584,7 @@
     const changelogCloseBtn = document.getElementById('changelog-close');
     const openAllLinksNewTabCheckbox = document.getElementById('open-all-links-new-tab-checkbox');
     const blockCtrlBCheckbox = document.getElementById('block-ctrl-b-checkbox');
+    const windowsNotificationsCheckbox = document.getElementById('windows-notifications-checkbox');
 
     openAllLinksNewTabCheckbox.addEventListener('change', () => {
       window.electronAPI.setOpenAllLinksInNewTab(openAllLinksNewTabCheckbox.checked);
@@ -5571,12 +5637,16 @@
       document.documentElement.classList.toggle('several-tabs', tabCountTarget.children.length > 1);
     }).observe(tabCountTarget, { childList: true });
 
-    window.electronAPI.getSettings().then(settings => {
+    startupSettings.then(settings => {
       if (settings) renderTabBarDisabled(settings.tabBarDisabled);
     });
 
     blockCtrlBCheckbox.addEventListener('change', () => {
       window.electronAPI.setBlockCtrlB(blockCtrlBCheckbox.checked);
+    });
+
+    windowsNotificationsCheckbox.addEventListener('change', () => {
+      window.electronAPI.setWindowsNotifications(windowsNotificationsCheckbox.checked);
     });
 
     const betaUpdatesCheckbox = document.getElementById('beta-updates-checkbox');
@@ -5589,15 +5659,6 @@
       { value: 'aan', label: 'Aan' },
       { value: 'subtiel', label: 'Subtiel' },
       { value: 'uit', label: 'Uit' }
-    ];
-    const PREFERENCE_THEME_CHOICES = [
-      { value: 'auto', label: 'Automatisch' },
-      { value: 'light', label: 'Licht' },
-      { value: 'dark', label: 'Donker' }
-    ];
-    const SOFT_COLOR_CHOICES = [
-      { value: 'gewoon', label: 'Gewoon' },
-      { value: 'zachter', label: 'Zachter' }
     ];
     let notClockedMode = 'aan';
 
@@ -5634,7 +5695,7 @@
       });
     }
 
-    window.electronAPI.getSettings().then(settings => {
+    startupSettings.then(settings => {
       if (settings) renderNotClockedChoice(settings.notClockedMode);
     });
 
@@ -5724,15 +5785,15 @@
       });
     }
     for (const select of [themeSunOffsetLight, themeSunOffsetDark]) {
-      select.addEventListener('change', async () => {
+      select.addEventListener('change', () => {
+        // IPC-berichten komen op volgorde aan: main.js heeft de nieuwe
+        // verschuiving al opgeslagen als refreshThemeSunInfo erom vraagt.
         saveThemeSchedule();
-        // main.js moet de nieuwe verschuiving eerst opslaan.
-        await new Promise(resolve => setTimeout(resolve, 50));
         refreshThemeSunInfo();
       });
     }
 
-    window.electronAPI.getSettings().then(settings => {
+    startupSettings.then(settings => {
       if (settings) renderThemeSchedule(settings);
     });
 
@@ -5880,6 +5941,14 @@
       const name = document.createElement('span');
       name.className = 'theme-card-name';
       name.textContent = theme.name;
+      if (theme.bothModes) {
+        const modes = document.createElement('span');
+        modes.className = 'theme-card-modes';
+        modes.title = 'Licht en donker';
+        modes.setAttribute('aria-label', 'Licht en donker');
+        modes.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8a2.83 2.83 0 0 0 4 4 4 4 0 1 1-4-4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.9 4.9 1.4 1.4"/><path d="m17.7 17.7 1.4 1.4"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.3 17.7-1.4 1.4"/><path d="m19.1 4.9-1.4 1.4"/></svg>';
+        name.appendChild(modes);
+      }
       const check = document.createElement('span');
       check.className = 'theme-card-check';
       check.textContent = '✓';
@@ -5970,7 +6039,7 @@
       }, THEME_SWITCH_MS + 100);
     });
 
-    window.electronAPI.getSettings().then(settings => {
+    startupSettings.then(settings => {
       if (!settings) return;
       renderDarkModeButton(!!settings.darkMode);
       setSoftColors(!!settings.softColors, { save: false });

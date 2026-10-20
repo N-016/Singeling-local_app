@@ -1,0 +1,24 @@
+// npm test: controleert de regels in rules.js (draait ook vóór elke build).
+const assert = require('node:assert');
+const { isInternalUrl, isAuthUrl, compareVersions, criticalUpdateFrom } = require('../rules');
+
+assert.equal(isInternalUrl('https://snglng.lovable.app/assemblies/1'), true);
+assert.equal(isInternalUrl('https://x.snglng.lovable.app/'), true);
+assert.equal(isInternalUrl('https://snglng.lovable.app.evil.com/'), false);
+assert.equal(isInternalUrl('https://evil.com/?snglng.lovable.app'), false);
+assert.equal(isInternalUrl('https://snglng.lovable.app@evil.com/'), false);
+assert.equal(isInternalUrl('niet een url'), false);
+assert.equal(isAuthUrl('https://login.microsoftonline.com/x'), true);
+assert.equal(isAuthUrl('https://microsoftonline.com.evil.com/'), false);
+
+assert.ok(compareVersions('1.3.0', '1.3.0-beta.2') > 0);
+assert.ok(compareVersions('1.3.0-beta.10', '1.3.0-beta.2') > 0);
+assert.ok(compareVersions('1.2.4', '1.3.0-beta.1') < 0);
+
+const release = (body) => ({ version: '1.3.1', releaseName: 'v1.3.1', releaseNotes: body });
+assert.deepEqual(criticalUpdateFrom(release('<p><strong>Kritieke update</strong> – minimale versie: 1.3.0<br>Reden: klokboekingen</p>'), '1.2.4'), { reason: 'klokboekingen' });
+assert.equal(criticalUpdateFrom(release('<p><strong>Kritieke update</strong> – minimale versie: 1.3.0</p>'), '1.3.0'), null);
+assert.equal(criticalUpdateFrom(release('<p>Dit is geen kritieke update.</p>'), '1.2.4'), null);
+assert.deepEqual(criticalUpdateFrom(release('Kritieke update'), '1.3.0'), { reason: '' });
+
+console.log('rules.js: alle controles geslaagd');

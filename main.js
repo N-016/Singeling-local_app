@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, Menu, clipboard, shell, screen, session, systemPreferences, nativeTheme } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, Menu, clipboard, shell, screen, session, systemPreferences, nativeTheme, Notification, nativeImage } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
@@ -6,6 +6,7 @@ const { DARK_MODE_BACKGROUND, DARK_MODE_CSS } = require('./dark-mode');
 const { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT } = require('./page-tweaks');
 const { SOFT_MODE_BACKGROUND, SOFT_MODE_CSS } = require('./soft-mode');
 const themes = require('./themes');
+const { START_URL, APP_HOSTNAME, isInternalUrl, isAuthUrl, compareVersions, criticalUpdateFrom } = require('./rules');
 
 // Zonder deze lock start elke nieuwe poging een los proces dat om dezelfde
 // cache- en instellingenbestanden in userData vecht met de al draaiende app
@@ -15,14 +16,17 @@ if (!app.requestSingleInstanceLock()) {
   process.exit(0);
 }
 
+// Windows toont meldingen alleen voor een app met een app-ID. Geïnstalleerd
+// is dat de appId uit package.json (die zet de installer op de snelkoppeling);
+// bij npm start de electron.exe zelf.
+if (process.platform === 'win32') app.setAppUserModelId(app.isPackaged ? 'com.singeling.app' : process.execPath);
+
 app.on('second-instance', () => {
   if (!mainWindow) return;
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.focus();
 });
 
-const START_URL = 'https://snglng.lovable.app/qrm-connect';
-const APP_HOSTNAME = new URL(START_URL).hostname;
 const TABBAR_HEIGHT = 38;
 const UPDATE_BANNER_HEIGHT = 40;
 const DEFAULT_ZOOM = 1;
@@ -79,6 +83,7 @@ let appSettings = {
   tabBarDisabled: false, // tabbalk uit: één scherm, balk toont alleen het instellingen-icoon
   showOnboarding: true,
   blockCtrlB: false,
+  windowsNotifications: true, // Windows-melding bij een nieuwe melding bij het belletje
   notClockedMode: 'aan', // melding "Niet geklokt op een order": 'aan' (oranje balk), 'subtiel' of 'uit'
   preferencesChosen: false, // keuzescherm (thema + klokmelding) al gezien
   setupVersion: 0, // versie van de instelassistent die al doorlopen is (SETUP_VERSION in index.html)
@@ -93,7 +98,7 @@ let appSettings = {
   themeTimes: { dark: '18:00', light: '07:00' }, // bij 'tijden'
   // bij 'zon': minuten later (+) of eerder (-) dan zon op (licht) en zon onder (donker)
   themeSunOffset: { light: 0, dark: 0 },
-  debugPort: false // Instellingen > Debug: Chrome-debugpoort (DEBUG_PORT) open bij de start
+  debugPort: false // Instellingen > Debug: versie waarvoor de Chrome-debugpoort (DEBUG_PORT) open staat
 };
 
 function getSettingsPath() {
@@ -103,7 +108,7 @@ function getSettingsPath() {
 // De debugpoort moet vóór app-ready aan staan, dus hier al los uit het
 // instellingenbestand lezen (loadSettings draait pas in whenReady).
 try {
-  if (DEBUG_AVAILABLE && JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8')).debugPort === true) {
+  if (DEBUG_AVAILABLE && JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8')).debugPort === app.getVersion()) {
     app.commandLine.appendSwitch('remote-debugging-port', String(DEBUG_PORT));
   }
 } catch {
@@ -157,14 +162,23 @@ function loadSettings() {
     appSettings = {
       zoomFactor: zoomResetDone && typeof parsed.zoomFactor === 'number' ? parsed.zoomFactor : DEFAULT_ZOOM,
       zoomResetDone: true,
-      startTabs: Array.isArray(parsed.startTabs) ? parsed.startTabs : [],
-      tabGroups: Array.isArray(parsed.tabGroups) ? parsed.tabGroups : [],
+      // Alleen geldige app-adressen: een kapotte regel of bv. about:blank als
+      // starttab gaf anders een crash of een lege app bij de start.
+      startTabs: Array.isArray(parsed.startTabs)
+        ? parsed.startTabs.filter(tab => tab && typeof tab.url === 'string' && isInternalUrl(tab.url))
+        : [],
+      tabGroups: Array.isArray(parsed.tabGroups)
+        ? parsed.tabGroups
+          .filter(group => group && Array.isArray(group.urls))
+          .map(group => ({ ...group, urls: group.urls.filter(url => typeof url === 'string' && isInternalUrl(url)) }))
+        : [],
       lastSeenChangelogVersion: typeof parsed.lastSeenChangelogVersion === 'string' ? parsed.lastSeenChangelogVersion : null,
       seenWhatsNewTours: Array.isArray(parsed.seenWhatsNewTours) ? parsed.seenWhatsNewTours : [],
       openAllLinksInNewTab: typeof parsed.openAllLinksInNewTab === 'boolean' ? parsed.openAllLinksInNewTab : false,
       tabBarDisabled: typeof parsed.tabBarDisabled === 'boolean' ? parsed.tabBarDisabled : false,
       showOnboarding: typeof parsed.showOnboarding === 'boolean' ? parsed.showOnboarding : true,
       blockCtrlB: typeof parsed.blockCtrlB === 'boolean' ? parsed.blockCtrlB : false,
+      windowsNotifications: typeof parsed.windowsNotifications === 'boolean' ? parsed.windowsNotifications : true,
       notClockedMode: notClockedModeFrom(parsed),
       preferencesChosen: typeof parsed.preferencesChosen === 'boolean' ? parsed.preferencesChosen : false,
       setupVersion: Number.isInteger(parsed.setupVersion) ? parsed.setupVersion : 0,
@@ -181,7 +195,8 @@ function loadSettings() {
       sunDefaultDone: true,
       themeTimes: validThemeTimes(parsed.themeTimes),
       themeSunOffset: validSunOffsets(parsed.themeSunOffset),
-      debugPort: parsed.debugPort === true
+      // Versie waarvoor de poort aan staat: na een update gaat hij vanzelf dicht.
+      debugPort: parsed.debugPort === app.getVersion() ? parsed.debugPort : false
     };
     if (!zoomResetDone) saveSettings();
   } catch {
@@ -189,9 +204,13 @@ function loadSettings() {
   }
 }
 
+// Eerst naar een tijdelijk bestand en dan hernoemen: valt de stroom uit
+// tijdens het schrijven, dan blijft het oude settings.json heel.
 function saveSettings() {
   try {
-    fs.writeFileSync(getSettingsPath(), JSON.stringify(appSettings, null, 2));
+    const settingsPath = getSettingsPath();
+    fs.writeFileSync(`${settingsPath}.tmp`, JSON.stringify(appSettings, null, 2));
+    fs.renameSync(`${settingsPath}.tmp`, settingsPath);
   } catch (error) {
     console.error('Instellingen opslaan mislukt:', error.message);
   }
@@ -236,39 +255,12 @@ function openExternalSafe(url) {
   }
 }
 
-function isInternalUrl(url) {
-  try {
-    const hostname = new URL(url).hostname;
-    return hostname === APP_HOSTNAME || hostname.endsWith(`.${APP_HOSTNAME}`);
-  } catch {
-    return false;
-  }
-}
-
-// Inloggen (bv. "Inloggen met Microsoft") loopt via een keten van redirects en
-// formulier-POSTs langs Supabase en Microsoft. Die domeinen zijn niet "intern",
-// dus zonder uitzondering werd elke stap naar de standaardbrowser gestuurd via
-// shell.openExternal(url) - en dat opent altijd een GET zonder de POST-body.
-// Microsoft antwoordt dan met AADSTS900561 ("endpoint only accepts POST").
-// Bovendien zou de sessie dan in de browser landen i.p.v. in de app. Daarom
-// mag de volledige inlogflow gewoon binnen het tabblad zelf plaatsvinden.
-const AUTH_HOST_SUFFIXES = [
-  'login.microsoftonline.com',
-  'login.microsoft.com',
-  'login.live.com',
-  'login.windows.net',
-  'account.live.com',
-  'supabase.co',
-  'oauth.lovable.app'
-];
-
-function isAuthUrl(url) {
-  try {
-    const hostname = new URL(url).hostname;
-    return AUTH_HOST_SUFFIXES.some(suffix => hostname === suffix || hostname.endsWith(`.${suffix}`));
-  } catch {
-    return false;
-  }
+// Tabbalk en balk van een los venster: nooit wegnavigeren of pop-ups openen.
+// Anders vervangt bv. een op de balk gesleept bestand de hele balk, en krijgt
+// dat bestand de preload (electronAPI) erbij.
+function stayOnOwnPage(webContents) {
+  webContents.on('will-navigate', (event) => event.preventDefault());
+  webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 }
 
 function isRefreshShortcut(input) {
@@ -371,45 +363,7 @@ function applyUpdateChannel() {
 //     Zonder deze regel: kritiek voor iedereen onder de nieuwe versie.
 //   - "Reden: ...": korte uitleg in de melding.
 // Zie "Updatemelding" hieronder voor wat de gebruiker dan ziet.
-function parseVersion(version) {
-  const match = String(version || '').match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?/);
-  return match ? { parts: match.slice(1, 4).map(Number), pre: match[4] || null } : null;
-}
-
-// < 0 als a ouder is dan b, 0 gelijk, > 0 nieuwer. Een gewone versie is
-// nieuwer dan de bèta's ervan (1.3.0 > 1.3.0-beta.2).
-function compareVersions(a, b) {
-  const va = parseVersion(a);
-  const vb = parseVersion(b);
-  if (!va || !vb) return 0;
-  for (let i = 0; i < 3; i++) {
-    if (va.parts[i] !== vb.parts[i]) return va.parts[i] - vb.parts[i];
-  }
-  if (va.pre === vb.pre) return 0;
-  if (va.pre === null) return 1;
-  if (vb.pre === null) return -1;
-  return va.pre.localeCompare(vb.pre, undefined, { numeric: true });
-}
-
-// Release-tekst als platte tekst (de updater geeft HTML, soms per versie).
-function releaseNotesText(updateInfo) {
-  const notes = updateInfo.releaseNotes;
-  const raw = Array.isArray(notes) ? notes.map(entry => entry && entry.note).join('\n') : String(notes || '');
-  return `${updateInfo.releaseName || ''}\n${raw}`
-    .replace(/<\/(p|li|h\d|div)>|<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-}
-
-function criticalUpdateFrom(updateInfo) {
-  const text = releaseNotesText(updateInfo);
-  if (!/kritieke update/i.test(text)) return null;
-  const minimum = (text.match(/minimale versie:?\s*v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/i) || [])[1] || updateInfo.version;
-  if (compareVersions(app.getVersion(), minimum) >= 0) return null;
-  const reason = ((text.match(/reden:?\s*([^\n]+)/i) || [])[1] || '').trim();
-  return { reason };
-}
+// De regels zelf staan in rules.js (getest in scripts/test-rules.js).
 
 // ---------- Updatemelding ----------
 //
@@ -493,7 +447,7 @@ function downloadPendingUpdate() {
 }
 
 function handleUpdateAvailable(updateInfo) {
-  const critical = criticalUpdateFrom(updateInfo);
+  const critical = criticalUpdateFrom(updateInfo, app.getVersion());
   if (!pendingUpdate || pendingUpdate.version !== updateInfo.version) {
     clearTimeout(updateReminderTimer);
     updateReminderTimer = null;
@@ -535,6 +489,22 @@ function handleUpdateAvailable(updateInfo) {
 // zonder console, en een niet-detached proces sluit Windows mee af met de
 // app. wscript start PowerShell verborgen en los van de app.
 // Resolvet zodra het venstertje in beeld is (of na een paar seconden toch).
+// Mappen van showUpdatingWindow van eerdere updates opruimen (het script zelf
+// kan dat niet: het logo staat nog open zolang het venster er is). Alleen
+// mappen ouder dan een uur, zodat een lopende update niets kwijtraakt.
+function removeOldUpdateFolders() {
+  const tmp = require('os').tmpdir();
+  try {
+    for (const name of fs.readdirSync(tmp)) {
+      if (!name.startsWith('singeling-update-')) continue;
+      const dir = path.join(tmp, name);
+      if (Date.now() - fs.statSync(dir).mtimeMs > 60 * 60 * 1000) fs.rmSync(dir, { recursive: true, force: true });
+    }
+  } catch {
+    // Opruimen is nooit belangrijk genoeg om de start te hinderen.
+  }
+}
+
 function showUpdatingWindow(version, { maxSeconds = 180, processName = 'Singeling App' } = {}) {
   return new Promise((resolve) => {
     try {
@@ -788,7 +758,6 @@ function sendNavigationState(tabId) {
     canGoBack: effectiveCanGoBack,
     canGoForward
   });
-  view.webContents.executeJavaScript(`window.__electronCanGoBack = ${effectiveCanGoBack};`).catch(() => {});
 }
 
 function openButtonInNewTab(view, button, parentTabId) {
@@ -814,7 +783,7 @@ function openButtonInNewTab(view, button, parentTabId) {
           element.click();
         }
       })();
-    `);
+    `).catch(() => {});
   });
 }
 
@@ -878,21 +847,11 @@ function closeIfStillBlank(view, tabId) {
 // twee elkaar eindeloos en springt het scherm ~4x per seconde heen en weer.
 // Door zulke regels over te slaan komt de pagina altijd vers binnen.
 function findOtherPageIndex(navigationHistory, direction) {
-  const pathOf = (url) => {
-    try {
-      const parsed = new URL(url);
-      if (!['http:', 'https:'].includes(parsed.protocol)) return null;
-      return parsed.origin + parsed.pathname.replace(/\/$/, '');
-    } catch {
-      return null;
-    }
-  };
-
   const entries = navigationHistory.getAllEntries();
   const activeIndex = navigationHistory.getActiveIndex();
-  const currentPath = pathOf(entries[activeIndex] && entries[activeIndex].url);
+  const currentPath = pagePath(entries[activeIndex] && entries[activeIndex].url);
   for (let i = activeIndex + direction; i >= 0 && i < entries.length; i += direction) {
-    const path = pathOf(entries[i].url);
+    const path = pagePath(entries[i].url);
     if (path && path !== currentPath) return i;
   }
   return -1;
@@ -1016,6 +975,14 @@ async function insertThemeCss(view) {
 }
 
 // Classes op <html> voor de pagina-aanpassingen uit page-tweaks.js.
+// Doorzichtige tinten dicht maken, alleen bij een thema met achtergrond: het
+// script loopt alle CSS-regels van de pagina af, dat is zonde zonder thema.
+// Het script zelf draait per pagina maar één keer (window.__sgSolidTints).
+function applySolidTints(view) {
+  if (view.webContents.isDestroyed() || !isInternalUrl(view.webContents.getURL())) return;
+  if (themes.hasWallpaper(activeTheme())) view.webContents.executeJavaScript(SOLID_TINTS_SCRIPT).catch(() => {});
+}
+
 function applyPageTweaks(view) {
   if (view.webContents.isDestroyed() || !isInternalUrl(view.webContents.getURL())) return;
   view.webContents.executeJavaScript(
@@ -1036,8 +1003,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       view.webContents.insertCSS(SOFT_MODE_CSS).catch(() => {});
       view.webContents.insertCSS(PAGE_TWEAKS_CSS).catch(() => {});
       insertThemeCss(view);
-      // Doorzichtige tinten dicht maken (alleen actief bij html.sg-wallpaper).
-      view.webContents.executeJavaScript(SOLID_TINTS_SCRIPT).catch(() => {});
+      applySolidTints(view);
     }
     applyDarkMode(view);
     applyPageTweaks(view);
@@ -1119,14 +1085,16 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       }
       return;
     }
-    if (internalNavigations.has(tabId)) {
-      internalNavigations.delete(tabId);
-      return;
-    }
     if (!isInternalUrl(url)) {
       event.preventDefault();
       openExternalSafe(url);
       closeIfStillBlank(view, tabId);
+      return;
+    }
+    // Pas na de externe-sitecheck: een achtergebleven vlag mag nooit een
+    // externe site in de tab laten laden.
+    if (internalNavigations.has(tabId)) {
+      internalNavigations.delete(tabId);
       return;
     }
     if (!isDetachedTab(tabId) && !appSettings.tabBarDisabled && (lockedTabs.has(tabId) || appSettings.openAllLinksInNewTab)) {
@@ -1156,7 +1124,25 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     }
   });
 
-  view.webContents.on('did-navigate-in-page', () => sendNavigationState(tabId));
+  view.webContents.on('did-navigate-in-page', () => {
+    // Terug binnen de webapp blijft op dezelfde pagina; ook dan de vlag wissen.
+    internalNavigations.delete(tabId);
+    sendNavigationState(tabId);
+  });
+
+  // Het inlogvenster (zie hieronder) mag alleen inlog- en app-pagina's tonen;
+  // een andere link daarin gaat naar de browser, nieuwe vensters niet.
+  view.webContents.on('did-create-window', (popup) => {
+    popup.webContents.on('will-navigate', (event, url) => {
+      if (isAuthUrl(url) || isInternalUrl(url)) return;
+      event.preventDefault();
+      openExternalSafe(url);
+    });
+    popup.webContents.setWindowOpenHandler(({ url }) => {
+      openExternalSafe(url);
+      return { action: 'deny' };
+    });
+  });
 
   view.webContents.setWindowOpenHandler((details) => {
     if (details.url && details.url !== 'about:blank') {
@@ -1260,9 +1246,10 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     }).catch(() => {});
   });
 
-  view.webContents.on('page-title-updated', (event, title) => {
+  // Alleen een los venster toont de paginatitel; de tabbalk leidt de naam
+  // uit de URL af (update-tab-url).
+  view.webContents.on('page-title-updated', () => {
     if (isDetachedTab(tabId)) sendDetachedState(tabId);
-    else mainWindow.webContents.send('update-tab-title', { tabId, title });
   });
 
   // Vang SPA route-wijzigingen (pushState/replaceState) af in de webview
@@ -1279,8 +1266,47 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       window.__electronForceNewTab = ${appSettings.openAllLinksInNewTab};
       // Los venster of tabbalk uit (geen tabbalk): links en knoppen blijven in dit scherm.
       window.__electronDetached = ${isDetachedTab(tabId) || appSettings.tabBarDisabled};
+      // Ook na herladen (F5, login-redirect) moet de pagina het slot nog weten.
+      window.__electronTabLocked = ${lockedTabs.has(tabId)};
       if (!window.__electronHandlersInstalled) {
         window.__electronHandlersInstalled = true;
+
+        // Wijst url naar een oudercontext van de huidige pagina (bv.
+        // /sales-orders vanuit /sales-orders/123)? Gebruikt door de
+        // pushState-override én de click-listener, zodat beide hetzelfde
+        // beslissen. De startpagina (/) telt nooit als "terug": elk pad begint
+        // met /, dus anders werd bv. "Dashboard Klokken" (link naar /) in de
+        // navigatie altijd als terugknop gezien en nooit geopend.
+        const isParentPath = (url) => {
+          const destination = new URL(url, window.location.href);
+          const destPath = destination.pathname.replace(/\\/$/, '');
+          const currentPath = window.location.pathname.replace(/\\/$/, '');
+          return destination.origin === window.location.origin &&
+            destPath !== '' &&
+            destPath !== currentPath &&
+            currentPath.startsWith(destPath + '/');
+        };
+
+        // Terug: main.js kiest eerdere pagina in deze tab, de brontab, een
+        // tab waar url al open staat, of opent url hier (__electronGoInPage).
+        // url is de lijst waar "terug" heen hoort (leeg = geen).
+        const backTo = (url) => console.log('ELECTRON_BACK_BUTTON:' + (url || ''));
+        // Ouderpagina van de huidige: /customers/3360 -> /customers. Nooit /.
+        const parentOfCurrent = () => {
+          const parent = window.location.pathname.replace(/\\/$/, '').replace(/\\/[^/]*$/, '');
+          return parent ? window.location.origin + parent : '';
+        };
+        // Binnen de webapp navigeren zonder herladen: zelf pushState (langs
+        // onze override, die dit dan doorlaat) en de router laten meelezen.
+        window.__electronGoInPage = (url) => {
+          window.__electronInPageNav = true;
+          try {
+            history.pushState({ usr: null, key: Math.random().toString(36).slice(2, 10), idx: ((history.state && history.state.idx) || 0) + 1 }, '', url);
+          } finally {
+            window.__electronInPageNav = false;
+          }
+          window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
+        };
 
         ['pushState', 'replaceState'].forEach(type => {
           const original = history[type];
@@ -1299,10 +1325,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             // breadcrumb "Verkooporders" vanuit /sales-orders/123 terug naar
             // /sales-orders) is terugnavigatie, geen "nieuwe" bestemming -
             // forceer daar dus ook geen nieuw tabblad voor.
-            const destPath = nextUrl.pathname.endsWith('/') ? nextUrl.pathname.slice(0, -1) : nextUrl.pathname;
-            const currentPath = window.location.pathname;
-            const isBreadcrumbBack = destPath !== currentPath && currentPath.startsWith(destPath) &&
-              (currentPath[destPath.length] === '/' || destPath === '');
+            const isBreadcrumbBack = isParentPath(nextUrl.href);
             // Klikbare rijen/kaarten/knoppen (bv. een offerte in de lijst bij
             // Quotations) zijn geen <a href>, dus de linkhandler hieronder
             // ziet ze niet: de site navigeert zelf via pushState. Een
@@ -1327,7 +1350,14 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             const fromLaunchPad = type === 'pushState' &&
               Date.now() - (window.__electronLaunchPadAt || 0) < 2000;
             if (fromLaunchPad && isRealNavigation) window.__electronLaunchPadAt = 0;
-            if (!window.__electronDetached && isRealNavigation && !isBreadcrumbBack && (fromRowClick || fromNewTabAction || fromLaunchPad || window.__electronTabLocked || window.__electronForceNewTab)) {
+            // Een knop zonder link die naar de lijst terug navigeert (bv.
+            // "← Verkoopoffertes" op een offerte) is een terugknop: net als
+            // "Terug" en breadcrumb-links via main.js (brontab, of anders hier).
+            if (!window.__electronDetached && !window.__electronInPageNav && fromRowClick && isBreadcrumbBack) {
+              backTo(nextUrl.href);
+              return;
+            }
+            if (!window.__electronDetached && !window.__electronInPageNav && isRealNavigation && !isBreadcrumbBack && (fromRowClick || fromNewTabAction || fromLaunchPad || window.__electronTabLocked || window.__electronForceNewTab)) {
               console.log('ELECTRON_LOCKED_NAVIGATE:' + nextUrl.href);
               return;
             }
@@ -1376,12 +1406,12 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
         // naar de tab waar dit tabblad uit geopend is) lost dit voor elke
         // knop op, ongeacht het label.
         history.back = function() {
-          console.log('ELECTRON_BACK_BUTTON');
+          backTo(parentOfCurrent());
         };
         const originalGo = history.go.bind(history);
         history.go = function(delta) {
           if (delta === undefined || delta < 0) {
-            console.log('ELECTRON_BACK_BUTTON');
+            backTo(parentOfCurrent());
             return;
           }
           return originalGo(delta);
@@ -1417,6 +1447,76 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           if (!modalCheckQueued) { modalCheckQueued = true; requestAnimationFrame(reportModal); }
         }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-state'] });
         reportModal();
+
+        // Aantal meldingen bij het belletje (knop met svg.lucide-bell, het
+        // getal staat in een rondje ernaast) naar main.js: taakbalk en
+        // Windows-melding, zie ELECTRON_BADGE. Een timer i.p.v.
+        // requestAnimationFrame: die staat stil in een tab op de achtergrond
+        // of een geminimaliseerd venster, en juist dan moet dit doorkomen.
+        // Een 0 telt pas als hij 3 seconden blijft: bij een paginawissel staat
+        // het belletje even zonder getal. Anders verdween het rondje op de
+        // taakbalk telkens, en gaf "0 -> 5" daarna een valse Windows-melding.
+        let badgeTimer = null;
+        let zeroTimer = null;
+        const reportBadge = (zeroConfirmed = false) => {
+          const bell = [...document.querySelectorAll('button')].find(button => button.querySelector('svg.lucide-bell'));
+          if (!bell) return; // Geen belletje (bv. inlogpagina): niets melden.
+          const count = parseInt(bell.textContent.replace(/\\D/g, ''), 10) || 0;
+          if (count > 0) {
+            clearTimeout(zeroTimer);
+            zeroTimer = null;
+          } else if (!zeroConfirmed) {
+            if (!zeroTimer) zeroTimer = setTimeout(() => { zeroTimer = null; reportBadge(true); }, 3000);
+            return;
+          }
+          if (count === window.__electronBadgeCount) return;
+          window.__electronBadgeCount = count;
+          console.log('ELECTRON_BADGE:' + count);
+        };
+        // Berichtje in de pagina zelf als er een melding bijkomt terwijl je in
+        // de app zit (main.js updateNotificationCount). Klikken opent het
+        // belletje; na 6 seconden verdwijnt het vanzelf. In de accentkleur van
+        // het thema (--primary, met --primary-foreground als tekst): valt op en
+        // past toch bij elk thema.
+        window.__electronShowNotice = (title) => {
+          document.getElementById('sg-notice')?.remove();
+          const notice = document.createElement('button');
+          notice.id = 'sg-notice';
+          notice.type = 'button';
+          notice.setAttribute('role', 'status');
+          notice.style.cssText = 'position:fixed;top:14px;right:18px;z-index:2147483647;display:flex;align-items:center;gap:10px;' +
+            'padding:10px 14px;border-radius:10px;border:0;background:hsl(var(--primary));' +
+            'color:hsl(var(--primary-foreground));font:inherit;font-size:13px;text-align:left;cursor:pointer;' +
+            'box-shadow:0 8px 24px rgba(0,0,0,.18);animation:sg-notice-in .2s ease-out;';
+          notice.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>' +
+            '<span><strong style="display:block;font-weight:600"></strong><span style="opacity:.85">Klik om te bekijken</span></span>';
+          notice.querySelector('strong').textContent = title;
+          if (!document.getElementById('sg-notice-style')) {
+            const style = document.createElement('style');
+            style.id = 'sg-notice-style';
+            style.textContent = '@keyframes sg-notice-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}' +
+              '@media (prefers-reduced-motion: reduce){#sg-notice{animation:none!important}}';
+            document.head.appendChild(style);
+          }
+          notice.addEventListener('click', (event) => {
+            event.stopPropagation();
+            notice.remove();
+            [...document.querySelectorAll('button')].find(button => button.querySelector('svg.lucide-bell'))?.click();
+          });
+          document.body.appendChild(notice);
+          // Muis erop: blijft staan; muis eraf: nog 3 seconden.
+          let hideTimer = setTimeout(() => notice.remove(), 6000);
+          notice.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+          notice.addEventListener('mouseleave', () => {
+            hideTimer = setTimeout(() => notice.remove(), 3000);
+          });
+        };
+
+        new MutationObserver(() => {
+          clearTimeout(badgeTimer);
+          badgeTimer = setTimeout(() => reportBadge(), 300);
+        }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+        reportBadge();
 
         // Enter in de zoekbalk-pop-up kiest het geselecteerde resultaat. Dat is
         // geen klik, dus hier apart onthouden (capture: vóór de site zelf).
@@ -1507,24 +1607,10 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           const isMenuLink = isLink &&
             !!clickable.closest('aside, [data-sidebar], nav:not([aria-label*="breadcrumb" i])');
           let isBreadcrumbBack = false;
-          if (isLink && !isMenuLink) {
-            try {
-              const destination = new URL(clickable.href, window.location.href);
-              const currentPath = window.location.pathname;
-              const destPath = destination.pathname.endsWith('/')
-                ? destination.pathname.slice(0, -1)
-                : destination.pathname;
-              // De startpagina (/) telt nooit als "terug": elk pad begint
-              // met /, dus anders werd bv. "Dashboard Klokken" (link naar /)
-              // in de navigatie altijd als terugknop gezien en nooit geopend.
-              isBreadcrumbBack = destination.origin === window.location.origin &&
-                destPath !== '' &&
-                destPath !== currentPath &&
-                currentPath.startsWith(destPath) &&
-                currentPath[destPath.length] === '/';
-            } catch {
-              isBreadcrumbBack = false;
-            }
+          try {
+            isBreadcrumbBack = isLink && !isMenuLink && isParentPath(clickable.href);
+          } catch {
+            // Ongeldige href: geen breadcrumb.
           }
 
           // In een los venster is er geen brontab om naar terug te gaan; daar
@@ -1533,7 +1619,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             // Terugknoppen (en breadcrumb-achtige "terug naar de lijst"-links)
             // zijn een uitzondering op "alle links in nieuwe tab": die moeten
             // gewoon terugnavigeren, niet iets nieuws openen.
-            console.log('ELECTRON_BACK_BUTTON');
+            backTo(isBreadcrumbBack ? clickable.href : parentOfCurrent());
             event.preventDefault();
             event.stopImmediatePropagation();
             return;
@@ -1557,7 +1643,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           console.log('ELECTRON_LINK_CLICK:' + url.href);
         }, true);
       }
-    `);
+    `).catch(() => {});
   });
 
   // Vang signalen uit de tab op en stuur ze door naar de juiste tabactie
@@ -1576,7 +1662,8 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       return;
     }
 
-    if (message === 'ELECTRON_BACK_BUTTON') {
+    if (message.startsWith('ELECTRON_BACK_BUTTON')) {
+      const target = message.slice('ELECTRON_BACK_BUTTON:'.length);
       // Gebruikt bewust de 'view' uit de sluiting van attachNavigationHandlers
       // (niet tabs.get(tabId)): die laatste is leeg voor een losgetrokken tab
       // (zie detachTab), waardoor in-pagina "terug" binnen zo'n los venster
@@ -1593,14 +1680,25 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
         return;
       }
 
-      // Alleen relevant als deze tab nog in de tabbalk zit: eerst de tab
-      // waar dit tabblad daadwerkelijk uit geopend is (parentTabs); pas als
-      // dat er niet is, terugvallen op de laatst bekeken tab. Anders springt
-      // de terugknop naar wat toevallig het laatst actief was, in plaats van
-      // terug naar waar de pagina vandaan kwam. Een losgetrokken venster
-      // heeft geen andere tabs om naar terug te vallen.
-      const previousTabId = parentTabs.get(tabId) || previousTabs.get(tabId);
-      if (previousTabId && tabs.has(previousTabId)) switchTab(previousTabId, { recordHistory: false });
+      // Alleen als deze tab in de tabbalk zit (niet los, tabbalk niet uit):
+      // de tab waar dit tabblad uit geopend is, en anders een tab waar de
+      // lijst (target) al open staat. Niet de laatst bekeken tab: dat kon
+      // van alles zijn. Deze tab blijft open.
+      const inTabBar = !isDetachedTab(tabId) && !appSettings.tabBarDisabled;
+      const parentTabId = parentTabs.get(tabId);
+      if (inTabBar && parentTabId && tabs.has(parentTabId)) {
+        switchTab(parentTabId, { recordHistory: false });
+        return;
+      }
+      if (inTabBar && target && switchToOpenTab(target, tabId)) return;
+
+      // Nergens om naar terug te gaan: de lijst hier openen, zonder herladen
+      // als het kan. Zo werkt "terug" overal hetzelfde, ook als de brontab
+      // al dicht is.
+      if (target && isInternalUrl(target)) {
+        view.webContents.executeJavaScript(`window.__electronGoInPage(${JSON.stringify(target)});`)
+          .catch(() => { if (!view.webContents.isDestroyed()) view.webContents.loadURL(target); });
+      }
       return;
     }
 
@@ -1616,6 +1714,11 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
 
     if (message.startsWith('ELECTRON_FOCUS_EDITABLE:')) {
       isFocusOnEditableField = message.endsWith('true');
+      return;
+    }
+
+    if (message.startsWith('ELECTRON_BADGE:')) {
+      updateNotificationCount(Number(message.slice('ELECTRON_BADGE:'.length)) || 0, tabId);
       return;
     }
 
@@ -1662,10 +1765,7 @@ function createTab(url, makeActive = true, lockTab = false, parentTabId = null) 
   tabs.set(tabId, view);
   if (parentTabId && tabs.has(parentTabId)) parentTabs.set(tabId, parentTabId);
 
-  if (lockTab) {
-    lockedTabs.add(tabId);
-    view.webContents.executeJavaScript('window.__electronTabLocked = true;');
-  }
+  if (lockTab) lockedTabs.add(tabId);
 
   // Laat de tabbar (index.html) weten dat er een nieuwe tab is
   mainWindow.webContents.send('tab-created', { tabId, url });
@@ -1951,7 +2051,8 @@ async function captureTabThumbnail(tabId) {
   if (!view || view.webContents.isDestroyed() || view.getBounds().width === 0) return;
   try {
     const image = await view.webContents.capturePage();
-    if (image.isEmpty()) return;
+    // Tab tijdens het vastleggen gesloten of losgekoppeld: niet meer bewaren.
+    if (image.isEmpty() || tabs.get(tabId) !== view) return;
     const small = image.resize({ width: THUMBNAIL_WIDTH, quality: 'good' });
     tabThumbnails.set(tabId, `data:image/jpeg;base64,${small.toJPEG(75).toString('base64')}`);
   } catch {
@@ -1963,19 +2064,11 @@ function closeTab(tabId) {
   const view = tabs.get(tabId);
   if (!view) return;
 
-  // Zelfde volgorde als bij de terugknop: eerst terug naar de tab waaruit
-  // deze geopend is, pas daarna naar de laatst bekeken tab.
-  const fallbackTabId = parentTabs.get(tabId) || previousTabs.get(tabId);
-
   // Beide defensief: een view/webContents die al kapot is (bv. na een
   // geblokkeerde externe navigatie of een gecrashte renderer) mag het sluiten
   // nooit laten crashen - dat is een main-process exception en gooit de HELE
   // app onderuit, niet alleen dit tabblad.
-  try {
-    mainWindow.contentView.removeChildView(view);
-  } catch {
-    // Al losgekoppeld; niets meer te doen.
-  }
+  removeTabFromBar(tabId, view);
   try {
     if (view.webContents && !view.webContents.isDestroyed()) {
       view.webContents.close();
@@ -1983,29 +2076,47 @@ function closeTab(tabId) {
   } catch {
     // Al gesloten/vervallen.
   }
-  tabs.delete(tabId);
-  parentTabs.delete(tabId);
-  previousTabs.delete(tabId);
-  tabThumbnails.delete(tabId);
-  for (const [id, previousTabId] of previousTabs) {
-    if (previousTabId === tabId) previousTabs.delete(id);
+}
+
+// Tab uit de tabbalk halen (sluiten of loskoppelen): alle administratie
+// opruimen, ook verwijzingen van andere tabs ernaar (anders blijft hun
+// terugknop naar een tab wijzen die er niet meer is), en als dit de actieve
+// tab was een andere kiezen.
+function removeTabFromBar(tabId, view) {
+  // Zelfde volgorde als bij de terugknop: eerst terug naar de tab waaruit
+  // deze geopend is, pas daarna naar de laatst bekeken tab.
+  const fallbackTabId = parentTabs.get(tabId) || previousTabs.get(tabId);
+  const wasActive = activeTabId === tabId;
+
+  try {
+    mainWindow.contentView.removeChildView(view);
+  } catch {
+    // Al losgekoppeld; niets meer te doen.
   }
+  tabs.delete(tabId);
+  tabThumbnails.delete(tabId);
   lockedTabs.delete(tabId);
+  internalNavigations.delete(tabId);
+  tabNotificationCounts.delete(tabId);
+  for (const map of [parentTabs, previousTabs]) {
+    map.delete(tabId);
+    for (const [id, otherTabId] of map) {
+      if (otherTabId === tabId) map.delete(id);
+    }
+  }
   mainWindow.webContents.send('tab-closed', tabId);
 
-  if (activeTabId === tabId) {
-    if (fallbackTabId && tabs.has(fallbackTabId)) {
-      switchTab(fallbackTabId);
-      return;
-    }
-
-    const remaining = [...tabs.keys()];
-    if (remaining.length > 0) {
-      switchTab(remaining[remaining.length - 1]);
-    } else {
-      activeTabId = null;
-      createTab(START_URL);
-    }
+  if (!wasActive) return;
+  if (fallbackTabId && tabs.has(fallbackTabId)) {
+    switchTab(fallbackTabId);
+    return;
+  }
+  const remaining = [...tabs.keys()];
+  if (remaining.length > 0) {
+    switchTab(remaining[remaining.length - 1]);
+  } else {
+    activeTabId = null;
+    createTab(START_URL);
   }
 }
 
@@ -2053,10 +2164,12 @@ function popupTabMenu(menu, tabId, x, y) {
   else menu.popup({ window: mainWindow, x, y });
 }
 
-// Pad zonder query/hash (zoals bij isRealNavigation), voor switchToOpenTab.
+// Pad zonder query/hash (zoals bij isRealNavigation); null voor about:blank
+// e.d. Gebruikt door switchToOpenTab en findOtherPageIndex.
 function pagePath(url) {
   try {
     const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return null;
     return parsed.origin + parsed.pathname.replace(/\/$/, '');
   } catch {
     return null;
@@ -2065,6 +2178,71 @@ function pagePath(url) {
 
 // Staat deze pagina al in een andere tab open? Dan daarheen i.p.v. een
 // dubbele tab. De tab waar de link vandaan komt telt niet mee.
+// ---------- Meldingen (belletje van de webapp) ----------
+//
+// Elke tab meldt het getal bij het belletje (ELECTRON_BADGE). Alle tabs tonen
+// dezelfde meldingen, dus de laatste melding telt voor het taakbalkicoon
+// (index.html tekent het rondje, zie set-taskbar-badge).
+// Een Windows-melding alleen als het getal in een tab zelf omhooggaat: niet
+// als tabs even van elkaar verschillen (net gelezen in tab A, tab B meldt
+// nog zijn oude getal), niet bij de eerste telling van een tab (start,
+// nieuwe tab, herladen), en één keer als meerdere tabs dezelfde zien.
+let notificationCount = 0;
+const tabNotificationCounts = new Map(); // tabId -> laatste getal van die tab
+let lastNotificationAt = 0;
+let notificationTabId = null;
+let lastNotification = null; // vasthouden, anders ruimt JS hem op en werkt klikken niet
+
+function updateNotificationCount(count, tabId) {
+  const tabPrevious = tabNotificationCounts.get(tabId);
+  tabNotificationCounts.set(tabId, count);
+  if (count !== notificationCount) {
+    notificationCount = count;
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('notification-count', count);
+  }
+  if (tabPrevious === undefined || count <= tabPrevious) return;
+  if (Date.now() - lastNotificationAt < 10 * 1000) return;
+  lastNotificationAt = Date.now();
+  notificationTabId = tabId;
+  const added = count - tabPrevious;
+  const title = added === 1 ? 'Nieuwe melding' : `${added} nieuwe meldingen`;
+
+  // Zit je in de app: een berichtje in de tab die je bekijkt, geen
+  // Windows-melding (zie __electronShowNotice in het paginascript).
+  const activeView = tabs.get(activeTabId);
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused() && activeView && !activeView.webContents.isDestroyed()) {
+    activeView.webContents.executeJavaScript(`window.__electronShowNotice && window.__electronShowNotice(${JSON.stringify(title)});`).catch(() => {});
+    return;
+  }
+
+  // Instellingen > Algemeen; het getal op de taakbalk blijft altijd.
+  if (!appSettings.windowsNotifications || !Notification.isSupported()) return;
+  const notification = new Notification({
+    title: `${title} voor jou`,
+    body: 'Klik om de Singeling App te openen.',
+    icon: path.join(__dirname, 'assets/singeling-logo.png')
+  });
+  // Klikken: app naar voren, op de tab die de melding zag.
+  notification.on('click', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+    if (tabs.has(notificationTabId)) switchTab(notificationTabId);
+  });
+  lastNotification = notification;
+  notification.show();
+}
+
+ipcMain.on('set-taskbar-badge', (event, dataUrl) => {
+  if (event.sender !== mainWindow.webContents || process.platform !== 'win32') return;
+  const count = notificationCount || 0;
+  mainWindow.setOverlayIcon(
+    count > 0 && typeof dataUrl === 'string' ? nativeImage.createFromDataURL(dataUrl) : null,
+    count > 0 ? `${count} ongelezen ${count === 1 ? 'melding' : 'meldingen'}` : ''
+  );
+});
+
 function switchToOpenTab(url, fromTabId) {
   const path = pagePath(url);
   const match = path && [...tabs.entries()].find(([id, view]) =>
@@ -2108,7 +2286,6 @@ function sendDetachedState(tabId) {
   const title = webContents.getTitle();
   detached.window.setTitle(title ? `${title} - Singeling App` : 'Singeling App');
   detached.window.webContents.send('detached-state', { canGoBack, canGoForward, title });
-  webContents.executeJavaScript(`window.__electronCanGoBack = ${canGoBack};`).catch(() => {});
 }
 
 // [tabId, { window, view }] van het losse venster waar de balk bij hoort.
@@ -2145,38 +2322,7 @@ function detachTab(tabId, screenX, screenY) {
   const view = tabs.get(tabId);
   if (!view) return;
 
-  const fallbackTabId = parentTabs.get(tabId) || previousTabs.get(tabId);
-  const wasActive = activeTabId === tabId;
-
-  try {
-    mainWindow.contentView.removeChildView(view);
-  } catch {
-    // Al losgekoppeld; niets meer te doen.
-  }
-  tabs.delete(tabId);
-  parentTabs.delete(tabId);
-  previousTabs.delete(tabId);
-  tabThumbnails.delete(tabId);
-  for (const [id, previousTabId] of previousTabs) {
-    if (previousTabId === tabId) previousTabs.delete(id);
-  }
-  lockedTabs.delete(tabId);
-  mainWindow.webContents.send('tab-closed', tabId);
-
-  if (wasActive) {
-    if (fallbackTabId && tabs.has(fallbackTabId)) {
-      switchTab(fallbackTabId);
-    } else {
-      const remaining = [...tabs.keys()];
-      if (remaining.length > 0) {
-        switchTab(remaining[remaining.length - 1]);
-      } else {
-        activeTabId = null;
-        createTab(START_URL);
-      }
-    }
-  }
-
+  removeTabFromBar(tabId, view);
   createDetachedWindow(view, tabId, screenX, screenY);
 }
 
@@ -2219,6 +2365,7 @@ function createDetachedWindow(view, tabId, screenX, screenY) {
   // Het venster zelf toont de smalle balk (detached.html); de pagina komt
   // daaronder.
   detachedWindow.on('page-title-updated', (event) => event.preventDefault());
+  stayOnOwnPage(detachedWindow.webContents);
   detachedWindow.loadFile(path.join(__dirname, 'detached.html'), {
     query: { theme: darkActive() ? 'dark' : 'light', soft: softActive() ? '1' : '0' }
   });
@@ -2263,13 +2410,19 @@ function createDetachedWindow(view, tabId, screenX, screenY) {
 }
 
 // IPC vanuit index.html (tabbar UI)
-ipcMain.on('switch-tab', (event, tabId) => switchTab(tabId));
-ipcMain.on('close-tab', (event, tabId) => closeTab(tabId));
+ipcMain.on('switch-tab', (event, tabId) => {
+  if (event.sender === mainWindow.webContents) switchTab(tabId);
+});
+ipcMain.on('close-tab', (event, tabId) => {
+  if (event.sender === mainWindow.webContents) closeTab(tabId);
+});
 ipcMain.on('detach-tab', (event, { tabId, screenX, screenY }) => {
   if (event.sender !== mainWindow.webContents || !tabs.has(tabId)) return;
   detachTab(tabId, screenX, screenY);
 });
-ipcMain.on('request-new-tab', (event, url) => createTab(url || START_URL));
+ipcMain.on('request-new-tab', (event, url) => {
+  if (event.sender === mainWindow.webContents) createTab(url || START_URL);
+});
 
 // ---------- Link invoeren (knop in de tabbalk) ----------
 //
@@ -2330,20 +2483,14 @@ ipcMain.on('navigate-active-tab', (event, action) => {
     view.webContents.reload();
   }
 });
-ipcMain.on('set-tab-locked', (event, { tabId, locked }) => {
-  if (event.sender !== mainWindow.webContents || !tabs.has(tabId)) return;
-
-  if (locked) lockedTabs.add(tabId);
-  else lockedTabs.delete(tabId);
-  tabs.get(tabId).webContents.executeJavaScript(`window.__electronTabLocked = ${!!locked};`);
-  mainWindow.webContents.send('tab-lock-changed', { tabId, locked: !!locked });
-});
 ipcMain.on('show-tab-context-menu', (event, { tabId, x, y }) => {
   if (event.sender !== mainWindow.webContents || !tabs.has(tabId)) return;
 
   const locked = lockedTabs.has(tabId);
   const currentUrl = tabs.get(tabId).webContents.getURL();
   const isStartTab = appSettings.startTabs.some(tab => tab.url === currentUrl);
+  // Alleen app-pagina's bewaren (geen about:blank van een PDF-voorbeeld e.d.).
+  const canSave = isInternalUrl(currentUrl);
 
   const groupSubmenu = appSettings.tabGroups.map(group => ({
     label: group.name,
@@ -2386,7 +2533,7 @@ ipcMain.on('show-tab-context-menu', (event, { tabId, x, y }) => {
         const nextLocked = !lockedTabs.has(tabId);
         if (nextLocked) lockedTabs.add(tabId);
         else lockedTabs.delete(tabId);
-        tabs.get(tabId).webContents.executeJavaScript(`window.__electronTabLocked = ${nextLocked};`);
+        tabs.get(tabId).webContents.executeJavaScript(`window.__electronTabLocked = ${nextLocked};`).catch(() => {});
         mainWindow.webContents.send('tab-lock-changed', { tabId, locked: nextLocked });
       }
     },
@@ -2394,6 +2541,7 @@ ipcMain.on('show-tab-context-menu', (event, { tabId, x, y }) => {
       label: 'Openen bij opstarten',
       type: 'checkbox',
       checked: isStartTab,
+      enabled: canSave || isStartTab,
       click: () => {
         const index = appSettings.startTabs.findIndex(tab => tab.url === currentUrl);
         if (index !== -1) {
@@ -2407,6 +2555,7 @@ ipcMain.on('show-tab-context-menu', (event, { tabId, x, y }) => {
     },
     {
       label: 'Toevoegen aan tabgroup',
+      enabled: canSave,
       submenu: groupSubmenu
     }
   ]);
@@ -2466,13 +2615,14 @@ ipcMain.handle('get-settings', (event) => {
     // (maybeShowChangelogNotice).
     // Instellingen > Debug alleen bij npm start en in een bètaversie.
     debugAvailable: DEBUG_AVAILABLE,
-    debugPort: appSettings.debugPort,
+    debugPort: !!appSettings.debugPort,
     debugPortNumber: DEBUG_PORT,
     // Eerste start na een installatie: de volledige uitleg is dan verplicht.
     firstStartAfterInstall: appSettings.lastSeenChangelogVersion === null,
     firstStartAfterUpdate: appSettings.lastSeenChangelogVersion !== null
       && appSettings.lastSeenChangelogVersion !== app.getVersion(),
     blockCtrlB: appSettings.blockCtrlB,
+    windowsNotifications: appSettings.windowsNotifications,
     notClockedMode: appSettings.notClockedMode,
     // Keuzescherm (thema + klokmelding) al gezien? Zonder dit veld dacht
     // index.html bij elke start van niet en kwam het scherm steeds terug.
@@ -2542,12 +2692,14 @@ function applyThemeChange(previousColor) {
   for (const view of tabs.values()) {
     insertThemeCss(view);
     applyDarkMode(view);
+    applySolidTints(view);
   }
   sendChromeTheme();
   const css = themes.chromeThemeCss(activeTheme());
   for (const detached of detachedWindows.values()) {
     insertThemeCss(detached.view);
     applyDarkMode(detached.view);
+    applySolidTints(detached.view);
     if (!detached.window.isDestroyed()) {
       detached.window.setBackgroundColor(detachedBarColor());
       detached.window.webContents.send('detached-chrome-theme', css);
@@ -2598,6 +2750,11 @@ ipcMain.on('set-beta-updates', (event, value) => {
 ipcMain.on('set-block-ctrl-b', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
   appSettings.blockCtrlB = !!value;
+  saveSettings();
+});
+ipcMain.on('set-windows-notifications', (event, value) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.windowsNotifications = !!value;
   saveSettings();
 });
 ipcMain.on('set-not-clocked-mode', (event, mode) => {
@@ -2886,11 +3043,6 @@ ipcMain.on('changelog-notice-opened', (event) => {
   applyActiveTabBounds();
 });
 // Keuzescherm na de rondleiding (thema + klokmelding) is doorlopen.
-ipcMain.on('mark-preferences-chosen', (event) => {
-  if (event.sender !== mainWindow.webContents) return;
-  appSettings.preferencesChosen = true;
-  saveSettings();
-});
 // Instelassistent doorlopen (bevat ook het oude keuzescherm).
 ipcMain.on('mark-setup-done', (event, version) => {
   if (event.sender !== mainWindow.webContents || !Number.isInteger(version)) return;
@@ -2902,7 +3054,7 @@ ipcMain.on('mark-setup-done', (event, version) => {
 // dus meteen herstarten.
 ipcMain.on('set-debug-port', (event, value) => {
   if (event.sender !== mainWindow.webContents || !DEBUG_AVAILABLE) return;
-  appSettings.debugPort = !!value;
+  appSettings.debugPort = value ? app.getVersion() : false;
   saveSettings();
   app.relaunch();
   app.quit();
@@ -3530,6 +3682,7 @@ function createWindow() {
   });
 
   mainWindow.on('page-title-updated', (event) => event.preventDefault());
+  stayOnOwnPage(mainWindow.webContents);
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
   createCurtain();
 
@@ -3646,6 +3799,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  setTimeout(removeOldUpdateFolders, 30 * 1000);
+
   // Electron staat standaard ELKE toestemmingsvraag toe (camera, microfoon,
   // locatie, meldingen, ...), ook voor externe pagina's zoals de
   // inlogschermen. Alleen de eigen app krijgt die rechten nog.
