@@ -1501,8 +1501,13 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           // deze check werden ze als gewone link behandeld en dus - zoals alle
           // links - in een nieuw tabblad geopend, i.p.v. terug te gaan naar de
           // tab waar de order uit geopend is.
+          // Links in het hoofdmenu (zijbalk) zijn geen breadcrumb: vanuit
+          // /assemblies/123 moet "Assemblies" in het menu gewoon de lijst
+          // openen, niet terugspringen naar de tab waar je vandaan kwam.
+          const isMenuLink = isLink &&
+            !!clickable.closest('aside, [data-sidebar], nav:not([aria-label*="breadcrumb" i])');
           let isBreadcrumbBack = false;
-          if (isLink) {
+          if (isLink && !isMenuLink) {
             try {
               const destination = new URL(clickable.href, window.location.href);
               const currentPath = window.location.pathname;
