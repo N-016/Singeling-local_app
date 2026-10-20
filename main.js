@@ -793,7 +793,7 @@ function sendNavigationState(tabId) {
 
 function openButtonInNewTab(view, button, parentTabId) {
   const url = view.webContents.getURL();
-  const newTabId = openInNewTabFromTab(parentTabId, url);
+  const newTabId = openInNewTabFromTab(parentTabId, url, false);
   const newView = tabs.get(newTabId);
   if (!newView) return;
 
@@ -1131,7 +1131,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     }
     if (!isDetachedTab(tabId) && !appSettings.tabBarDisabled && (lockedTabs.has(tabId) || appSettings.openAllLinksInNewTab)) {
       event.preventDefault();
-      createTab(url, true, false, tabId);
+      switchToOpenTab(url, tabId) || createTab(url, true, false, tabId);
     }
     // Anders (of in een los venster): laat de navigatie gewoon hier plaatsvinden.
   });
@@ -2048,6 +2048,27 @@ function popupTabMenu(menu, tabId, x, y) {
   else menu.popup({ window: mainWindow, x, y });
 }
 
+// Pad zonder query/hash (zoals bij isRealNavigation), voor switchToOpenTab.
+function pagePath(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.origin + parsed.pathname.replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+}
+
+// Staat deze pagina al in een andere tab open? Dan daarheen i.p.v. een
+// dubbele tab. De tab waar de link vandaan komt telt niet mee.
+function switchToOpenTab(url, fromTabId) {
+  const path = pagePath(url);
+  const match = path && [...tabs.entries()].find(([id, view]) =>
+    id !== fromTabId && !isDetachedTab(id) && pagePath(view.webContents.getURL()) === path);
+  if (!match) return null;
+  switchTab(match[0]);
+  return match[0];
+}
+
 // Een link of knop die normaal een nieuwe tab opent.
 function openLinkFromTab(tabId, view, url) {
   if (!isInternalUrl(url)) {
@@ -2055,13 +2076,14 @@ function openLinkFromTab(tabId, view, url) {
   } else if (isDetachedTab(tabId) || appSettings.tabBarDisabled) {
     view.webContents.loadURL(url);
   } else {
-    createTab(url, true, false, tabId);
+    switchToOpenTab(url, tabId) || createTab(url, true, false, tabId);
   }
 }
 
 // Expliciet "in nieuw tabblad": vanuit een los venster in het hoofdvenster.
-function openInNewTabFromTab(tabId, url) {
-  const newTabId = createTab(url, true, false, tabId);
+// reuseOpenTab=false bij openButtonInNewTab: die opent bewust dezelfde pagina.
+function openInNewTabFromTab(tabId, url, reuseOpenTab = true) {
+  const newTabId = (reuseOpenTab && switchToOpenTab(url, tabId)) || createTab(url, true, false, tabId);
   if (newTabId && isDetachedTab(tabId) && mainWindow && !mainWindow.isDestroyed()) mainWindow.focus();
   return newTabId;
 }
@@ -2276,7 +2298,7 @@ ipcMain.handle('open-entered-link', (event, text) => {
   if (event.sender !== mainWindow.webContents) return { ok: false };
   const url = normalizeEnteredLink(text);
   if (!url) return { ok: false };
-  createTab(url, true, false, activeTabId);
+  switchToOpenTab(url, null) || createTab(url, true, false, activeTabId);
   return { ok: true, url };
 });
 ipcMain.on('navigate-active-tab', (event, action) => {
