@@ -155,9 +155,17 @@ const TERMINAL = {
 // (assets/themes/noorderlicht/BRON.md).
 const NOORDERLICHT = {
   name: 'Noorderlicht',
-  description: 'Een dennenbos bij nacht met bewegend noorderlicht. Alleen donker.',
-  mode: 'dark',
+  description: 'Een dennenbos in de sneeuw: overdag drijft er mist over de bomen, \'s nachts beweegt het noorderlicht.',
   palettes: {
+    // Wintermorgen: ijsblauw naar perzik, besneeuwde dennen; accent donker
+    // petrol (zelfde cyaanfamilie als donker, met contrast op licht).
+    light: {
+      canvas: '#eef3f7', surface: '#ffffff', raised: '#f4f8fb', sunk: '#e6edf3',
+      bar: '#ffffff', tab: '#ffffff', sidebar: '#e9f0f5', secondary: '#e8eff5',
+      border: '#d3dfe8', borderStrong: '#b4c6d4',
+      fg1: '#0f2133', fg2: '#2c4258', fg3: '#52667b', fg4: '#7d8fa2',
+      accent: '#0b7c8b', accentStrong: '#085e69', onAccent: '#ffffff'
+    },
     dark: {
       canvas: '#0b1320', surface: '#111c2e', raised: '#172539', sunk: '#081019',
       bar: '#070d17', tab: '#101a2b', sidebar: '#0a1222', secondary: '#17263a',
@@ -167,9 +175,13 @@ const NOORDERLICHT = {
     }
   },
   wallpaper: {
+    light: 'assets/themes/noorderlicht/lucht-light.svg',
     dark: 'assets/themes/noorderlicht/lucht-dark.svg'
   },
+  // Overdag mist (alleen onderin), 's nachts het noorderlicht; zelfde
+  // langzame verschuiving.
   motion: {
+    light: 'assets/themes/noorderlicht/mist-light.svg',
     dark: 'assets/themes/noorderlicht/aurora-dark.svg'
   },
   font: {
@@ -190,9 +202,16 @@ const NOORDERLICHT = {
 // "let op"-kleur.
 const WERKPLAATS = {
   name: 'Werkplaats',
-  description: 'Een lastafel in de werkplaats: er wordt gelast en de vonken spatten. Alleen donker.',
-  mode: 'dark',
+  description: 'Een lastafel in de werkplaats: er wordt gelast en de vonken spatten. Overdag in daglicht, \'s avonds donker.',
   palettes: {
+    // Daglicht: licht geborsteld staal; donkerder vonk-oranje voor contrast.
+    light: {
+      canvas: '#eceef0', surface: '#f9fafb', raised: '#e2e5e8', sunk: '#e5e8eb',
+      bar: '#f9fafb', tab: '#f9fafb', sidebar: '#dfe2e6', secondary: '#e3e6e9',
+      border: '#c7ccd2', borderStrong: '#a8afb8',
+      fg1: '#16191d', fg2: '#2e343b', fg3: '#4f5761', fg4: '#858d97',
+      accent: '#a84c0d', accentStrong: '#8e3f0b', onAccent: '#ffffff'
+    },
     dark: {
       canvas: '#16191d', surface: '#1e2227', raised: '#272c32', sunk: '#111417',
       bar: '#0e1013', tab: '#1c2025', sidebar: '#121519', secondary: '#272c32',
@@ -202,10 +221,12 @@ const WERKPLAATS = {
     }
   },
   wallpaper: {
+    light: 'assets/themes/werkplaats/staal-light.svg',
     dark: 'assets/themes/werkplaats/staal-dark.svg'
   },
   // Het laspunt: gloed op de muur en spattende vonken.
   ambient: {
+    light: 'assets/themes/werkplaats/vonken-light.svg',
     dark: 'assets/themes/werkplaats/vonken-dark.svg'
   },
   font: {
@@ -474,8 +495,7 @@ const BLAUWDRUK = {
 // vw_monitor_nestings halen).
 const LASER = {
   name: 'Laser',
-  description: 'Een geborstelde plaat met nesting; de laser snijdt er één voor één onderdelen uit. Alleen licht.',
-  mode: 'light',
+  description: 'Een geborstelde plaat met nesting; de laser snijdt er één voor één onderdelen uit. In het donker gloeit de snede na.',
   palettes: {
     light: {
       canvas: '#eef0f3', surface: '#fafbfc', raised: '#e3e6ea', sunk: '#e6e9ed',
@@ -483,13 +503,25 @@ const LASER = {
       border: '#c8cdd4', borderStrong: '#aab1ba',
       fg1: '#191c21', fg2: '#30353d', fg3: '#525a64', fg4: '#878f99',
       accent: '#8b3fd9', accentStrong: '#6d28b8', onAccent: '#ffffff'
+    },
+    // Grafiet, als in een gesloten lasercabine; lichter violet als accent.
+    dark: {
+      canvas: '#14161a', surface: '#1c1f24', raised: '#262a30', sunk: '#0f1114',
+      bar: '#0b0c0f', tab: '#1a1d22', sidebar: '#101215', secondary: '#262a30',
+      border: '#30353d', borderStrong: '#434a54',
+      fg1: '#eceef2', fg2: '#c4c9d1', fg3: '#959ca7', fg4: '#666d78',
+      accent: '#b98cf0', accentStrong: '#8b3fd9', onAccent: '#14091f'
     }
   },
+  // Donker: zelfde nesting en timing (afgeleid van de lichte bestanden); de
+  // snede gloeit wit-heet en koelt af naar violet.
   wallpaper: {
-    light: 'assets/themes/laser/plaat-light.svg'
+    light: 'assets/themes/laser/plaat-light.svg',
+    dark: 'assets/themes/laser/plaat-dark.svg'
   },
   ambient: {
-    light: 'assets/themes/laser/snijden-light.svg'
+    light: 'assets/themes/laser/snijden-light.svg',
+    dark: 'assets/themes/laser/snijden-dark.svg'
   },
   font: {
     family: 'Inter',
@@ -686,6 +718,9 @@ function themeCatalog() {
       font: theme.font ? fontStack(theme) : null,
       displayFont: theme.font || theme.displayFont ? displayStack(theme) : null,
       radius: theme.radius || null,
+      // Heeft zowel een lichte als een donkere stand (zon/maan-icoon).
+      // Origineel heeft geen van beide: de app zoals de webapp hem maakt.
+      bothModes: !theme.mode && !theme.original,
       preview
     };
   });
