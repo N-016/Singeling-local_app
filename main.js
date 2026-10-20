@@ -61,6 +61,11 @@ const CRITICAL_REMINDER_MS = 60 * 60 * 1000;
 // standaard aan, zodat iemand die een bèta installeert ook de volgende krijgt.
 const RUNNING_PRERELEASE = app.getVersion().includes('-');
 
+// Instellingen > Debug: bij npm start en in elke bètaversie, nooit in een
+// gewone versie.
+const DEBUG_AVAILABLE = !app.isPackaged || RUNNING_PRERELEASE;
+const DEBUG_PORT = 9222;
+
 // Instellingen worden per Windows-gebruiker opgeslagen (userData-map), zodat
 // iedereen zijn eigen zoomniveau en starttabs heeft.
 let appSettings = {
@@ -87,11 +92,22 @@ let appSettings = {
   sunDefaultDone: true,
   themeTimes: { dark: '18:00', light: '07:00' }, // bij 'tijden'
   // bij 'zon': minuten later (+) of eerder (-) dan zon op (licht) en zon onder (donker)
-  themeSunOffset: { light: 0, dark: 0 }
+  themeSunOffset: { light: 0, dark: 0 },
+  debugPort: false // Instellingen > Debug: Chrome-debugpoort (DEBUG_PORT) open bij de start
 };
 
 function getSettingsPath() {
   return path.join(app.getPath('userData'), 'settings.json');
+}
+
+// De debugpoort moet vóór app-ready aan staan, dus hier al los uit het
+// instellingenbestand lezen (loadSettings draait pas in whenReady).
+try {
+  if (DEBUG_AVAILABLE && JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8')).debugPort === true) {
+    app.commandLine.appendSwitch('remote-debugging-port', String(DEBUG_PORT));
+  }
+} catch {
+  // Nog geen instellingenbestand: poort blijft dicht.
 }
 
 const NOT_CLOCKED_MODES = ['aan', 'subtiel', 'uit'];
@@ -164,7 +180,8 @@ function loadSettings() {
         : (THEME_MODES.includes(parsed.themeMode) ? parsed.themeMode : 'zon'),
       sunDefaultDone: true,
       themeTimes: validThemeTimes(parsed.themeTimes),
-      themeSunOffset: validSunOffsets(parsed.themeSunOffset)
+      themeSunOffset: validSunOffsets(parsed.themeSunOffset),
+      debugPort: parsed.debugPort === true
     };
     if (!zoomResetDone) saveSettings();
   } catch {
@@ -2420,8 +2437,10 @@ ipcMain.handle('get-settings', (event) => {
     // korte "Nieuw in deze versie"-rondleiding verplicht (welkomstscherm in
     // index.html). lastSeenChangelogVersion wordt pas bijgewerkt na "Start"
     // (maybeShowChangelogNotice).
-    // Instellingen > Debug alleen bij npm start.
-    debugAvailable: !app.isPackaged,
+    // Instellingen > Debug alleen bij npm start en in een bètaversie.
+    debugAvailable: DEBUG_AVAILABLE,
+    debugPort: appSettings.debugPort,
+    debugPortNumber: DEBUG_PORT,
     // Eerste start na een installatie: de volledige uitleg is dan verplicht.
     firstStartAfterInstall: appSettings.lastSeenChangelogVersion === null,
     firstStartAfterUpdate: appSettings.lastSeenChangelogVersion !== null
@@ -2852,13 +2871,23 @@ ipcMain.on('mark-setup-done', (event, version) => {
   appSettings.preferencesChosen = true;
   saveSettings();
 });
-// Instellingen > Debug (alleen bij npm start, nooit in de geïnstalleerde app):
+// Debugpoort aan/uit: werkt pas na een herstart (zie appendSwitch bovenaan),
+// dus meteen herstarten.
+ipcMain.on('set-debug-port', (event, value) => {
+  if (event.sender !== mainWindow.webContents || !DEBUG_AVAILABLE) return;
+  appSettings.debugPort = !!value;
+  saveSettings();
+  app.relaunch();
+  app.quit();
+});
+
+// Instellingen > Debug (alleen bij npm start en in een bètaversie):
 // de app herstarten alsof hij net geïnstalleerd of bijgewerkt is, zodat je de
 // echte schermen bij de start ziet (welkomstscherm, instelassistent, "Nieuw in
 // deze versie"). Alleen de velden daarvoor gaan terug; tabs, thema en de
 // rest van de instellingen blijven.
 ipcMain.on('debug-simulate-start', (event, { mode, fromVersion, seenTours } = {}) => {
-  if (event.sender !== mainWindow.webContents || app.isPackaged) return;
+  if (event.sender !== mainWindow.webContents || !DEBUG_AVAILABLE) return;
   if (mode === 'install') {
     Object.assign(appSettings, {
       lastSeenChangelogVersion: null, setupVersion: 0, preferencesChosen: false,

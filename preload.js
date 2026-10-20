@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   markPreferencesChosen: () => ipcRenderer.send('mark-preferences-chosen'),
   markSetupDone: (version) => ipcRenderer.send('mark-setup-done', version),
   debugSimulateStart: (scenario) => ipcRenderer.send('debug-simulate-start', scenario),
+  setDebugPort: (value) => ipcRenderer.send('set-debug-port', value),
   setBetaUpdates: (value) => ipcRenderer.send('set-beta-updates', value),
   setDarkMode: (value) => ipcRenderer.send('set-dark-mode', value),
   setThemeSchedule: (schedule) => ipcRenderer.send('set-theme-schedule', schedule),

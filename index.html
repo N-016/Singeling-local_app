@@ -3758,7 +3758,15 @@
     </div>
     <div class="settings-section hidden" data-section="debug">
       <h3>Debug</h3>
-      <p class="settings-intro">Alleen zichtbaar als je de app vanuit de code start (npm start). De app herstart en doet alsof hij net bijgewerkt of geïnstalleerd is: je krijgt precies de schermen en stappen die een gebruiker dan krijgt. Tabs, thema en je andere instellingen blijven staan.</p>
+      <p class="settings-intro">Alleen zichtbaar in een bètaversie of als je de app vanuit de code start (npm start).</p>
+      <label class="general-toggle">
+        <span class="toggle-text">
+          Debugpoort openzetten
+          <span class="settings-hint" id="debug-port-hint">Chrome DevTools-poort op deze computer (localhost). De app herstart meteen. Zet hem weer uit als je klaar bent: wie de poort kan bereiken, kan in je ingelogde tabs meekijken.</span>
+        </span>
+        <input type="checkbox" class="switch" id="debug-port-checkbox">
+      </label>
+      <p class="settings-intro">De app herstart en doet alsof hij net bijgewerkt of geïnstalleerd is: je krijgt precies de schermen en stappen die een gebruiker dan krijgt. Tabs, thema en je andere instellingen blijven staan.</p>
       <div class="general-actions">
         <button id="debug-sim-update" type="button">Scherm na update (vanaf 1.2.4)</button>
         <button id="debug-sim-install" type="button">Scherm nieuwe installatie</button>
@@ -5478,12 +5486,22 @@
     const showChangelogBtn = document.getElementById('show-changelog-btn');
     const restartOnboardingBtn = document.getElementById('restart-onboarding-btn');
 
-    // Debug (alleen bij npm start, zie main.js debug-simulate-start). "Na
+    // Debug (npm start of bètaversie, zie main.js DEBUG_AVAILABLE). "Na
     // update": alsof je op DEBUG_FROM_VERSION zat, dus met de "nieuw"-blokken
     // van toen al gezien.
     const DEBUG_FROM_VERSION = '1.2.4';
+    const debugPortCheckbox = document.getElementById('debug-port-checkbox');
     window.electronAPI.getSettings().then(settings => {
       document.getElementById('settings-nav-debug').classList.toggle('hidden', !(settings && settings.debugAvailable));
+      if (!settings) return;
+      debugPortCheckbox.checked = !!settings.debugPort;
+      if (settings.debugPort) {
+        document.getElementById('debug-port-hint').textContent =
+          `Open op http://localhost:${settings.debugPortNumber} (of chrome://inspect in Chrome/Edge). Uitzetten herstart de app.`;
+      }
+    });
+    debugPortCheckbox.addEventListener('change', () => {
+      window.electronAPI.setDebugPort(debugPortCheckbox.checked);
     });
     document.getElementById('debug-sim-update').addEventListener('click', () => {
       window.electronAPI.debugSimulateStart({
