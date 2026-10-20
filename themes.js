@@ -113,10 +113,9 @@ const CASSETTE = {
   radius: '14px'
 };
 
-// Terminal: gaat verder dan kleur. JetBrains Mono (OFL; zie
-// assets/themes/terminal/BRON.md) voor koppen en getallen; lopende tekst in
-// de gewone app-letter, want mono leest zwaar in tabellen en lange teksten.
-// Strakke hoeken. Een oude monitor met scanlines: groen fosfor op zwart,
+// Terminal: gaat verder dan kleur. Alle tekst in JetBrains Mono (OFL; zie
+// assets/themes/terminal/BRON.md): dat maakt het "cyber"; leest wat zwaarder
+// in lange teksten, maar dat hoort bij dit thema. Strakke hoeken. Een oude monitor met scanlines: groen fosfor op zwart,
 // alleen donker. Het accent is cyaan i.p.v. groen, anders lijkt elke knop het
 // "klaar"-groen van de app. Palet en achtergrond van ons.
 const JETBRAINS_MONO = {
@@ -144,8 +143,7 @@ const TERMINAL = {
   wallpaper: {
     dark: 'assets/themes/terminal/crt-dark.svg'
   },
-  displayFont: JETBRAINS_MONO,
-  monoFont: JETBRAINS_MONO,
+  font: JETBRAINS_MONO,
   radius: '2px'
 };
 
@@ -471,12 +469,12 @@ const BLAUWDRUK = {
   radius: '2px'
 };
 
-// Laser: een geborstelde plaat met een nesting van onderdelen; rechtsonder
-// snijdt de laserkop een onderdeel uit (fase 2: nesting uit
+// Laser: een geborstelde plaat met een nesting van onderdelen; de laserkop
+// snijdt er acht één voor één uit (fase 2: nesting uit
 // vw_monitor_nestings halen).
 const LASER = {
   name: 'Laser',
-  description: 'Een geborstelde plaat met nesting; rechtsonder snijdt de laser een onderdeel uit. Alleen licht.',
+  description: 'Een geborstelde plaat met nesting; de laser snijdt er één voor één onderdelen uit. Alleen licht.',
   mode: 'light',
   palettes: {
     light: {
@@ -1037,7 +1035,7 @@ function ambientCss(sel, theme, mode) {
   ${sel}::before {
     content: '';
     position: fixed;
-    top: 0; left: 0; width: 100vw; height: 100vh;
+    inset: 0; /* niet 100vw: dat telt de scrollbalk mee en dan schuift de laag t.o.v. de achtergrond */
     z-index: -1;
     pointer-events: none;
     background: var(--sg-ambient-${mode}) center bottom / cover no-repeat;

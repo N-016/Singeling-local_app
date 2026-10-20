@@ -1,23 +1,142 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1200" preserveAspectRatio="xMidYMax slice">
-  <!-- Laser: de kop snijdt een onderdeel uit. Zelf gemaakt voor de Singeling App (gegenereerd). -->
+  <!-- Laser: de kop snijdt een reeks onderdelen uit de nesting (zelfde coördinaten als plaat-light.svg). Zelf gemaakt voor de Singeling App (gegenereerd). -->
   <style>
     .line{fill:none;stroke-dasharray:1;stroke-linecap:round;stroke-linejoin:round}
     .glow{stroke:#8b3fd9;stroke-width:12;stroke-opacity:0.22}.core{stroke:#8b3fd9;stroke-width:2.6}
-    .l1{animation:l1 12s linear infinite}.l2{animation:l2 12s linear infinite}
-    @keyframes l1{0%,6%{stroke-dashoffset:1;opacity:0}6.01%{stroke-dashoffset:1;opacity:1}32%,90%{stroke-dashoffset:0;opacity:1}97%,100%{stroke-dashoffset:0;opacity:0}}
-    @keyframes l2{0%,36%{stroke-dashoffset:1;opacity:0}36.01%{stroke-dashoffset:1;opacity:1}72%,90%{stroke-dashoffset:0;opacity:1}97%,100%{stroke-dashoffset:0;opacity:0}}
     .head{opacity:0;offset-rotate:0deg}
-    .h1{offset-path:path('M1705,1030 A30,30 0 1 1 1645,1030 A30,30 0 1 1 1705,1030');animation:h1 12s linear infinite}
-    .h2{offset-path:path('M1578,960 H1772 A18,18 0 0 1 1790,978 V1082 A18,18 0 0 1 1772,1100 H1578 A18,18 0 0 1 1560,1082 V978 A18,18 0 0 1 1578,960 Z');animation:h2 12s linear infinite}
-    @keyframes h1{0%,6%{offset-distance:0%;opacity:0}7%{opacity:1}32%{offset-distance:100%;opacity:1}33%,100%{offset-distance:100%;opacity:0}}
-    @keyframes h2{0%,36%{offset-distance:0%;opacity:0}37%{opacity:1}72%{offset-distance:100%;opacity:1}73%,100%{offset-distance:100%;opacity:0}}
-    .part{opacity:0.5;animation:part 12s linear infinite}
-    @keyframes part{0%,72%{opacity:0}76%,90%{opacity:0.5}97%,100%{opacity:0}}
-    @media (prefers-reduced-motion: reduce) { .l1,.l2,.h1,.h2,.part{animation:none} }
+    .part{opacity:0.5}
+.l1{animation:l1 62.4s linear infinite}@keyframes l1{0%,0%{stroke-dashoffset:1;opacity:0}0.01%{stroke-dashoffset:1;opacity:1}1.62%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h1{offset-path:path('M1685.6,332.9 A32.2,32.2 0 1 1 1621.2,332.9 A32.2,32.2 0 1 1 1685.6,332.9');animation:h1 62.4s linear infinite}@keyframes h1{0%,0%{offset-distance:0%;opacity:0}0.2%{opacity:1}1.62%{offset-distance:100%;opacity:1}1.82%,100%{offset-distance:100%;opacity:0}}
+.l2{animation:l2 62.4s linear infinite}@keyframes l2{0%,2.18%{stroke-dashoffset:1;opacity:0}2.19%{stroke-dashoffset:1;opacity:1}5.13%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h2{offset-path:path('M1712,332.9 A58.6,58.6 0 1 1 1594.8,332.9 A58.6,58.6 0 1 1 1712,332.9');animation:h2 62.4s linear infinite}@keyframes h2{0%,2.18%{offset-distance:0%;opacity:0}2.38%{opacity:1}5.13%{offset-distance:100%;opacity:1}5.33%,100%{offset-distance:100%;opacity:0}}
+.l3{animation:l3 62.4s linear infinite}@keyframes l3{0%,7.62%{stroke-dashoffset:1;opacity:0}7.63%{stroke-dashoffset:1;opacity:1}8.74%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h3{offset-path:path('M286.9,967.7 A6.3,6.3 0 1 1 274.3,967.7 A6.3,6.3 0 1 1 286.9,967.7');animation:h3 62.4s linear infinite}@keyframes h3{0%,7.62%{offset-distance:0%;opacity:0}7.82%{opacity:1}8.74%{offset-distance:100%;opacity:1}8.94%,100%{offset-distance:100%;opacity:0}}
+.l4{animation:l4 62.4s linear infinite}@keyframes l4{0%,9.3%{stroke-dashoffset:1;opacity:0}9.31%{stroke-dashoffset:1;opacity:1}10.42%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h4{offset-path:path('M226.5,967.7 A6.3,6.3 0 1 1 213.9,967.7 A6.3,6.3 0 1 1 226.5,967.7');animation:h4 62.4s linear infinite}@keyframes h4{0%,9.3%{offset-distance:0%;opacity:0}9.5%{opacity:1}10.42%{offset-distance:100%;opacity:1}10.62%,100%{offset-distance:100%;opacity:0}}
+.l5{animation:l5 62.4s linear infinite}@keyframes l5{0%,10.98%{stroke-dashoffset:1;opacity:0}10.99%{stroke-dashoffset:1;opacity:1}12.1%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h5{offset-path:path('M226.5,907.3 A6.3,6.3 0 1 1 213.9,907.3 A6.3,6.3 0 1 1 226.5,907.3');animation:h5 62.4s linear infinite}@keyframes h5{0%,10.98%{offset-distance:0%;opacity:0}11.18%{opacity:1}12.1%{offset-distance:100%;opacity:1}12.30%,100%{offset-distance:100%;opacity:0}}
+.l6{animation:l6 62.4s linear infinite}@keyframes l6{0%,12.66%{stroke-dashoffset:1;opacity:0}12.67%{stroke-dashoffset:1;opacity:1}13.79%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h6{offset-path:path('M286.8,907.3 A6.3,6.3 0 1 1 274.2,907.3 A6.3,6.3 0 1 1 286.8,907.3');animation:h6 62.4s linear infinite}@keyframes h6{0%,12.66%{offset-distance:0%;opacity:0}12.86%{opacity:1}13.79%{offset-distance:100%;opacity:1}13.99%,100%{offset-distance:100%;opacity:0}}
+.l7{animation:l7 62.4s linear infinite}@keyframes l7{0%,14.35%{stroke-dashoffset:1;opacity:0}14.36%{stroke-dashoffset:1;opacity:1}15.47%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h7{offset-path:path('M269.2,937.5 A18.8,18.8 0 1 1 231.6,937.5 A18.8,18.8 0 1 1 269.2,937.5');animation:h7 62.4s linear infinite}@keyframes h7{0%,14.35%{offset-distance:0%;opacity:0}14.55%{opacity:1}15.47%{offset-distance:100%;opacity:1}15.67%,100%{offset-distance:100%;opacity:0}}
+.l8{animation:l8 62.4s linear infinite}@keyframes l8{0%,16.03%{stroke-dashoffset:1;opacity:0}16.04%{stroke-dashoffset:1;opacity:1}19.19%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h8{offset-path:path('M313.2,937.5 A62.8,62.8 0 1 1 187.6,937.5 A62.8,62.8 0 1 1 313.2,937.5');animation:h8 62.4s linear infinite}@keyframes h8{0%,16.03%{offset-distance:0%;opacity:0}16.23%{opacity:1}19.19%{offset-distance:100%;opacity:1}19.39%,100%{offset-distance:100%;opacity:0}}
+.l9{animation:l9 62.4s linear infinite}@keyframes l9{0%,21.68%{stroke-dashoffset:1;opacity:0}21.69%{stroke-dashoffset:1;opacity:1}23.37%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h9{offset-path:path('M1238,128.1 A33.7,33.7 0 1 1 1170.6,128.1 A33.7,33.7 0 1 1 1238,128.1');animation:h9 62.4s linear infinite}@keyframes h9{0%,21.68%{offset-distance:0%;opacity:0}21.88%{opacity:1}23.37%{offset-distance:100%;opacity:1}23.57%,100%{offset-distance:100%;opacity:0}}
+.l10{animation:l10 62.4s linear infinite}@keyframes l10{0%,23.93%{stroke-dashoffset:1;opacity:0}23.94%{stroke-dashoffset:1;opacity:1}27.02%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h10{offset-path:path('M1265.6,128.1 A61.3,61.3 0 1 1 1143,128.1 A61.3,61.3 0 1 1 1265.6,128.1');animation:h10 62.4s linear infinite}@keyframes h10{0%,23.93%{offset-distance:0%;opacity:0}24.13%{opacity:1}27.02%{offset-distance:100%;opacity:1}27.22%,100%{offset-distance:100%;opacity:0}}
+.l11{animation:l11 62.4s linear infinite}@keyframes l11{0%,29.5%{stroke-dashoffset:1;opacity:0}29.51%{stroke-dashoffset:1;opacity:1}30.63%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h11{offset-path:path('M1318.7,1026.3 A6,6 0 1 1 1306.7,1026.3 A6,6 0 1 1 1318.7,1026.3');animation:h11 62.4s linear infinite}@keyframes h11{0%,29.5%{offset-distance:0%;opacity:0}29.7%{opacity:1}30.63%{offset-distance:100%;opacity:1}30.83%,100%{offset-distance:100%;opacity:0}}
+.l12{animation:l12 62.4s linear infinite}@keyframes l12{0%,31.19%{stroke-dashoffset:1;opacity:0}31.20%{stroke-dashoffset:1;opacity:1}32.31%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h12{offset-path:path('M1424.7,1132.3 A6,6 0 1 1 1412.7,1132.3 A6,6 0 1 1 1424.7,1132.3');animation:h12 62.4s linear infinite}@keyframes h12{0%,31.19%{offset-distance:0%;opacity:0}31.39%{opacity:1}32.31%{offset-distance:100%;opacity:1}32.51%,100%{offset-distance:100%;opacity:0}}
+.l13{animation:l13 62.4s linear infinite}@keyframes l13{0%,32.87%{stroke-dashoffset:1;opacity:0}32.88%{stroke-dashoffset:1;opacity:1}37.68%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h13{offset-path:path('M1290.7,1004.3 H1334.7 V1110.3 H1440.7 V1154.3 H1290.7 Z');animation:h13 62.4s linear infinite}@keyframes h13{0%,32.87%{offset-distance:0%;opacity:0}33.07%{opacity:1}37.68%{offset-distance:100%;opacity:1}37.88%,100%{offset-distance:100%;opacity:0}}
+.l14{animation:l14 62.4s linear infinite}@keyframes l14{0%,40.16%{stroke-dashoffset:1;opacity:0}40.17%{stroke-dashoffset:1;opacity:1}41.28%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h14{offset-path:path('M262.1,355.3 A8.4,8.4 0 1 1 245.3,355.3 A8.4,8.4 0 1 1 262.1,355.3');animation:h14 62.4s linear infinite}@keyframes h14{0%,40.16%{offset-distance:0%;opacity:0}40.36%{opacity:1}41.28%{offset-distance:100%;opacity:1}41.48%,100%{offset-distance:100%;opacity:0}}
+.l15{animation:l15 62.4s linear infinite}@keyframes l15{0%,41.84%{stroke-dashoffset:1;opacity:0}41.85%{stroke-dashoffset:1;opacity:1}42.97%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h15{offset-path:path('M181.5,355.3 A8.4,8.4 0 1 1 164.7,355.3 A8.4,8.4 0 1 1 181.5,355.3');animation:h15 62.4s linear infinite}@keyframes h15{0%,41.84%{offset-distance:0%;opacity:0}42.04%{opacity:1}42.97%{offset-distance:100%;opacity:1}43.17%,100%{offset-distance:100%;opacity:0}}
+.l16{animation:l16 62.4s linear infinite}@keyframes l16{0%,43.53%{stroke-dashoffset:1;opacity:0}43.54%{stroke-dashoffset:1;opacity:1}44.65%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h16{offset-path:path('M181.4,274.7 A8.4,8.4 0 1 1 164.6,274.7 A8.4,8.4 0 1 1 181.4,274.7');animation:h16 62.4s linear infinite}@keyframes h16{0%,43.53%{offset-distance:0%;opacity:0}43.73%{opacity:1}44.65%{offset-distance:100%;opacity:1}44.85%,100%{offset-distance:100%;opacity:0}}
+.l17{animation:l17 62.4s linear infinite}@keyframes l17{0%,45.21%{stroke-dashoffset:1;opacity:0}45.22%{stroke-dashoffset:1;opacity:1}46.33%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h17{offset-path:path('M262.1,274.6 A8.4,8.4 0 1 1 245.3,274.6 A8.4,8.4 0 1 1 262.1,274.6');animation:h17 62.4s linear infinite}@keyframes h17{0%,45.21%{offset-distance:0%;opacity:0}45.41%{opacity:1}46.33%{offset-distance:100%;opacity:1}46.53%,100%{offset-distance:100%;opacity:0}}
+.l18{animation:l18 62.4s linear infinite}@keyframes l18{0%,46.89%{stroke-dashoffset:1;opacity:0}46.90%{stroke-dashoffset:1;opacity:1}48.16%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h18{offset-path:path('M238.6,315 A25.2,25.2 0 1 1 188.2,315 A25.2,25.2 0 1 1 238.6,315');animation:h18 62.4s linear infinite}@keyframes h18{0%,46.89%{offset-distance:0%;opacity:0}47.09%{opacity:1}48.16%{offset-distance:100%;opacity:1}48.36%,100%{offset-distance:100%;opacity:0}}
+.l19{animation:l19 62.4s linear infinite}@keyframes l19{0%,48.72%{stroke-dashoffset:1;opacity:0}48.73%{stroke-dashoffset:1;opacity:1}52.95%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h19{offset-path:path('M297.3,315 A83.9,83.9 0 1 1 129.5,315 A83.9,83.9 0 1 1 297.3,315');animation:h19 62.4s linear infinite}@keyframes h19{0%,48.72%{offset-distance:0%;opacity:0}48.92%{opacity:1}52.95%{offset-distance:100%;opacity:1}53.15%,100%{offset-distance:100%;opacity:0}}
+.l20{animation:l20 62.4s linear infinite}@keyframes l20{0%,55.43%{stroke-dashoffset:1;opacity:0}55.44%{stroke-dashoffset:1;opacity:1}56.55%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h20{offset-path:path('M958.5,1026.5 A7,7 0 1 1 944.5,1026.5 A7,7 0 1 1 958.5,1026.5');animation:h20 62.4s linear infinite}@keyframes h20{0%,55.43%{offset-distance:0%;opacity:0}55.63%{opacity:1}56.55%{offset-distance:100%;opacity:1}56.75%,100%{offset-distance:100%;opacity:0}}
+.l21{animation:l21 62.4s linear infinite}@keyframes l21{0%,57.11%{stroke-dashoffset:1;opacity:0}57.12%{stroke-dashoffset:1;opacity:1}61.58%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h21{offset-path:path('M924.9,960.1 H1056.5 A12.5,12.5 0 0 1 1069,972.6 V1080.4 A12.5,12.5 0 0 1 1056.5,1092.9 H924.9 A12.5,12.5 0 0 1 912.4,1080.4 V972.6 A12.5,12.5 0 0 1 924.9,960.1 Z');animation:h21 62.4s linear infinite}@keyframes h21{0%,57.11%{offset-distance:0%;opacity:0}57.31%{opacity:1}61.58%{offset-distance:100%;opacity:1}61.78%,100%{offset-distance:100%;opacity:0}}
+.l22{animation:l22 62.4s linear infinite}@keyframes l22{0%,64.06%{stroke-dashoffset:1;opacity:0}64.07%{stroke-dashoffset:1;opacity:1}65.19%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h22{offset-path:path('M1790.4,768.7 A7.7,7.7 0 1 1 1775,768.7 A7.7,7.7 0 1 1 1790.4,768.7');animation:h22 62.4s linear infinite}@keyframes h22{0%,64.06%{offset-distance:0%;opacity:0}64.26%{opacity:1}65.19%{offset-distance:100%;opacity:1}65.39%,100%{offset-distance:100%;opacity:0}}
+.l23{animation:l23 62.4s linear infinite}@keyframes l23{0%,65.75%{stroke-dashoffset:1;opacity:0}65.76%{stroke-dashoffset:1;opacity:1}66.87%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h23{offset-path:path('M1716.1,768.8 A7.7,7.7 0 1 1 1700.7,768.8 A7.7,7.7 0 1 1 1716.1,768.8');animation:h23 62.4s linear infinite}@keyframes h23{0%,65.75%{offset-distance:0%;opacity:0}65.95%{opacity:1}66.87%{offset-distance:100%;opacity:1}67.07%,100%{offset-distance:100%;opacity:0}}
+.l24{animation:l24 62.4s linear infinite}@keyframes l24{0%,67.43%{stroke-dashoffset:1;opacity:0}67.44%{stroke-dashoffset:1;opacity:1}68.55%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h24{offset-path:path('M1716,694.4 A7.7,7.7 0 1 1 1700.6,694.4 A7.7,7.7 0 1 1 1716,694.4');animation:h24 62.4s linear infinite}@keyframes h24{0%,67.43%{offset-distance:0%;opacity:0}67.63%{opacity:1}68.55%{offset-distance:100%;opacity:1}68.75%,100%{offset-distance:100%;opacity:0}}
+.l25{animation:l25 62.4s linear infinite}@keyframes l25{0%,69.11%{stroke-dashoffset:1;opacity:0}69.12%{stroke-dashoffset:1;opacity:1}70.23%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h25{offset-path:path('M1790.4,694.4 A7.7,7.7 0 1 1 1775,694.4 A7.7,7.7 0 1 1 1790.4,694.4');animation:h25 62.4s linear infinite}@keyframes h25{0%,69.11%{offset-distance:0%;opacity:0}69.31%{opacity:1}70.23%{offset-distance:100%;opacity:1}70.43%,100%{offset-distance:100%;opacity:0}}
+.l26{animation:l26 62.4s linear infinite}@keyframes l26{0%,70.79%{stroke-dashoffset:1;opacity:0}70.80%{stroke-dashoffset:1;opacity:1}71.96%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h26{offset-path:path('M1768.7,731.6 A23.2,23.2 0 1 1 1722.3,731.6 A23.2,23.2 0 1 1 1768.7,731.6');animation:h26 62.4s linear infinite}@keyframes h26{0%,70.79%{offset-distance:0%;opacity:0}70.99%{opacity:1}71.96%{offset-distance:100%;opacity:1}72.16%,100%{offset-distance:100%;opacity:0}}
+.l27{animation:l27 62.4s linear infinite}@keyframes l27{0%,72.52%{stroke-dashoffset:1;opacity:0}72.53%{stroke-dashoffset:1;opacity:1}76.42%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h27{offset-path:path('M1822.8,731.6 A77.3,77.3 0 1 1 1668.2,731.6 A77.3,77.3 0 1 1 1822.8,731.6');animation:h27 62.4s linear infinite}@keyframes h27{0%,72.52%{offset-distance:0%;opacity:0}72.72%{opacity:1}76.42%{offset-distance:100%;opacity:1}76.62%,100%{offset-distance:100%;opacity:0}}
+.l28{animation:l28 62.4s linear infinite}@keyframes l28{0%,78.9%{stroke-dashoffset:1;opacity:0}78.91%{stroke-dashoffset:1;opacity:1}80.02%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h28{offset-path:path('M855.4,129 A7,7 0 1 1 841.4,129 A7,7 0 1 1 855.4,129');animation:h28 62.4s linear infinite}@keyframes h28{0%,78.9%{offset-distance:0%;opacity:0}79.1%{opacity:1}80.02%{offset-distance:100%;opacity:1}80.22%,100%{offset-distance:100%;opacity:0}}
+.l29{animation:l29 62.4s linear infinite}@keyframes l29{0%,80.58%{stroke-dashoffset:1;opacity:0}80.59%{stroke-dashoffset:1;opacity:1}84.69%,96.79%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+.h29{offset-path:path('M835,67.3 H939.3 A25.4,25.4 0 0 1 964.7,92.7 V165.2 A25.4,25.4 0 0 1 939.3,190.6 H835 A25.4,25.4 0 0 1 809.6,165.2 V92.7 A25.4,25.4 0 0 1 835,67.3 Z');animation:h29 62.4s linear infinite}@keyframes h29{0%,80.58%{offset-distance:0%;opacity:0}80.78%{opacity:1}84.69%{offset-distance:100%;opacity:1}84.89%,100%{offset-distance:100%;opacity:0}}
+.p0{animation:p0 62.4s linear infinite}@keyframes p0{0%,5.69%{opacity:0}7.62%,96.79%{opacity:0.5}100%{opacity:0}}
+.p1{animation:p1 62.4s linear infinite}@keyframes p1{0%,19.75%{opacity:0}21.68%,96.79%{opacity:0.5}100%{opacity:0}}
+.p2{animation:p2 62.4s linear infinite}@keyframes p2{0%,27.58%{opacity:0}29.5%,96.79%{opacity:0.5}100%{opacity:0}}
+.p3{animation:p3 62.4s linear infinite}@keyframes p3{0%,38.24%{opacity:0}40.16%,96.79%{opacity:0.5}100%{opacity:0}}
+.p4{animation:p4 62.4s linear infinite}@keyframes p4{0%,53.51%{opacity:0}55.43%,96.79%{opacity:0.5}100%{opacity:0}}
+.p5{animation:p5 62.4s linear infinite}@keyframes p5{0%,62.14%{opacity:0}64.06%,96.79%{opacity:0.5}100%{opacity:0}}
+.p6{animation:p6 62.4s linear infinite}@keyframes p6{0%,76.98%{opacity:0}78.9%,96.79%{opacity:0.5}100%{opacity:0}}
+.p7{animation:p7 62.4s linear infinite}@keyframes p7{0%,85.26%{opacity:0}87.18%,96.79%{opacity:0.5}100%{opacity:0}}
+    @media (prefers-reduced-motion: reduce) { .l1,.h1,.l2,.h2,.l3,.h3,.l4,.h4,.l5,.h5,.l6,.h6,.l7,.h7,.l8,.h8,.l9,.h9,.l10,.h10,.l11,.h11,.l12,.h12,.l13,.h13,.l14,.h14,.l15,.h15,.l16,.h16,.l17,.h17,.l18,.h18,.l19,.h19,.l20,.h20,.l21,.h21,.l22,.h22,.l23,.h23,.l24,.h24,.l25,.h25,.l26,.h26,.l27,.h27,.l28,.h28,.l29,.h29,.p0,.p1,.p2,.p3,.p4,.p5,.p6,.p7{animation:none} }
   </style>
-  <path class="part" d="M1578,960 H1772 A18,18 0 0 1 1790,978 V1082 A18,18 0 0 1 1772,1100 H1578 A18,18 0 0 1 1560,1082 V978 A18,18 0 0 1 1578,960 Z M1705,1030 A30,30 0 1 1 1645,1030 A30,30 0 1 1 1705,1030" fill-rule="evenodd" fill="#0d0f11"/>
-  <path class="line glow l1" pathLength="1" d="M1705,1030 A30,30 0 1 1 1645,1030 A30,30 0 1 1 1705,1030"/><path class="line core l1" pathLength="1" d="M1705,1030 A30,30 0 1 1 1645,1030 A30,30 0 1 1 1705,1030"/>
-  <path class="line glow l2" pathLength="1" d="M1578,960 H1772 A18,18 0 0 1 1790,978 V1082 A18,18 0 0 1 1772,1100 H1578 A18,18 0 0 1 1560,1082 V978 A18,18 0 0 1 1578,960 Z"/><path class="line core l2" pathLength="1" d="M1578,960 H1772 A18,18 0 0 1 1790,978 V1082 A18,18 0 0 1 1772,1100 H1578 A18,18 0 0 1 1560,1082 V978 A18,18 0 0 1 1578,960 Z"/>
+  <path class="part p0" d="M1685.6,332.9 A32.2,32.2 0 1 1 1621.2,332.9 A32.2,32.2 0 1 1 1685.6,332.9 M1712,332.9 A58.6,58.6 0 1 1 1594.8,332.9 A58.6,58.6 0 1 1 1712,332.9" fill-rule="evenodd" fill="#0d0f11"/>
+  <path class="part p1" d="M286.9,967.7 A6.3,6.3 0 1 1 274.3,967.7 A6.3,6.3 0 1 1 286.9,967.7 M226.5,967.7 A6.3,6.3 0 1 1 213.9,967.7 A6.3,6.3 0 1 1 226.5,967.7 M226.5,907.3 A6.3,6.3 0 1 1 213.9,907.3 A6.3,6.3 0 1 1 226.5,907.3 M286.8,907.3 A6.3,6.3 0 1 1 274.2,907.3 A6.3,6.3 0 1 1 286.8,907.3 M269.2,937.5 A18.8,18.8 0 1 1 231.6,937.5 A18.8,18.8 0 1 1 269.2,937.5 M313.2,937.5 A62.8,62.8 0 1 1 187.6,937.5 A62.8,62.8 0 1 1 313.2,937.5" fill-rule="evenodd" fill="#0d0f11"/>
+  <path class="part p2" d="M1238,128.1 A33.7,33.7 0 1 1 1170.6,128.1 A33.7,33.7 0 1 1 1238,128.1 M1265.6,128.1 A61.3,61.3 0 1 1 1143,128.1 A61.3,61.3 0 1 1 1265.6,128.1" fill-rule="evenodd" fill="#0d0f11"/>
+  <path class="part p3" d="M1318.7,1026.3 A6,6 0 1 1 1306.7,1026.3 A6,6 0 1 1 1318.7,1026.3 M1424.7,1132.3 A6,6 0 1 1 1412.7,1132.3 A6,6 0 1 1 1424.7,1132.3 M1290.7,1004.3 H1334.7 V1110.3 H1440.7 V1154.3 H1290.7 Z" fill-rule="evenodd" fill="#0d0f11"/>
+  <path class="part p4" d="M262.1,355.3 A8.4,8.4 0 1 1 245.3,355.3 A8.4,8.4 0 1 1 262.1,355.3 M181.5,355.3 A8.4,8.4 0 1 1 164.7,355.3 A8.4,8.4 0 1 1 181.5,355.3 M181.4,274.7 A8.4,8.4 0 1 1 164.6,274.7 A8.4,8.4 0 1 1 181.4,274.7 M262.1,274.6 A8.4,8.4 0 1 1 245.3,274.6 A8.4,8.4 0 1 1 262.1,274.6 M238.6,315 A25.2,25.2 0 1 1 188.2,315 A25.2,25.2 0 1 1 238.6,315 M297.3,315 A83.9,83.9 0 1 1 129.5,315 A83.9,83.9 0 1 1 297.3,315" fill-rule="evenodd" fill="#0d0f11"/>
+  <path class="part p5" d="M958.5,1026.5 A7,7 0 1 1 944.5,1026.5 A7,7 0 1 1 958.5,1026.5 M924.9,960.1 H1056.5 A12.5,12.5 0 0 1 1069,972.6 V1080.4 A12.5,12.5 0 0 1 1056.5,1092.9 H924.9 A12.5,12.5 0 0 1 912.4,1080.4 V972.6 A12.5,12.5 0 0 1 924.9,960.1 Z" fill-rule="evenodd" fill="#0d0f11"/>
+  <path class="part p6" d="M1790.4,768.7 A7.7,7.7 0 1 1 1775,768.7 A7.7,7.7 0 1 1 1790.4,768.7 M1716.1,768.8 A7.7,7.7 0 1 1 1700.7,768.8 A7.7,7.7 0 1 1 1716.1,768.8 M1716,694.4 A7.7,7.7 0 1 1 1700.6,694.4 A7.7,7.7 0 1 1 1716,694.4 M1790.4,694.4 A7.7,7.7 0 1 1 1775,694.4 A7.7,7.7 0 1 1 1790.4,694.4 M1768.7,731.6 A23.2,23.2 0 1 1 1722.3,731.6 A23.2,23.2 0 1 1 1768.7,731.6 M1822.8,731.6 A77.3,77.3 0 1 1 1668.2,731.6 A77.3,77.3 0 1 1 1822.8,731.6" fill-rule="evenodd" fill="#0d0f11"/>
+  <path class="part p7" d="M855.4,129 A7,7 0 1 1 841.4,129 A7,7 0 1 1 855.4,129 M835,67.3 H939.3 A25.4,25.4 0 0 1 964.7,92.7 V165.2 A25.4,25.4 0 0 1 939.3,190.6 H835 A25.4,25.4 0 0 1 809.6,165.2 V92.7 A25.4,25.4 0 0 1 835,67.3 Z" fill-rule="evenodd" fill="#0d0f11"/>
+  <path class="line glow l1" pathLength="1" d="M1685.6,332.9 A32.2,32.2 0 1 1 1621.2,332.9 A32.2,32.2 0 1 1 1685.6,332.9"/><path class="line core l1" pathLength="1" d="M1685.6,332.9 A32.2,32.2 0 1 1 1621.2,332.9 A32.2,32.2 0 1 1 1685.6,332.9"/>
   <g class="head h1"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l2" pathLength="1" d="M1712,332.9 A58.6,58.6 0 1 1 1594.8,332.9 A58.6,58.6 0 1 1 1712,332.9"/><path class="line core l2" pathLength="1" d="M1712,332.9 A58.6,58.6 0 1 1 1594.8,332.9 A58.6,58.6 0 1 1 1712,332.9"/>
   <g class="head h2"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l3" pathLength="1" d="M286.9,967.7 A6.3,6.3 0 1 1 274.3,967.7 A6.3,6.3 0 1 1 286.9,967.7"/><path class="line core l3" pathLength="1" d="M286.9,967.7 A6.3,6.3 0 1 1 274.3,967.7 A6.3,6.3 0 1 1 286.9,967.7"/>
+  <g class="head h3"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l4" pathLength="1" d="M226.5,967.7 A6.3,6.3 0 1 1 213.9,967.7 A6.3,6.3 0 1 1 226.5,967.7"/><path class="line core l4" pathLength="1" d="M226.5,967.7 A6.3,6.3 0 1 1 213.9,967.7 A6.3,6.3 0 1 1 226.5,967.7"/>
+  <g class="head h4"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l5" pathLength="1" d="M226.5,907.3 A6.3,6.3 0 1 1 213.9,907.3 A6.3,6.3 0 1 1 226.5,907.3"/><path class="line core l5" pathLength="1" d="M226.5,907.3 A6.3,6.3 0 1 1 213.9,907.3 A6.3,6.3 0 1 1 226.5,907.3"/>
+  <g class="head h5"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l6" pathLength="1" d="M286.8,907.3 A6.3,6.3 0 1 1 274.2,907.3 A6.3,6.3 0 1 1 286.8,907.3"/><path class="line core l6" pathLength="1" d="M286.8,907.3 A6.3,6.3 0 1 1 274.2,907.3 A6.3,6.3 0 1 1 286.8,907.3"/>
+  <g class="head h6"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l7" pathLength="1" d="M269.2,937.5 A18.8,18.8 0 1 1 231.6,937.5 A18.8,18.8 0 1 1 269.2,937.5"/><path class="line core l7" pathLength="1" d="M269.2,937.5 A18.8,18.8 0 1 1 231.6,937.5 A18.8,18.8 0 1 1 269.2,937.5"/>
+  <g class="head h7"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l8" pathLength="1" d="M313.2,937.5 A62.8,62.8 0 1 1 187.6,937.5 A62.8,62.8 0 1 1 313.2,937.5"/><path class="line core l8" pathLength="1" d="M313.2,937.5 A62.8,62.8 0 1 1 187.6,937.5 A62.8,62.8 0 1 1 313.2,937.5"/>
+  <g class="head h8"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l9" pathLength="1" d="M1238,128.1 A33.7,33.7 0 1 1 1170.6,128.1 A33.7,33.7 0 1 1 1238,128.1"/><path class="line core l9" pathLength="1" d="M1238,128.1 A33.7,33.7 0 1 1 1170.6,128.1 A33.7,33.7 0 1 1 1238,128.1"/>
+  <g class="head h9"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l10" pathLength="1" d="M1265.6,128.1 A61.3,61.3 0 1 1 1143,128.1 A61.3,61.3 0 1 1 1265.6,128.1"/><path class="line core l10" pathLength="1" d="M1265.6,128.1 A61.3,61.3 0 1 1 1143,128.1 A61.3,61.3 0 1 1 1265.6,128.1"/>
+  <g class="head h10"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l11" pathLength="1" d="M1318.7,1026.3 A6,6 0 1 1 1306.7,1026.3 A6,6 0 1 1 1318.7,1026.3"/><path class="line core l11" pathLength="1" d="M1318.7,1026.3 A6,6 0 1 1 1306.7,1026.3 A6,6 0 1 1 1318.7,1026.3"/>
+  <g class="head h11"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l12" pathLength="1" d="M1424.7,1132.3 A6,6 0 1 1 1412.7,1132.3 A6,6 0 1 1 1424.7,1132.3"/><path class="line core l12" pathLength="1" d="M1424.7,1132.3 A6,6 0 1 1 1412.7,1132.3 A6,6 0 1 1 1424.7,1132.3"/>
+  <g class="head h12"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l13" pathLength="1" d="M1290.7,1004.3 H1334.7 V1110.3 H1440.7 V1154.3 H1290.7 Z"/><path class="line core l13" pathLength="1" d="M1290.7,1004.3 H1334.7 V1110.3 H1440.7 V1154.3 H1290.7 Z"/>
+  <g class="head h13"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l14" pathLength="1" d="M262.1,355.3 A8.4,8.4 0 1 1 245.3,355.3 A8.4,8.4 0 1 1 262.1,355.3"/><path class="line core l14" pathLength="1" d="M262.1,355.3 A8.4,8.4 0 1 1 245.3,355.3 A8.4,8.4 0 1 1 262.1,355.3"/>
+  <g class="head h14"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l15" pathLength="1" d="M181.5,355.3 A8.4,8.4 0 1 1 164.7,355.3 A8.4,8.4 0 1 1 181.5,355.3"/><path class="line core l15" pathLength="1" d="M181.5,355.3 A8.4,8.4 0 1 1 164.7,355.3 A8.4,8.4 0 1 1 181.5,355.3"/>
+  <g class="head h15"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l16" pathLength="1" d="M181.4,274.7 A8.4,8.4 0 1 1 164.6,274.7 A8.4,8.4 0 1 1 181.4,274.7"/><path class="line core l16" pathLength="1" d="M181.4,274.7 A8.4,8.4 0 1 1 164.6,274.7 A8.4,8.4 0 1 1 181.4,274.7"/>
+  <g class="head h16"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l17" pathLength="1" d="M262.1,274.6 A8.4,8.4 0 1 1 245.3,274.6 A8.4,8.4 0 1 1 262.1,274.6"/><path class="line core l17" pathLength="1" d="M262.1,274.6 A8.4,8.4 0 1 1 245.3,274.6 A8.4,8.4 0 1 1 262.1,274.6"/>
+  <g class="head h17"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l18" pathLength="1" d="M238.6,315 A25.2,25.2 0 1 1 188.2,315 A25.2,25.2 0 1 1 238.6,315"/><path class="line core l18" pathLength="1" d="M238.6,315 A25.2,25.2 0 1 1 188.2,315 A25.2,25.2 0 1 1 238.6,315"/>
+  <g class="head h18"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l19" pathLength="1" d="M297.3,315 A83.9,83.9 0 1 1 129.5,315 A83.9,83.9 0 1 1 297.3,315"/><path class="line core l19" pathLength="1" d="M297.3,315 A83.9,83.9 0 1 1 129.5,315 A83.9,83.9 0 1 1 297.3,315"/>
+  <g class="head h19"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l20" pathLength="1" d="M958.5,1026.5 A7,7 0 1 1 944.5,1026.5 A7,7 0 1 1 958.5,1026.5"/><path class="line core l20" pathLength="1" d="M958.5,1026.5 A7,7 0 1 1 944.5,1026.5 A7,7 0 1 1 958.5,1026.5"/>
+  <g class="head h20"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l21" pathLength="1" d="M924.9,960.1 H1056.5 A12.5,12.5 0 0 1 1069,972.6 V1080.4 A12.5,12.5 0 0 1 1056.5,1092.9 H924.9 A12.5,12.5 0 0 1 912.4,1080.4 V972.6 A12.5,12.5 0 0 1 924.9,960.1 Z"/><path class="line core l21" pathLength="1" d="M924.9,960.1 H1056.5 A12.5,12.5 0 0 1 1069,972.6 V1080.4 A12.5,12.5 0 0 1 1056.5,1092.9 H924.9 A12.5,12.5 0 0 1 912.4,1080.4 V972.6 A12.5,12.5 0 0 1 924.9,960.1 Z"/>
+  <g class="head h21"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l22" pathLength="1" d="M1790.4,768.7 A7.7,7.7 0 1 1 1775,768.7 A7.7,7.7 0 1 1 1790.4,768.7"/><path class="line core l22" pathLength="1" d="M1790.4,768.7 A7.7,7.7 0 1 1 1775,768.7 A7.7,7.7 0 1 1 1790.4,768.7"/>
+  <g class="head h22"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l23" pathLength="1" d="M1716.1,768.8 A7.7,7.7 0 1 1 1700.7,768.8 A7.7,7.7 0 1 1 1716.1,768.8"/><path class="line core l23" pathLength="1" d="M1716.1,768.8 A7.7,7.7 0 1 1 1700.7,768.8 A7.7,7.7 0 1 1 1716.1,768.8"/>
+  <g class="head h23"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l24" pathLength="1" d="M1716,694.4 A7.7,7.7 0 1 1 1700.6,694.4 A7.7,7.7 0 1 1 1716,694.4"/><path class="line core l24" pathLength="1" d="M1716,694.4 A7.7,7.7 0 1 1 1700.6,694.4 A7.7,7.7 0 1 1 1716,694.4"/>
+  <g class="head h24"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l25" pathLength="1" d="M1790.4,694.4 A7.7,7.7 0 1 1 1775,694.4 A7.7,7.7 0 1 1 1790.4,694.4"/><path class="line core l25" pathLength="1" d="M1790.4,694.4 A7.7,7.7 0 1 1 1775,694.4 A7.7,7.7 0 1 1 1790.4,694.4"/>
+  <g class="head h25"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l26" pathLength="1" d="M1768.7,731.6 A23.2,23.2 0 1 1 1722.3,731.6 A23.2,23.2 0 1 1 1768.7,731.6"/><path class="line core l26" pathLength="1" d="M1768.7,731.6 A23.2,23.2 0 1 1 1722.3,731.6 A23.2,23.2 0 1 1 1768.7,731.6"/>
+  <g class="head h26"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l27" pathLength="1" d="M1822.8,731.6 A77.3,77.3 0 1 1 1668.2,731.6 A77.3,77.3 0 1 1 1822.8,731.6"/><path class="line core l27" pathLength="1" d="M1822.8,731.6 A77.3,77.3 0 1 1 1668.2,731.6 A77.3,77.3 0 1 1 1822.8,731.6"/>
+  <g class="head h27"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l28" pathLength="1" d="M855.4,129 A7,7 0 1 1 841.4,129 A7,7 0 1 1 855.4,129"/><path class="line core l28" pathLength="1" d="M855.4,129 A7,7 0 1 1 841.4,129 A7,7 0 1 1 855.4,129"/>
+  <g class="head h28"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
+  <path class="line glow l29" pathLength="1" d="M835,67.3 H939.3 A25.4,25.4 0 0 1 964.7,92.7 V165.2 A25.4,25.4 0 0 1 939.3,190.6 H835 A25.4,25.4 0 0 1 809.6,165.2 V92.7 A25.4,25.4 0 0 1 835,67.3 Z"/><path class="line core l29" pathLength="1" d="M835,67.3 H939.3 A25.4,25.4 0 0 1 964.7,92.7 V165.2 A25.4,25.4 0 0 1 939.3,190.6 H835 A25.4,25.4 0 0 1 809.6,165.2 V92.7 A25.4,25.4 0 0 1 835,67.3 Z"/>
+  <g class="head h29"><circle r="14" fill="#8b3fd9" opacity="0.5"/><circle r="5" fill="#fff"/></g>
 </svg>
