@@ -47,6 +47,7 @@ const { sanitize, summarize } = require('../rapport/summarize');
   assert.equal(report.cpu.byKind['/sales-orders/:id'].sum, 20);
   assert.equal(report.seconds['/sales-orders/:id'], 60);
   assert.equal(report.crashes, 1);
+  assert.deepEqual(report.crashKinds, { 'tab:crashed': 1 });
   assert.equal(report.settings.theme, 'laser');
   assert.ok(/^[0-9a-f-]{36}$/.test(report.id));
   assert.ok(!JSON.stringify(report).includes('30044'), 'geen ordernummer in het rapport');
@@ -84,6 +85,7 @@ const { sanitize, summarize } = require('../rapport/summarize');
   assert.equal(summary.cpu.avg, 20);
   assert.equal(summary.cpu.max, 30);
   assert.equal(summary.crashes, 2);
+  assert.deepEqual(summary.crashKinds, [['tab:crashed', 2]]);
 
   // Meldingen: wachtrij als de server uit staat, daarna versturen naar /melding.
   serverUp = false;
@@ -123,4 +125,10 @@ const { sanitize, summarize } = require('../rapport/summarize');
   assert.equal(summarize([clean]).focus.percent, 75);
   assert.equal(summarize([sanitize({ ...report, time: undefined })]).focus.percent, null, 'oude rapporten zonder tijdmeting');
   console.log('voorgrondtijd: alle controles geslaagd');
+
+  // Geheugen per pc: 8 GB, de pc gebruikt gemiddeld 4 GB, de app 500 MB daarvan.
+  const mem = summarize([sanitize({ ...report, ramGb: 8, cpu: { ...report.cpu, n: 2, memSum: 1000, memMax: 600, sysSum: 8192, sysMax: 7782 } })]).memory[0];
+  assert.deepEqual({ ...mem, id: undefined }, { id: undefined, ramGb: 8, pcAvg: 50, pcMax: 95, appAvgMb: 500, appMaxMb: 600, appShare: 12 });
+  assert.equal(summarize([sanitize({ ...report, cpu: { ...report.cpu, sysSum: undefined } })]).memory.length, 0, 'oude rapporten zonder pc-geheugen');
+  console.log('geheugen per pc: alle controles geslaagd');
 })().catch((error) => { console.error(error); process.exit(1); });

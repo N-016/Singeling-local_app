@@ -1,6 +1,6 @@
 // npm test: controleert de regels in rules.js (draait ook vóór elke build).
 const assert = require('node:assert');
-const { isInternalUrl, isAuthUrl, compareVersions, criticalUpdateFrom } = require('../rules');
+const { isInternalUrl, isAuthUrl, isFileUrl, compareVersions, criticalUpdateFrom } = require('../rules');
 
 assert.equal(isInternalUrl('https://snglng.lovable.app/assemblies/1'), true);
 assert.equal(isInternalUrl('https://x.snglng.lovable.app/'), true);
@@ -10,6 +10,9 @@ assert.equal(isInternalUrl('https://snglng.lovable.app@evil.com/'), false);
 assert.equal(isInternalUrl('niet een url'), false);
 assert.equal(isAuthUrl('https://login.microsoftonline.com/x'), true);
 assert.equal(isAuthUrl('https://microsoftonline.com.evil.com/'), false);
+assert.equal(isFileUrl('https://abc.supabase.co/storage/v1/object/sign/docs/310811.pdf?token=x'), true);
+assert.equal(isFileUrl('https://abc.supabase.co/auth/v1/authorize?provider=azure'), false);
+assert.equal(isFileUrl('https://evil.com/storage/x.pdf'), false);
 
 assert.ok(compareVersions('1.3.0', '1.3.0-beta.2') > 0);
 assert.ok(compareVersions('1.3.0-beta.10', '1.3.0-beta.2') > 0);
