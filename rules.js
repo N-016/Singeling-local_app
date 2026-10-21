@@ -81,4 +81,21 @@ function criticalUpdateFrom(updateInfo, currentVersion) {
   return { reason };
 }
 
-module.exports = { START_URL, APP_HOSTNAME, isInternalUrl, isAuthUrl, compareVersions, criticalUpdateFrom };
+// Pagina-soort voor de anonieme gebruiksgegevens (telemetry.js): alleen het pad
+// van een app-pagina, zonder query en zonder nummers. /sales-orders/30044?tab=x
+// wordt /sales-orders/:id. Een stuk met 4 of meer cijfers achter elkaar, een
+// uuid of alleen cijfers is een id; zo komt er geen ordernummer of klant in
+// het rapport. Max 3 stukken en 80 tekens. Geen app-pagina: null.
+function pageKind(url) {
+  if (!isInternalUrl(url)) return null;
+  try {
+    const parts = new URL(url).pathname.split('/').filter(Boolean).slice(0, 3).map(part => (
+      /^\d+$/.test(part) || /^[A-Za-z_-]*\d{4,}/.test(part) || /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(part) ? ':id' : part.toLowerCase()
+    ));
+    return ('/' + parts.join('/')).slice(0, 80);
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { START_URL, APP_HOSTNAME, isInternalUrl, isAuthUrl, compareVersions, criticalUpdateFrom, pageKind };

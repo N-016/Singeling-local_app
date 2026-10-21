@@ -6,7 +6,11 @@ const { DARK_MODE_BACKGROUND, DARK_MODE_CSS } = require('./dark-mode');
 const { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT } = require('./page-tweaks');
 const { SOFT_MODE_BACKGROUND, SOFT_MODE_CSS } = require('./soft-mode');
 const themes = require('./themes');
-const { START_URL, APP_HOSTNAME, isInternalUrl, isAuthUrl, compareVersions, criticalUpdateFrom } = require('./rules');
+const { START_URL, APP_HOSTNAME, isInternalUrl, isAuthUrl, compareVersions, criticalUpdateFrom, pageKind } = require('./rules');
+const { createTelemetry, loadConfig } = require('./telemetry');
+const { createRapportServer } = require('./rapport/server');
+const crypto = require('crypto');
+const os = require('os');
 
 // Zonder deze lock start elke nieuwe poging een los proces dat om dezelfde
 // cache- en instellingenbestanden in userData vecht met de al draaiende app
@@ -84,6 +88,15 @@ let appSettings = {
   showOnboarding: true,
   blockCtrlB: false,
   windowsNotifications: true, // Windows-melding bij een nieuwe melding bij het belletje
+  telemetry: true, // anonieme gebruiksgegevens delen (alleen als telemetry.config.json er is)
+  // Beheer (Instellingen > Debug): wachtwoord alleen als scrypt-hash, blijft
+  // ingelogd tot je vergrendelt; rapport-server eventueel mee laten starten.
+  adminPasswordHash: '',
+  adminUnlocked: false,
+  rapportSeenAt: 0, // wanneer je het tabblad Meldingen voor het laatst opende (ms); alles daarna is nieuw
+  adminLockOnRestart: false, // Beheer vergrendelen bij elke start van de app
+  rapportServerAutostart: false,
+  debugUnlocked: false, // Debug zichtbaar gemaakt met Ctrl+Shift+Alt+D (gewone versie)
   notClockedMode: 'aan', // melding "Niet geklokt op een order": 'aan' (oranje balk), 'subtiel' of 'uit'
   preferencesChosen: false, // keuzescherm (thema + klokmelding) al gezien
   setupVersion: 0, // versie van de instelassistent die al doorlopen is (SETUP_VERSION in index.html)
@@ -179,6 +192,13 @@ function loadSettings() {
       showOnboarding: typeof parsed.showOnboarding === 'boolean' ? parsed.showOnboarding : true,
       blockCtrlB: typeof parsed.blockCtrlB === 'boolean' ? parsed.blockCtrlB : false,
       windowsNotifications: typeof parsed.windowsNotifications === 'boolean' ? parsed.windowsNotifications : true,
+      telemetry: typeof parsed.telemetry === 'boolean' ? parsed.telemetry : true,
+      adminPasswordHash: typeof parsed.adminPasswordHash === 'string' ? parsed.adminPasswordHash : '',
+      adminLockOnRestart: parsed.adminLockOnRestart === true,
+      rapportSeenAt: Number.isFinite(parsed.rapportSeenAt) ? parsed.rapportSeenAt : 0,
+      adminUnlocked: parsed.adminUnlocked === true && parsed.adminLockOnRestart !== true,
+      rapportServerAutostart: parsed.rapportServerAutostart === true,
+      debugUnlocked: parsed.debugUnlocked === true,
       notClockedMode: notClockedModeFrom(parsed),
       preferencesChosen: typeof parsed.preferencesChosen === 'boolean' ? parsed.preferencesChosen : false,
       setupVersion: Number.isInteger(parsed.setupVersion) ? parsed.setupVersion : 0,
@@ -1122,9 +1142,13 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     if (!isDetachedTab(tabId) && mainWindow && !mainWindow.isDestroyed() && url && url !== 'about:blank') {
       mainWindow.webContents.send('update-tab-url', { tabId, url });
     }
+    if (url) telemetry.visit(tabId, url);
   });
 
-  view.webContents.on('did-navigate-in-page', () => {
+  view.webContents.on('render-process-gone', () => telemetry.crash());
+
+  view.webContents.on('did-navigate-in-page', (event, url, isMainFrame) => {
+    if (isMainFrame) telemetry.visit(tabId, url);
     // Terug binnen de webapp blijft op dezelfde pagina; ook dan de vlag wissen.
     internalNavigations.delete(tabId);
     sendNavigationState(tabId);
@@ -1949,12 +1973,23 @@ const HELP_POPOVER_HTML = `<!doctype html><html><head><meta charset="utf-8"><sty
     border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   }
   .soon b { color: var(--accent); }
+  .report-buttons { display: flex; gap: 8px; margin-top: 8px; }
+  .report-buttons button {
+    flex: 1; padding: 8px 10px; border-radius: 4px; border: 1px solid var(--border); cursor: pointer;
+    background: transparent; color: var(--text); font: inherit; font-size: 12.5px; font-weight: 600;
+  }
+  .report-buttons button:hover { border-color: var(--accent); color: var(--accent); }
+  [hidden] { display: none !important; }
 </style></head><body><div class="card">
   <h1>Iets gevonden dat niet goed gaat?</h1>
   <div class="item">
     <div class="q">De app zelf doet raar</div>
     <div class="a">Het gaat om de "schil" om de pagina's heen: de balk met tabbladen en knoppen hier bovenin. Bijvoorbeeld: de app start of sluit niet goed, tabbladen of vensters doen vreemd, of een update lukt niet.</div>
-    <div class="who">Stuur <b>Nick</b> een bericht via Slack.</div>
+    <div class="who" id="who-nick">Stuur <b>Nick</b> een bericht via Slack.</div>
+    <div class="report-buttons" id="report" hidden>
+      <button type="button" data-melding="bug">Bug melden</button>
+      <button type="button" data-melding="idee">Idee insturen</button>
+    </div>
   </div>
   <div class="item">
     <div class="q">Er klopt iets niet op een pagina, of je mist iets</div>
@@ -1962,7 +1997,7 @@ const HELP_POPOVER_HTML = `<!doctype html><html><head><meta charset="utf-8"><sty
     <div class="who">Neem contact op met <b>Laurens</b>.</div>
   </div>
   <div class="item hint">Twijfel je? Vraag het gewoon aan een van beiden.</div>
-  <div class="soon"><b>Binnenkort:</b> dan kun je een probleem ook direct hier melden. Houd deze knop dus in de gaten!</div>
+  <div class="soon" id="soon"><b>Binnenkort:</b> dan kun je een probleem ook direct hier melden. Houd deze knop dus in de gaten!</div>
 </div>
 <style id="theme-style"></style>
 <script>
@@ -1973,6 +2008,17 @@ const HELP_POPOVER_HTML = `<!doctype html><html><head><meta charset="utf-8"><sty
     document.getElementById('theme-style').textContent = themeCss || '';
   };
   window.measure = () => Math.ceil(document.body.getBoundingClientRect().height);
+  // Meldknoppen (in plaats van "stuur Nick een bericht") alleen als deze
+  // installatie een rapport-adres heeft; main.js vangt de klik op via
+  // console-message (dit venstertje heeft geen preload).
+  window.setReports = (on) => {
+    document.getElementById('report').hidden = !on;
+    document.getElementById('who-nick').hidden = on;
+    document.getElementById('soon').hidden = on;
+  };
+  for (const button of document.querySelectorAll('[data-melding]')) {
+    button.addEventListener('click', () => console.log('SG_MELDING:' + button.dataset.melding));
+  }
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') window.blur(); });
 </script></body></html>`;
 
@@ -1988,6 +2034,13 @@ function ensureHelpPopover() {
   helpPopover.setBackgroundColor('#00000000');
   helpPopover.webContents.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(HELP_POPOVER_HTML)}`);
   helpPopover.webContents.on('blur', () => closeHelpPopover());
+  helpPopover.webContents.on('console-message', (event) => {
+    const type = event.message.startsWith('SG_MELDING:') && event.message.slice('SG_MELDING:'.length);
+    if (type === 'bug' || type === 'idee') {
+      closeHelpPopover();
+      openMeldingForm(type).catch(() => {});
+    }
+  });
   helpPopover.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown' && input.key === 'Escape') closeHelpPopover();
   });
@@ -2008,7 +2061,7 @@ function closeHelpPopover() {
 async function openHelpPopover(anchor) {
   const view = ensureHelpPopover();
   if (view.webContents.isLoading()) await new Promise(resolve => view.webContents.once('did-finish-load', resolve));
-  await view.webContents.executeJavaScript(`setTheme(${darkActive()}, ${softActive()}, ${JSON.stringify(themes.helpPopoverThemeCss(activeTheme()))});`).catch(() => {});
+  await view.webContents.executeJavaScript(`setTheme(${darkActive()}, ${softActive()}, ${JSON.stringify(themes.helpPopoverThemeCss(activeTheme()))}); setReports(${telemetry.available()});`).catch(() => {});
   const height = await view.webContents.executeJavaScript('measure();').catch(() => 200);
   const { width: windowWidth } = mainWindow.getContentBounds();
   // Rechts uitgelijnd op de knop (het kaartje heeft 12px marge rondom).
@@ -2021,6 +2074,48 @@ async function openHelpPopover(anchor) {
   view.webContents.focus();
   mainWindow.webContents.send('help-popover-changed', true);
 }
+
+// ---------- Meldscherm (bug of idee, via het kevertje) ----------
+//
+// Eerst een schermafbeelding van de pagina waar je was (straks ligt het
+// meldscherm eroverheen), dan het scherm in de tabbalk openen. Versturen gaat
+// via telemetry.submitMelding: lukt het niet, dan later vanzelf.
+async function openMeldingForm(type) {
+  const view = tabs.get(activeTabId);
+  let screenshot = null;
+  let page = '';
+  if (view && !view.webContents.isDestroyed()) {
+    try {
+      const url = new URL(view.webContents.getURL());
+      if (isInternalUrl(url.href)) page = (url.pathname + url.search).slice(0, 300);
+      let image = await view.webContents.capturePage();
+      if (image.getSize().width > 1400) image = image.resize({ width: 1400, quality: 'good' });
+      for (const quality of [70, 50, 35]) {
+        const data = `data:image/jpeg;base64,${image.toJPEG(quality).toString('base64')}`;
+        if (data.length < 1400 * 1024) { screenshot = data; break; }
+      }
+    } catch {
+      // Geen schermafbeelding: de melding kan ook zonder.
+    }
+  }
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('open-melding', { type, screenshot, page });
+}
+
+ipcMain.handle('send-melding', async (event, melding) => {
+  if (event.sender !== mainWindow.webContents || !melding || typeof melding !== 'object') return 'invalid';
+  const clean = {
+    type: melding.type === 'idee' ? 'idee' : 'bug',
+    title: String(melding.title || '').slice(0, 120),
+    text: String(melding.text || '').slice(0, 5000),
+    name: String(melding.name || '').slice(0, 80),
+    page: String(melding.page || '').slice(0, 300),
+    screenshot: typeof melding.screenshot === 'string' && melding.screenshot.startsWith('data:image/jpeg;base64,') ? melding.screenshot : null,
+    theme: activeTheme(),
+    dark: darkActive()
+  };
+  if (!clean.title.trim() && !clean.text.trim()) return 'invalid';
+  return telemetry.submitMelding(clean);
+});
 
 ipcMain.on('toggle-help-popover', (event, anchor) => {
   if (event.sender !== mainWindow.webContents || !anchor) return;
@@ -2098,6 +2193,7 @@ function removeTabFromBar(tabId, view) {
   lockedTabs.delete(tabId);
   internalNavigations.delete(tabId);
   tabNotificationCounts.delete(tabId);
+  telemetry.forgetTab(tabId);
   for (const map of [parentTabs, previousTabs]) {
     map.delete(tabId);
     for (const [id, otherTabId] of map) {
@@ -2178,6 +2274,49 @@ function pagePath(url) {
 
 // Staat deze pagina al in een andere tab open? Dan daarheen i.p.v. een
 // dubbele tab. De tab waar de link vandaan komt telt niet mee.
+// ---------- Anonieme gebruiksgegevens ----------
+//
+// Zie telemetry.js: welk thema, welke pagina-soorten, hoeveel CPU en geheugen.
+// Alleen met telemetry.config.json naast de app (adres + sleutel van
+// tools/rapport-server, niet in git) én de schakelaar in Instellingen aan.
+const telemetryConfig = loadConfig(__dirname);
+const telemetry = createTelemetry({
+  dir: app.getPath('userData'),
+  appVersion: app.getVersion(),
+  config: telemetryConfig,
+  isEnabled: () => appSettings.telemetry,
+  // CPU: 100 = één hele kern. Het deel van de pagina waar je op staat komt
+  // van het proces van die tab (kan ook andere tabs van dezelfde site omvatten).
+  getMetrics: () => {
+    const view = tabs.get(activeTabId);
+    const pid = view && !view.webContents.isDestroyed() ? view.webContents.getOSProcessId() : -1;
+    let totalCpu = 0;
+    let activeCpu = 0;
+    let memKb = 0;
+    for (const metric of app.getAppMetrics()) {
+      totalCpu += metric.cpu.percentCPUUsage;
+      memKb += metric.memory.workingSetSize;
+      if (metric.pid === pid) activeCpu += metric.cpu.percentCPUUsage;
+    }
+    const windowFocused = !!mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused() && !mainWindow.isMinimized();
+    // Voorgrond = een van de app-vensters (ook een los venster) heeft de focus.
+    const anyFocused = !!BrowserWindow.getFocusedWindow() && !(mainWindow && !mainWindow.isDestroyed() && mainWindow.isMinimized());
+    return { totalCpu, activeCpu, memMb: memKb / 1024, windowFocused, anyFocused };
+  },
+  getActive: () => {
+    const view = tabs.get(activeTabId);
+    return view && !view.webContents.isDestroyed() ? pageKind(view.webContents.getURL()) : null;
+  },
+  getSnapshot: () => ({
+    theme: activeTheme(), dark: darkActive(), themeMode: appSettings.themeMode, soft: softActive(),
+    zoom: Math.round(appSettings.zoomFactor * 100) / 100, tabBarDisabled: appSettings.tabBarDisabled,
+    allLinksNewTab: appSettings.openAllLinksInNewTab, beta: appSettings.betaUpdates,
+    notifications: appSettings.windowsNotifications, notClocked: appSettings.notClockedMode,
+    tabs: tabs.size, detached: detachedWindows.size, startTabs: appSettings.startTabs.length,
+    groups: appSettings.tabGroups.length, displays: screen.getAllDisplays().length
+  })
+});
+
 // ---------- Meldingen (belletje van de webapp) ----------
 //
 // Elke tab meldt het getal bij het belletje (ELECTRON_BADGE). Alle tabs tonen
@@ -2623,6 +2762,9 @@ ipcMain.handle('get-settings', (event) => {
       && appSettings.lastSeenChangelogVersion !== app.getVersion(),
     blockCtrlB: appSettings.blockCtrlB,
     windowsNotifications: appSettings.windowsNotifications,
+    telemetry: appSettings.telemetry,
+    telemetryAvailable: !!telemetryConfig,
+    debugUnlocked: appSettings.debugUnlocked,
     notClockedMode: appSettings.notClockedMode,
     // Keuzescherm (thema + klokmelding) al gezien? Zonder dit veld dacht
     // index.html bij elke start van niet en kwam het scherm steeds terug.
@@ -2755,6 +2897,160 @@ ipcMain.on('set-block-ctrl-b', (event, value) => {
 ipcMain.on('set-windows-notifications', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
   appSettings.windowsNotifications = !!value;
+  saveSettings();
+});
+// ---------- Beheer: rapport-server in de app ----------
+//
+// Instellingen > Debug > Beheer. Ontgrendelen met een eigen wachtwoord: de
+// eerste keer kies je het, daarna alleen nog de scrypt-hash in settings.json
+// (nooit het wachtwoord zelf, en niets in de code). Ingelogd blijft ingelogd
+// na een herstart, tot je vergrendelt. Wachtwoord vergeten: adminPasswordHash
+// in settings.json leegmaken.
+//
+// De server (rapport/server.js) gebruikt als sleutel voor het insturen die
+// uit telemetry.config.json, dezelfde die de apps van collega's hebben. De
+// leessleutel voor het overzicht maken we bij elke start opnieuw aan en
+// staat alleen in het geheugen.
+const RAPPORT_VIEW_KEY = crypto.randomBytes(24).toString('hex');
+const RAPPORT_DATA_DIR = path.join(app.getPath('userData'), 'rapport-data');
+let rapportServer = null;
+let rapportError = '';
+
+function rapportPort() {
+  try { return Number(new URL(telemetryConfig.url).port) || 8787; } catch { return 8787; }
+}
+
+// Meldingen die op schijf staan, ook als de server uit staat.
+function countStoredMeldingen() {
+  try { return fs.readdirSync(path.join(RAPPORT_DATA_DIR, 'meldingen')).filter(name => name.endsWith('.json')).length; } catch { return 0; }
+}
+
+// Nieuwe meldingen: open (niet gearchiveerd) en binnengekomen na het laatste
+// keer kijken. Alleen terwijl de server draait (en je bent ingelogd): zo ziet
+// niemand anders dit balletje, want alleen bij jou draait de server.
+function unseenMeldingen() {
+  if (!appSettings.adminUnlocked || !rapportServer || !rapportServer.running()) return 0;
+  const dir = path.join(RAPPORT_DATA_DIR, 'meldingen');
+  // Bestandsnamen beginnen met het tijdstip van binnenkomst (zelfde opmaak,
+  // dus op naam te vergelijken): alleen wat na het laatste kijken kwam hoeft
+  // gelezen te worden, hoeveel meldingen er ook in totaal zijn.
+  const since = new Date(appSettings.rapportSeenAt).toISOString().replace(/[:.]/g, '-');
+  let count = 0;
+  try {
+    for (const name of fs.readdirSync(dir).filter(n => n.endsWith('.json') && n > since)) {
+      if (!JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8')).archivedAt) count += 1;
+    }
+  } catch { /* geen map of een kapot bestand: tel gewoon wat er is */ }
+  return count;
+}
+
+function sendRapportBadge() {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('rapport-badge', unseenMeldingen());
+}
+
+function rapportStatus() {
+  const running = !!rapportServer && rapportServer.running();
+  return {
+    unlocked: appSettings.adminUnlocked,
+    hasPassword: !!appSettings.adminPasswordHash,
+    available: !!telemetryConfig,
+    running,
+    autostart: appSettings.rapportServerAutostart,
+    lockOnRestart: appSettings.adminLockOnRestart,
+    stored: countStoredMeldingen(),
+    unseen: unseenMeldingen(),
+    address: `${os.hostname()}:${rapportPort()}`,
+    dataDir: RAPPORT_DATA_DIR,
+    error: rapportError,
+    dashboardUrl: running ? `http://localhost:${rapportPort()}/?key=${RAPPORT_VIEW_KEY}` : null
+  };
+}
+
+async function startRapportServer() {
+  if (!telemetryConfig) {
+    rapportError = 'Deze installatie heeft geen telemetry.config.json, dus geen sleutel voor de server.';
+    return;
+  }
+  try {
+    rapportServer = rapportServer || createRapportServer({
+      token: telemetryConfig.token, viewToken: RAPPORT_VIEW_KEY, port: rapportPort(), dataDir: RAPPORT_DATA_DIR,
+      log: (line) => console.log(`[Rapport] ${line}`),
+      onMelding: sendRapportBadge
+    });
+    await rapportServer.start();
+    rapportError = '';
+    sendRapportBadge();
+  } catch (error) {
+    rapportError = error && error.code === 'EADDRINUSE'
+      ? `Poort ${rapportPort()} is al in gebruik. Draait de losse server (npm run rapport) nog?`
+      : `Starten lukt niet: ${error && error.message}`;
+  }
+}
+
+async function stopRapportServer() {
+  if (rapportServer) await rapportServer.stop();
+  sendRapportBadge(); // server uit: geen balletje
+}
+
+function hashPassword(password, salt = crypto.randomBytes(16)) {
+  return `${salt.toString('hex')}:${crypto.scryptSync(password, salt, 32).toString('hex')}`;
+}
+
+function passwordMatches(password, stored) {
+  const [saltHex, hashHex] = String(stored).split(':');
+  if (!saltHex || !hashHex) return false;
+  const expected = Buffer.from(hashHex, 'hex');
+  const actual = crypto.scryptSync(password, Buffer.from(saltHex, 'hex'), expected.length);
+  return crypto.timingSafeEqual(expected, actual);
+}
+
+ipcMain.handle('admin-status', (event) => (event.sender === mainWindow.webContents ? rapportStatus() : null));
+
+ipcMain.handle('admin-unlock', (event, password) => {
+  if (event.sender !== mainWindow.webContents || typeof password !== 'string') return { ok: false };
+  if (!appSettings.adminPasswordHash) {
+    if (password.length < 6) return { ok: false, reason: 'kort' };
+    appSettings.adminPasswordHash = hashPassword(password); // eerste keer: dit wordt het wachtwoord
+  } else if (!passwordMatches(password, appSettings.adminPasswordHash)) {
+    return { ok: false, reason: 'fout' };
+  }
+  appSettings.adminUnlocked = true;
+  saveSettings();
+  return { ok: true, status: rapportStatus() };
+});
+
+
+ipcMain.handle('rapport-server', async (event, action) => {
+  if (event.sender !== mainWindow.webContents || !appSettings.adminUnlocked) return null;
+  if (action === 'seen') {
+    appSettings.rapportSeenAt = Date.now();
+    saveSettings();
+    sendRapportBadge();
+  }
+  if (action === 'start') await startRapportServer();
+  if (action === 'stop') await stopRapportServer();
+  if (action === 'lock-on' || action === 'lock-off') {
+    appSettings.adminLockOnRestart = action === 'lock-on';
+    saveSettings();
+  }
+  if (action === 'autostart-on' || action === 'autostart-off') {
+    appSettings.rapportServerAutostart = action === 'autostart-on';
+    saveSettings();
+  }
+  return rapportStatus();
+});
+
+// Gewone versie: Debug pas zichtbaar na Ctrl+Shift+Alt+D (index.html); de
+// app onthoudt dat. De debugpoort en testschermen blijven alleen in bèta/npm start.
+ipcMain.on('unlock-debug', (event) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.debugUnlocked = true;
+  saveSettings();
+});
+
+ipcMain.on('set-telemetry', (event, value) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.telemetry = !!value;
   saveSettings();
 });
 ipcMain.on('set-not-clocked-mode', (event, mode) => {
@@ -3408,6 +3704,7 @@ let closeAnimationRunning = false;
 // de animatie: dan niet (nog eens) animeren.
 app.on('before-quit', () => {
   appQuitting = true;
+  telemetry.flush({ final: true });
 });
 
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -3822,6 +4119,8 @@ app.whenReady().then(() => {
   });
 
   loadSettings();
+  telemetry.start();
+  if (appSettings.adminUnlocked && appSettings.rapportServerAutostart) startRapportServer();
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

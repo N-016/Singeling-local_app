@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const incomingChannels = ['open-link-field', 'dark-mode-changed', 'update-notice-show', 'update-notice-state', 'update-notice-hide', 'tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed', 'help-popover-changed', 'chrome-theme-changed', 'tab-modal', 'notification-count'];
+const incomingChannels = ['open-link-field', 'dark-mode-changed', 'update-notice-show', 'update-notice-state', 'update-notice-hide', 'tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed', 'help-popover-changed', 'chrome-theme-changed', 'tab-modal', 'notification-count', 'open-melding', 'rapport-badge'];
 
 contextBridge.exposeInMainWorld('electronAPI', {
   switchTab: (tabId) => ipcRenderer.send('switch-tab', tabId),
@@ -24,6 +24,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setShowOnboarding: (value) => ipcRenderer.send('set-show-onboarding', value),
   setBlockCtrlB: (value) => ipcRenderer.send('set-block-ctrl-b', value),
   setWindowsNotifications: (value) => ipcRenderer.send('set-windows-notifications', value),
+  setTelemetry: (value) => ipcRenderer.send('set-telemetry', value),
+  sendMelding: (melding) => ipcRenderer.invoke('send-melding', melding),
+  adminStatus: () => ipcRenderer.invoke('admin-status'),
+  adminUnlock: (password) => ipcRenderer.invoke('admin-unlock', password),
+  rapportServer: (action) => ipcRenderer.invoke('rapport-server', action),
+  unlockDebug: () => ipcRenderer.send('unlock-debug'),
   setNotClockedMode: (mode) => ipcRenderer.send('set-not-clocked-mode', mode),
   markSetupDone: (version) => ipcRenderer.send('mark-setup-done', version),
   debugSimulateStart: (scenario) => ipcRenderer.send('debug-simulate-start', scenario),

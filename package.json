@@ -6,10 +6,10 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node scripts/test-rules.js",
+    "test": "node scripts/test-rules.js && node scripts/test-telemetry.js && node scripts/test-server.js",
     "check:themes": "node scripts/check-themes.js",
     "previews": "electron scripts/theme-previews.js",
-    "prebuild": "node scripts/test-rules.js && node scripts/check-themes.js",
+    "prebuild": "npm test && node scripts/check-themes.js",
     "build": "electron-builder"
   },
   "keywords": [],

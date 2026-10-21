@@ -22,3 +22,17 @@ assert.equal(criticalUpdateFrom(release('<p>Dit is geen kritieke update.</p>'), 
 assert.deepEqual(criticalUpdateFrom(release('Kritieke update'), '1.3.0'), { reason: '' });
 
 console.log('rules.js: alle controles geslaagd');
+
+// Pagina-soort voor de gebruiksgegevens: nooit een ordernummer of klant erin.
+const { pageKind } = require('../rules');
+assert.equal(pageKind('https://snglng.lovable.app/sales-orders/30044?tab=kwaliteit'), '/sales-orders/:id');
+assert.equal(pageKind('https://snglng.lovable.app/qrm-connect'), '/qrm-connect');
+assert.equal(pageKind('https://snglng.lovable.app/dashboard-wvb-3'), '/dashboard-wvb-3');
+assert.equal(pageKind('https://snglng.lovable.app/customers/3360'), '/customers/:id');
+assert.equal(pageKind('https://snglng.lovable.app/sales-orders/IOR67916'), '/sales-orders/:id');
+assert.equal(pageKind('https://snglng.lovable.app/x/550e8400-e29b-41d4-a716-446655440000'), '/x/:id');
+assert.equal(pageKind('https://snglng.lovable.app/'), '/');
+assert.equal(pageKind('https://snglng.lovable.app/a/b/c/d/e'), '/a/b/c');
+assert.equal(pageKind('https://evil.com/sales-orders/1'), null);
+assert.equal(pageKind('niet een url'), null);
+console.log('pageKind: alle controles geslaagd');

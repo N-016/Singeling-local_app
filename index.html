@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src http://localhost:*">
   <title>Singeling App</title>
   <style>
     /* Kleuren van de app-chrome (tabbalk, instellingen, meldingen). Donker is
@@ -539,6 +539,23 @@
       display: block;
     }
 
+    /* Nieuwe melding in Beheer: linksboven op het moersleuteltje, in het accent. */
+    .report-badge {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 2px var(--bar-bg);
+      animation: badge-in 0.4s var(--ease);
+    }
+
+    .report-badge[hidden] {
+      display: none;
+    }
+
     .update-badge {
       position: absolute;
       top: 4px;
@@ -1062,6 +1079,11 @@
       max-width: 620px;
     }
 
+    /* Debug met Beheer: zo breed als het scherm toelaat, voor het overzicht. */
+    .settings-section[data-section="debug"] {
+      max-width: 1400px;
+    }
+
     /* Thema's: breder, zodat een groep op één rij past en je minder scrolt. */
     /* Thema's: zelfde opbouw als in de instelassistent (per groep links de
        titel, rechts de kaartjes op één rij), breder dan de andere tabbladen. */
@@ -1352,6 +1374,77 @@
 
     #settings-nav-debug.hidden {
       display: none;
+    }
+
+    /* Beheer (in Debug): status van de rapport-server en het overzicht. */
+    .beheer {
+      margin-bottom: 22px;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) + 4px);
+      background: var(--surface);
+    }
+
+    .beheer h4 {
+      margin: 0 0 6px;
+      font-size: 14px;
+    }
+
+    .beheer-server {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 6px 0 4px;
+    }
+
+    .beheer-dot {
+      flex: 0 0 auto;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text-faint);
+    }
+
+    .beheer-dot.on {
+      background: #2e9d5b;
+    }
+
+    .beheer-server-text {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+    }
+
+    #beheer-frame {
+      display: block;
+      width: 100%;
+      height: 70vh;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+
+    #beheer-frame[hidden] {
+      display: none;
+    }
+
+    .beheer-unlock {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .beheer-unlock input {
+      flex: 1;
+      max-width: 320px;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--field-bg);
+      color: var(--text);
+      font: inherit;
     }
 
     .settings-nav-item .nav-beta {
@@ -1901,6 +1994,94 @@
 
     #changelog-overlay.hidden {
       display: none;
+    }
+
+    /* Meldscherm (bug of idee, via het kevertje): zelfde venster als de changelog. */
+    #melding-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: var(--overlay);
+      animation: fade-in 0.2s var(--ease);
+      -webkit-app-region: no-drag;
+    }
+
+    #melding-overlay.hidden {
+      display: none;
+    }
+
+    .melding-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px 18px 18px;
+      overflow-y: auto;
+    }
+
+    .melding-form label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12.5px;
+      color: var(--text-2);
+    }
+
+    .melding-form input[type="text"],
+    .melding-form textarea {
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--field-bg);
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .melding-form textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .melding-form input:focus-visible,
+    .melding-form textarea:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -1px;
+    }
+
+    .melding-attach {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: start;
+      font-size: 12.5px;
+      color: var(--text-2);
+    }
+
+    .melding-attach img {
+      grid-column: 1 / -1;
+      max-width: 100%;
+      max-height: 160px;
+      object-fit: contain;
+      object-position: left;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+
+    .melding-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .melding-status {
+      margin-right: auto;
+      font-size: 12.5px;
+      color: var(--text-muted);
     }
 
     .changelog-panel {
@@ -3660,6 +3841,7 @@
           <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
         </svg>
         <span id="settings-update-badge" class="update-badge hidden" title="Update beschikbaar"></span>
+        <span id="settings-report-badge" class="report-badge" title="Nieuwe melding" hidden></span>
       </button>
       <div id="window-controls">
         <button id="window-minimize" class="window-control" type="button" title="Minimaliseren" aria-label="Minimaliseren">
@@ -3765,6 +3947,14 @@
           <span class="settings-hint">Komt er iets bij het belletje bij terwijl je niet in de app zit, dan krijg je een melding rechtsonder in Windows; klik erop om de app te openen. Zit je wel in de app, dan zie je een berichtje in de app zelf. Het aantal op het taakbalkicoon blijft altijd zichtbaar.</span>
         </span>
         <input type="checkbox" class="switch" id="windows-notifications-checkbox">
+      </label>
+      <!-- Alleen zichtbaar als deze installatie een rapport-adres heeft (telemetry.config.json). -->
+      <label class="general-toggle" id="telemetry-row" hidden>
+        <span class="toggle-text">
+          Anonieme gebruiksgegevens delen
+          <span class="settings-hint">Anoniem: geen naam en geen inhoud van pagina's. We delen processor- en geheugengebruik, crashes, je appversie en welke onderdelen van de app je gebruikt.</span>
+        </span>
+        <input type="checkbox" class="switch" id="telemetry-checkbox">
       </label>
     </div>
 
@@ -3890,7 +4080,45 @@
     </div>
     <div class="settings-section hidden" data-section="debug">
       <h3>Debug</h3>
-      <p class="settings-intro">Alleen zichtbaar in een bètaversie of als je de app vanuit de code start (npm start).</p>
+      <!-- Beheer: rapport-server in de app (main.js "Beheer: rapport-server in de app"). -->
+      <div class="beheer">
+        <h4>Beheer</h4>
+        <div id="beheer-login">
+          <p class="settings-hint" id="beheer-login-hint"></p>
+          <span class="beheer-unlock">
+            <input type="password" id="beheer-code" autocomplete="new-password">
+            <button type="button" id="beheer-unlock-btn">Ontgrendelen</button>
+          </span>
+          <p class="settings-hint" id="beheer-status" role="status"></p>
+        </div>
+        <div id="beheer-panel" hidden>
+          <div class="beheer-server">
+            <span class="beheer-dot" id="beheer-dot" aria-hidden="true"></span>
+            <span class="beheer-server-text">
+              <strong id="beheer-server-title">Rapport-server staat uit</strong>
+              <span class="settings-hint" id="beheer-server-hint"></span>
+            </span>
+            <button type="button" id="beheer-server-btn">Starten</button>
+          </div>
+          <label class="general-toggle">
+            <span class="toggle-text">
+              Automatisch starten met de app
+              <span class="settings-hint">Dan staat de server aan zolang de app op deze pc openstaat, en komen meldingen en gegevens van collega's vanzelf binnen.</span>
+            </span>
+            <input type="checkbox" class="switch" id="beheer-autostart">
+          </label>
+          <label class="general-toggle">
+            <span class="toggle-text">
+              Vergrendelen bij het opnieuw starten van de app
+              <span class="settings-hint">Uit: je blijft ingelogd. Aan: na elke herstart vraagt Beheer weer om je wachtwoord.</span>
+            </span>
+            <input type="checkbox" class="switch" id="beheer-lock-restart">
+          </label>
+          <iframe id="beheer-frame" title="Overzicht van gebruik en meldingen" hidden></iframe>
+        </div>
+      </div>
+      <div id="debug-dev">
+      <p class="settings-intro">Alleen in een bètaversie of als je de app vanuit de code start (npm start).</p>
       <label class="general-toggle">
         <span class="toggle-text">
           Debugpoort openzetten
@@ -3904,6 +4132,7 @@
         <button id="debug-sim-install" type="button">Scherm nieuwe installatie</button>
       </div>
       <p class="settings-hint">De themapagina en het thema-nieuws verschijnen alleen met "Bèta-versies ontvangen" aan (Updates), net als bij gebruikers.</p>
+      </div>
     </div>
 
     <div class="settings-section hidden" data-section="start">
@@ -3941,6 +4170,42 @@
         <button id="changelog-close" type="button" aria-label="Sluiten">&times;</button>
       </div>
       <pre id="changelog-content" class="changelog-content"></pre>
+    </div>
+  </section>
+
+  <!-- Meldscherm: bug of idee insturen via het kevertje (zie openMeldingForm
+       in main.js). Gaat naar de rapport-server; lukt dat niet, dan later. -->
+  <section id="melding-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="melding-title">
+    <div class="changelog-panel">
+      <div class="changelog-header">
+        <h2 id="melding-title">Bug melden</h2>
+        <button id="melding-close" type="button" aria-label="Sluiten">&times;</button>
+      </div>
+      <form class="melding-form" id="melding-form">
+        <div class="choice-group" role="radiogroup" aria-label="Soort melding">
+          <button type="button" role="radio" data-melding-type="bug" aria-checked="true">Bug</button>
+          <button type="button" role="radio" data-melding-type="idee" aria-checked="false">Idee</button>
+        </div>
+        <label>Waar gaat het over?
+          <input type="text" id="melding-titel" maxlength="120" autocomplete="off">
+        </label>
+        <label>Vertel het iets uitgebreider
+          <textarea id="melding-tekst" maxlength="5000"></textarea>
+        </label>
+        <label>Je naam (niet verplicht; dan kan Nick je even vragen hoe het zit)
+          <input type="text" id="melding-naam" maxlength="80" autocomplete="name">
+        </label>
+        <div class="melding-attach" id="melding-attach">
+          <input type="checkbox" class="switch" id="melding-bijlage" checked>
+          <span>Stuur de pagina waar je was en een schermafbeelding mee <span id="melding-pagina"></span></span>
+          <img id="melding-shot" alt="Schermafbeelding die wordt meegestuurd">
+        </div>
+        <div class="melding-actions">
+          <span class="melding-status" id="melding-status" role="status"></span>
+          <button type="button" id="melding-cancel">Annuleren</button>
+          <button type="submit" id="melding-send">Versturen</button>
+        </div>
+      </form>
     </div>
   </section>
 
@@ -4383,6 +4648,7 @@
       setupDoneVersion = settings.setupVersion || 0;
       preferencesChosen = !!settings.preferencesChosen;
       themesOffered = !!settings.themesAvailable;
+      reportsAvailable = !!settings.telemetryAvailable;
     });
 
     // Zonder thema's en met het oude keuzescherm al gezien valt er niets
@@ -4728,7 +4994,16 @@
       bell: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>',
       contrast: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>'
     };
+    let reportsAvailable = false; // melden kan alleen met een rapport-adres (telemetry.config.json)
     const WHATS_NEW = [
+      {
+        id: '2026-10-melden',
+        since: '1.3.0',
+        when: () => reportsAvailable,
+        features: [
+          { iconFrom: '#help-btn', title: 'Bug of idee melden', text: 'Klik op het kevertje bovenin en kies "Bug melden" of "Idee insturen". Je schermafbeelding gaat mee, en Nick ziet het meteen.' }
+        ]
+      },
       {
         id: '2026-10-meldingen-tabs',
         since: '1.3.0',
@@ -4768,7 +5043,7 @@
     ];
     // Komt iemand van ver terug, dan blijft de pagina kort: de nieuwste
     // punten, de rest staat in "Wat is er nog meer nieuw?".
-    const WHATS_NEW_MAX_FEATURES = 5;
+    const WHATS_NEW_MAX_FEATURES = 6;
 
     // Blokken die gelden en nog niet gezien zijn, nieuwste eerst.
     function unseenWhatsNew(seenIds) {
@@ -5627,6 +5902,8 @@
         renderTabBarDisabled(settings.tabBarDisabled);
         blockCtrlBCheckbox.checked = !!settings.blockCtrlB;
         windowsNotificationsCheckbox.checked = settings.windowsNotifications !== false;
+        document.getElementById('telemetry-row').hidden = !settings.telemetryAvailable;
+        telemetryCheckbox.checked = settings.telemetry !== false;
         renderNotClockedChoice(settings.notClockedMode);
         renderThemeSchedule(settings);
         softColorsCheckbox.checked = !!settings.softColors;
@@ -5698,7 +5975,8 @@
     const DEBUG_FROM_VERSION = '1.2.4';
     const debugPortCheckbox = document.getElementById('debug-port-checkbox');
     startupSettings.then(settings => {
-      document.getElementById('settings-nav-debug').classList.toggle('hidden', !(settings && settings.debugAvailable));
+      document.getElementById('settings-nav-debug').classList.toggle('hidden', !(settings && (settings.debugAvailable || settings.debugUnlocked)));
+      document.getElementById('debug-dev').hidden = !(settings && settings.debugAvailable);
       if (!settings) return;
       debugPortCheckbox.checked = !!settings.debugPort;
       if (settings.debugPort) {
@@ -5726,6 +6004,7 @@
     const openAllLinksNewTabCheckbox = document.getElementById('open-all-links-new-tab-checkbox');
     const blockCtrlBCheckbox = document.getElementById('block-ctrl-b-checkbox');
     const windowsNotificationsCheckbox = document.getElementById('windows-notifications-checkbox');
+    const telemetryCheckbox = document.getElementById('telemetry-checkbox');
 
     openAllLinksNewTabCheckbox.addEventListener('change', () => {
       window.electronAPI.setOpenAllLinksInNewTab(openAllLinksNewTabCheckbox.checked);
@@ -5784,6 +6063,94 @@
 
     blockCtrlBCheckbox.addEventListener('change', () => {
       window.electronAPI.setBlockCtrlB(blockCtrlBCheckbox.checked);
+    });
+
+    // ---------- Beheer (in Debug) ----------
+    // Gewone versie: Debug verschijnt met Ctrl+Shift+Alt+D (in de tabbalk of
+    // Instellingen), en blijft daarna zichtbaar (main.js unlock-debug).
+    document.addEventListener('keydown', (event) => {
+      if (!(event.ctrlKey && event.shiftKey && event.altKey && event.code === 'KeyD')) return;
+      event.preventDefault();
+      window.electronAPI.unlockDebug();
+      document.getElementById('settings-nav-debug').classList.remove('hidden');
+      openSettingsPanel().then(() => setSettingsSection('debug')).catch(() => {});
+    });
+
+    function renderBeheer(status) {
+      if (!status) return;
+      document.getElementById('beheer-login').hidden = status.unlocked;
+      document.getElementById('beheer-panel').hidden = !status.unlocked;
+      document.getElementById('beheer-login-hint').textContent = status.hasPassword
+        ? 'Voor de beheerder: vul je wachtwoord in om de rapport-server en het overzicht met gebruik en meldingen te openen.'
+        : 'Voor de beheerder: kies een wachtwoord (minstens 6 tekens). Daarmee open je voortaan de rapport-server en het overzicht. Alleen een versleutelde versie wordt op deze pc bewaard.';
+      document.getElementById('beheer-code').placeholder = status.hasPassword ? 'Wachtwoord' : 'Kies een wachtwoord';
+      document.getElementById('beheer-dot').classList.toggle('on', status.running);
+      document.getElementById('beheer-server-title').textContent = status.running ? 'Rapport-server draait' : 'Rapport-server staat uit';
+      document.getElementById('beheer-server-hint').textContent = status.error
+        || (status.running ? `Collega's sturen naar ${status.address}. Gegevens in ${status.dataDir}.`
+          : status.available ? `Start hem om de overzichten en meldingen te zien en om nieuwe te ontvangen.${status.stored ? ` Er ${status.stored === 1 ? 'staat' : 'staan'} al ${status.stored} ${status.stored === 1 ? 'melding' : 'meldingen'} opgeslagen.` : ''}`
+          : 'Deze installatie heeft geen rapport-adres.');
+      const button = document.getElementById('beheer-server-btn');
+      button.textContent = status.running ? 'Stoppen' : 'Starten';
+      button.disabled = !status.available;
+      document.getElementById('beheer-autostart').checked = status.autostart;
+      document.getElementById('beheer-lock-restart').checked = status.lockOnRestart;
+      const frame = document.getElementById('beheer-frame');
+      frame.hidden = !status.dashboardUrl;
+      if (status.dashboardUrl && frame.dataset.src !== status.dashboardUrl) { frame.dataset.src = status.dashboardUrl; frame.src = status.dashboardUrl; }
+      if (!status.dashboardUrl) { frame.removeAttribute('src'); delete frame.dataset.src; }
+    }
+    // Balletje bij het moersleuteltje bij een nieuwe melding (alleen op de pc
+    // waar de server draait, zie main.js unseenMeldingen).
+    function renderReportBadge(count) {
+      const badge = document.getElementById('settings-report-badge');
+      badge.hidden = !count;
+      badge.title = count === 1 ? '1 nieuwe melding' : `${count} nieuwe meldingen`;
+    }
+    window.electronAPI.on('rapport-badge', renderReportBadge);
+    // Het overzicht (frame) meldt dat je het tabblad Meldingen opent.
+    window.addEventListener('message', (event) => {
+      if (event.source === document.getElementById('beheer-frame').contentWindow && event.data && event.data.type === 'melding-seen') {
+        window.electronAPI.rapportServer('seen');
+      }
+    });
+    const refreshBeheer = async () => {
+      const status = await window.electronAPI.adminStatus();
+      renderBeheer(status);
+      if (status) renderReportBadge(status.unseen);
+    };
+    document.getElementById('settings-nav-debug').addEventListener('click', refreshBeheer);
+    refreshBeheer();
+
+    document.getElementById('beheer-unlock-btn').addEventListener('click', async () => {
+      const input = document.getElementById('beheer-code');
+      const status = document.getElementById('beheer-status');
+      if (!input.value) return;
+      const result = await window.electronAPI.adminUnlock(input.value);
+      input.value = '';
+      if (result.ok) {
+        status.textContent = '';
+        renderBeheer(result.status);
+      } else {
+        status.textContent = result.reason === 'kort' ? 'Kies een wachtwoord van minstens 6 tekens.' : 'Dit wachtwoord klopt niet.';
+      }
+    });
+    document.getElementById('beheer-code').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') document.getElementById('beheer-unlock-btn').click();
+    });
+    document.getElementById('beheer-server-btn').addEventListener('click', async (event) => {
+      event.currentTarget.disabled = true;
+      renderBeheer(await window.electronAPI.rapportServer(event.currentTarget.textContent === 'Stoppen' ? 'stop' : 'start'));
+    });
+    document.getElementById('beheer-autostart').addEventListener('change', async (event) => {
+      renderBeheer(await window.electronAPI.rapportServer(event.target.checked ? 'autostart-on' : 'autostart-off'));
+    });
+    document.getElementById('beheer-lock-restart').addEventListener('change', async (event) => {
+      renderBeheer(await window.electronAPI.rapportServer(event.target.checked ? 'lock-on' : 'lock-off'));
+    });
+
+        telemetryCheckbox.addEventListener('change', () => {
+      window.electronAPI.setTelemetry(telemetryCheckbox.checked);
     });
 
     windowsNotificationsCheckbox.addEventListener('change', () => {
@@ -6432,6 +6799,82 @@
       changelogOverlay.classList.add('hidden');
       window.electronAPI.notifyChangelogNoticeClosed();
     }
+
+    // ---------- Meldscherm (bug of idee) ----------
+    const meldingOverlay = document.getElementById('melding-overlay');
+    const meldingForm = document.getElementById('melding-form');
+    const meldingTitel = document.getElementById('melding-titel');
+    const meldingTekst = document.getElementById('melding-tekst');
+    const meldingStatus = document.getElementById('melding-status');
+    const meldingSend = document.getElementById('melding-send');
+    const MELDING_TEXT = {
+      bug: { title: 'Bug melden', titel: 'Bijvoorbeeld: factuur maken geeft een foutmelding', tekst: 'Wat deed je, wat gebeurde er en wat had je verwacht?' },
+      idee: { title: 'Idee insturen', titel: 'Bijvoorbeeld: zoeken op klantnaam in de tabbalk', tekst: 'Wat zou je willen, en waarom helpt dat?' }
+    };
+    let meldingType = 'bug';
+    let meldingCapture = { screenshot: null, page: '' };
+
+    function setMeldingType(type) {
+      meldingType = type;
+      for (const button of document.querySelectorAll('[data-melding-type]')) button.setAttribute('aria-checked', String(button.dataset.meldingType === type));
+      document.getElementById('melding-title').textContent = MELDING_TEXT[type].title;
+      meldingTitel.placeholder = MELDING_TEXT[type].titel;
+      meldingTekst.placeholder = MELDING_TEXT[type].tekst;
+    }
+    for (const button of document.querySelectorAll('[data-melding-type]')) {
+      button.addEventListener('click', () => setMeldingType(button.dataset.meldingType));
+    }
+
+    window.electronAPI.on('open-melding', ({ type, screenshot, page }) => {
+      meldingCapture = { screenshot, page };
+      meldingForm.reset();
+      setMeldingType(type);
+      meldingStatus.textContent = '';
+      meldingSend.disabled = false;
+      document.getElementById('melding-pagina').textContent = page ? `(${page})` : '';
+      const shot = document.getElementById('melding-shot');
+      shot.hidden = !screenshot;
+      if (screenshot) shot.src = screenshot;
+      document.getElementById('melding-attach').hidden = !screenshot && !page;
+      meldingOverlay.classList.remove('hidden');
+      window.electronAPI.notifyChangelogNoticeOpened(); // pagina's eronder verbergen
+      meldingTitel.focus();
+    });
+
+    function closeMelding() {
+      if (meldingOverlay.classList.contains('hidden')) return;
+      meldingOverlay.classList.add('hidden');
+      window.electronAPI.notifyChangelogNoticeClosed();
+    }
+    document.getElementById('melding-close').addEventListener('click', closeMelding);
+    document.getElementById('melding-cancel').addEventListener('click', closeMelding);
+    meldingOverlay.addEventListener('click', (event) => { if (event.target === meldingOverlay) closeMelding(); });
+    meldingOverlay.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeMelding(); });
+
+    meldingForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!meldingTitel.value.trim() && !meldingTekst.value.trim()) {
+        meldingStatus.textContent = 'Schrijf kort waar het over gaat.';
+        meldingTitel.focus();
+        return;
+      }
+      const attach = document.getElementById('melding-bijlage').checked;
+      meldingSend.disabled = true;
+      meldingStatus.textContent = 'Versturen…';
+      const result = await window.electronAPI.sendMelding({
+        type: meldingType,
+        title: meldingTitel.value,
+        text: meldingTekst.value,
+        name: document.getElementById('melding-naam').value,
+        page: attach ? meldingCapture.page : '',
+        screenshot: attach ? meldingCapture.screenshot : null
+      }).catch(() => 'queued');
+      meldingStatus.textContent = result === 'sent' ? 'Verstuurd, dank je wel!'
+        : result === 'queued' ? 'Opgeslagen. Hij gaat vanzelf weg zodra de server bereikbaar is.'
+        : 'Versturen lukt niet op deze pc.';
+      if (result === 'sent' || result === 'queued') setTimeout(closeMelding, 1800);
+      else meldingSend.disabled = false;
+    });
 
     showChangelogBtn.addEventListener('click', async () => {
       showChangelogOverlay('Changelog', await window.electronAPI.getChangelog());
