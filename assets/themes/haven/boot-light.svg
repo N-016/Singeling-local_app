@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1200" preserveAspectRatio="xMidYMax slice">
+  <!-- Haven: de tjalk die voorbijvaart. Zelf gemaakt voor de Singeling App (gegenereerd). -->
+  <path d="M12 990 L182 990 Q202 990 188 1012 L30 1012 Q6 1002 12 990 Z" fill="#3b2e25"/>
+    <rect x="94" y="840" width="5" height="150" fill="#3b2e25"/>
+    <path d="M100 844 L172 970 L100 970 Z" fill="#9a4a2e"/>
+    <path d="M92 870 L48 970 L92 970 Z" fill="#9a4a2e" opacity="0.85"/>
+    
+</svg>

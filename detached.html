@@ -6,7 +6,7 @@
     <script>
         // main.js geeft het thema mee (?theme=light|dark), zodat de balk meteen
         // in de juiste kleuren verschijnt.
-        // ?soft=1: Leescomfort (zachtere kleuren), zoals de tabbalk.
+        // ?soft=1: Oogcomfort (zachtere kleuren), zoals de tabbalk.
         if (new URLSearchParams(location.search).get('soft') === '1') {
             document.documentElement.classList.add('theme-soft');
         }
@@ -43,16 +43,8 @@
             --text-faint: #9aa0a8;
         }
 
-        /* Leescomfort: dezelfde zachtere kleuren als de tabbalk (index.html). */
-        html.theme-soft:not(.theme-light) {
-            --bar-bg: #1f2226;
-            --bar-border: #3a3f47;
-            --tab-bg: #262a2f;
-            --text: #dfe1e4;
-            --text-muted: #9a9fa7;
-            --text-faint: #6c727b;
-        }
-
+        /* Oogcomfort (alleen in licht): dezelfde zachtere kleuren als de
+           tabbalk (index.html). */
         html.theme-light.theme-soft {
             --bar-bg: #e1e1de;
             --bar-border: #cdcdc8;
@@ -236,6 +228,7 @@
             outline-offset: -2px;
         }
     </style>
+    <style id="chrome-theme-style"></style>
 </head>
 <body>
     <button type="button" class="navigation-button" id="back" title="Ga terug" aria-label="Ga terug" disabled>
@@ -296,6 +289,12 @@
 
         window.detachedAPI.onSoft((soft) => {
             document.documentElement.classList.toggle('theme-soft', soft);
+        });
+
+        // Kleurenthema (themes.js): de CSS komt van main.js, '' = standaard.
+        window.detachedAPI.onChromeTheme((css) => {
+            document.getElementById('chrome-theme-style').textContent = css || '';
+            document.documentElement.classList.toggle('chrome-theme', !!css);
         });
     </script>
 </body>

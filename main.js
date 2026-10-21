@@ -1,10 +1,16 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, Menu, clipboard, shell, screen, session, systemPreferences, nativeTheme } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, Menu, clipboard, shell, screen, session, systemPreferences, nativeTheme, Notification, nativeImage } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
 const { DARK_MODE_BACKGROUND, DARK_MODE_CSS } = require('./dark-mode');
-const { PAGE_TWEAKS_CSS } = require('./page-tweaks');
-const { SOFT_MODE_BACKGROUND, SOFT_DARK_BACKGROUND, SOFT_MODE_CSS } = require('./soft-mode');
+const { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT } = require('./page-tweaks');
+const { SOFT_MODE_BACKGROUND, SOFT_MODE_CSS } = require('./soft-mode');
+const themes = require('./themes');
+const { START_URL, APP_HOSTNAME, isInternalUrl, isAuthUrl, compareVersions, criticalUpdateFrom, pageKind } = require('./rules');
+const { createTelemetry, loadConfig } = require('./telemetry');
+const { createRapportServer } = require('./rapport/server');
+const crypto = require('crypto');
+const os = require('os');
 
 // Zonder deze lock start elke nieuwe poging een los proces dat om dezelfde
 // cache- en instellingenbestanden in userData vecht met de al draaiende app
@@ -14,14 +20,17 @@ if (!app.requestSingleInstanceLock()) {
   process.exit(0);
 }
 
+// Windows toont meldingen alleen voor een app met een app-ID. Geïnstalleerd
+// is dat de appId uit package.json (die zet de installer op de snelkoppeling);
+// bij npm start de electron.exe zelf.
+if (process.platform === 'win32') app.setAppUserModelId(app.isPackaged ? 'com.singeling.app' : process.execPath);
+
 app.on('second-instance', () => {
   if (!mainWindow) return;
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.focus();
 });
 
-const START_URL = 'https://snglng.lovable.app/qrm-connect';
-const APP_HOSTNAME = new URL(START_URL).hostname;
 const TABBAR_HEIGHT = 38;
 const UPDATE_BANNER_HEIGHT = 40;
 const DEFAULT_ZOOM = 1;
@@ -60,6 +69,11 @@ const CRITICAL_REMINDER_MS = 60 * 60 * 1000;
 // standaard aan, zodat iemand die een bèta installeert ook de volgende krijgt.
 const RUNNING_PRERELEASE = app.getVersion().includes('-');
 
+// Instellingen > Debug: bij npm start en in elke bètaversie, nooit in een
+// gewone versie.
+const DEBUG_AVAILABLE = !app.isPackaged || RUNNING_PRERELEASE;
+const DEBUG_PORT = 9222;
+
 // Instellingen worden per Windows-gebruiker opgeslagen (userData-map), zodat
 // iedereen zijn eigen zoomniveau en starttabs heeft.
 let appSettings = {
@@ -73,20 +87,45 @@ let appSettings = {
   tabBarDisabled: false, // tabbalk uit: één scherm, balk toont alleen het instellingen-icoon
   showOnboarding: true,
   blockCtrlB: false,
+  windowsNotifications: true, // Windows-melding bij een nieuwe melding bij het belletje
+  telemetry: true, // anonieme gebruiksgegevens delen (alleen als telemetry.config.json er is)
+  // Beheer (Instellingen > Debug): wachtwoord alleen als scrypt-hash, blijft
+  // ingelogd tot je vergrendelt; rapport-server eventueel mee laten starten.
+  adminPasswordHash: '',
+  adminUnlocked: false,
+  rapportSeenAt: 0, // wanneer je het tabblad Meldingen voor het laatst opende (ms); alles daarna is nieuw
+  adminLockOnRestart: false, // Beheer vergrendelen bij elke start van de app
+  rapportServerAutostart: false,
+  debugUnlocked: false, // Debug zichtbaar gemaakt met Ctrl+Shift+Alt+D (gewone versie)
   notClockedMode: 'aan', // melding "Niet geklokt op een order": 'aan' (oranje balk), 'subtiel' of 'uit'
   preferencesChosen: false, // keuzescherm (thema + klokmelding) al gezien
+  setupVersion: 0, // versie van de instelassistent die al doorlopen is (SETUP_VERSION in index.html)
   darkMode: false,
-  softColors: true, // leescomfort: zachtere kleuren (licht: zachtgrijs, donker: donkergrijs; soft-mode.js). Standaard aan.
+  softColors: true, // oogcomfort: zachtere kleuren (alleen in licht: zachtgrijs; soft-mode.js). Standaard aan.
   betaUpdates: RUNNING_PRERELEASE, // ook bètaversies (GitHub pre-releases) als update aanbieden
+  appTheme: themes.DEFAULT_THEME, // kleurenthema (themes.js); voorlopig alleen met bèta-updates aan
   // Licht/donker automatisch (zie "Licht/donker automatisch"):
   // 'handmatig' | 'systeem' | 'tijden' | 'zon'
-  themeMode: 'handmatig',
+  themeMode: 'zon', // standaard: zon op/onder (sinds 1.3.0; zie SUN_DEFAULT in loadSettings)
+  sunDefaultDone: true,
   themeTimes: { dark: '18:00', light: '07:00' }, // bij 'tijden'
-  themeSunOffset: 0 // bij 'zon': minuten later (+) of eerder (-) dan zon op/onder
+  // bij 'zon': minuten later (+) of eerder (-) dan zon op (licht) en zon onder (donker)
+  themeSunOffset: { light: 0, dark: 0 },
+  debugPort: false // Instellingen > Debug: versie waarvoor de Chrome-debugpoort (DEBUG_PORT) open staat
 };
 
 function getSettingsPath() {
   return path.join(app.getPath('userData'), 'settings.json');
+}
+
+// De debugpoort moet vóór app-ready aan staan, dus hier al los uit het
+// instellingenbestand lezen (loadSettings draait pas in whenReady).
+try {
+  if (DEBUG_AVAILABLE && JSON.parse(fs.readFileSync(getSettingsPath(), 'utf8')).debugPort === app.getVersion()) {
+    app.commandLine.appendSwitch('remote-debugging-port', String(DEBUG_PORT));
+  }
+} catch {
+  // Nog geen instellingenbestand: poort blijft dicht.
 }
 
 const NOT_CLOCKED_MODES = ['aan', 'subtiel', 'uit'];
@@ -113,6 +152,19 @@ function validSunOffset(offset) {
   return Number.isFinite(offset) ? Math.max(-120, Math.min(120, Math.round(offset))) : 0;
 }
 
+// Tot en met 1.3.0-beta.1 was er één verschuiving voor zon op én zon onder (een
+// getal). Wie dat al had, houdt die verschuiving voor allebei.
+function validSunOffsets(offsets) {
+  if (typeof offsets === 'number') {
+    const offset = validSunOffset(offsets);
+    return { light: offset, dark: offset };
+  }
+  return {
+    light: validSunOffset(Number(offsets && offsets.light)),
+    dark: validSunOffset(Number(offsets && offsets.dark))
+  };
+}
+
 function loadSettings() {
   try {
     const raw = fs.readFileSync(getSettingsPath(), 'utf-8');
@@ -123,22 +175,48 @@ function loadSettings() {
     appSettings = {
       zoomFactor: zoomResetDone && typeof parsed.zoomFactor === 'number' ? parsed.zoomFactor : DEFAULT_ZOOM,
       zoomResetDone: true,
-      startTabs: Array.isArray(parsed.startTabs) ? parsed.startTabs : [],
-      tabGroups: Array.isArray(parsed.tabGroups) ? parsed.tabGroups : [],
+      // Alleen geldige app-adressen: een kapotte regel of bv. about:blank als
+      // starttab gaf anders een crash of een lege app bij de start.
+      startTabs: Array.isArray(parsed.startTabs)
+        ? parsed.startTabs.filter(tab => tab && typeof tab.url === 'string' && isInternalUrl(tab.url))
+        : [],
+      tabGroups: Array.isArray(parsed.tabGroups)
+        ? parsed.tabGroups
+          .filter(group => group && Array.isArray(group.urls))
+          .map(group => ({ ...group, urls: group.urls.filter(url => typeof url === 'string' && isInternalUrl(url)) }))
+        : [],
       lastSeenChangelogVersion: typeof parsed.lastSeenChangelogVersion === 'string' ? parsed.lastSeenChangelogVersion : null,
       seenWhatsNewTours: Array.isArray(parsed.seenWhatsNewTours) ? parsed.seenWhatsNewTours : [],
       openAllLinksInNewTab: typeof parsed.openAllLinksInNewTab === 'boolean' ? parsed.openAllLinksInNewTab : false,
       tabBarDisabled: typeof parsed.tabBarDisabled === 'boolean' ? parsed.tabBarDisabled : false,
       showOnboarding: typeof parsed.showOnboarding === 'boolean' ? parsed.showOnboarding : true,
       blockCtrlB: typeof parsed.blockCtrlB === 'boolean' ? parsed.blockCtrlB : false,
+      windowsNotifications: typeof parsed.windowsNotifications === 'boolean' ? parsed.windowsNotifications : true,
+      telemetry: typeof parsed.telemetry === 'boolean' ? parsed.telemetry : true,
+      adminPasswordHash: typeof parsed.adminPasswordHash === 'string' ? parsed.adminPasswordHash : '',
+      adminLockOnRestart: parsed.adminLockOnRestart === true,
+      rapportSeenAt: Number.isFinite(parsed.rapportSeenAt) ? parsed.rapportSeenAt : 0,
+      adminUnlocked: parsed.adminUnlocked === true && parsed.adminLockOnRestart !== true,
+      rapportServerAutostart: parsed.rapportServerAutostart === true,
+      debugUnlocked: parsed.debugUnlocked === true,
       notClockedMode: notClockedModeFrom(parsed),
       preferencesChosen: typeof parsed.preferencesChosen === 'boolean' ? parsed.preferencesChosen : false,
+      setupVersion: Number.isInteger(parsed.setupVersion) ? parsed.setupVersion : 0,
       darkMode: typeof parsed.darkMode === 'boolean' ? parsed.darkMode : false,
       softColors: typeof parsed.softColors === 'boolean' ? parsed.softColors : true,
       betaUpdates: typeof parsed.betaUpdates === 'boolean' ? parsed.betaUpdates : RUNNING_PRERELEASE,
-      themeMode: THEME_MODES.includes(parsed.themeMode) ? parsed.themeMode : 'handmatig',
+      appTheme: themes.isTheme(parsed.appTheme) ? parsed.appTheme : themes.DEFAULT_THEME,
+      // Eenmalig (1.3.0): wie nog op de oude standaard "handmatig" stond, gaat
+      // naar zon op/onder. Wie bewust systeem of vaste tijden koos, houdt dat;
+      // daarna blijft ieders eigen keuze gewoon bewaard (sunDefaultDone).
+      themeMode: (parsed.sunDefaultDone !== true && (parsed.themeMode === 'handmatig' || parsed.themeMode === undefined))
+        ? 'zon'
+        : (THEME_MODES.includes(parsed.themeMode) ? parsed.themeMode : 'zon'),
+      sunDefaultDone: true,
       themeTimes: validThemeTimes(parsed.themeTimes),
-      themeSunOffset: validSunOffset(parsed.themeSunOffset)
+      themeSunOffset: validSunOffsets(parsed.themeSunOffset),
+      // Versie waarvoor de poort aan staat: na een update gaat hij vanzelf dicht.
+      debugPort: parsed.debugPort === app.getVersion() ? parsed.debugPort : false
     };
     if (!zoomResetDone) saveSettings();
   } catch {
@@ -146,9 +224,13 @@ function loadSettings() {
   }
 }
 
+// Eerst naar een tijdelijk bestand en dan hernoemen: valt de stroom uit
+// tijdens het schrijven, dan blijft het oude settings.json heel.
 function saveSettings() {
   try {
-    fs.writeFileSync(getSettingsPath(), JSON.stringify(appSettings, null, 2));
+    const settingsPath = getSettingsPath();
+    fs.writeFileSync(`${settingsPath}.tmp`, JSON.stringify(appSettings, null, 2));
+    fs.renameSync(`${settingsPath}.tmp`, settingsPath);
   } catch (error) {
     console.error('Instellingen opslaan mislukt:', error.message);
   }
@@ -193,39 +275,12 @@ function openExternalSafe(url) {
   }
 }
 
-function isInternalUrl(url) {
-  try {
-    const hostname = new URL(url).hostname;
-    return hostname === APP_HOSTNAME || hostname.endsWith(`.${APP_HOSTNAME}`);
-  } catch {
-    return false;
-  }
-}
-
-// Inloggen (bv. "Inloggen met Microsoft") loopt via een keten van redirects en
-// formulier-POSTs langs Supabase en Microsoft. Die domeinen zijn niet "intern",
-// dus zonder uitzondering werd elke stap naar de standaardbrowser gestuurd via
-// shell.openExternal(url) - en dat opent altijd een GET zonder de POST-body.
-// Microsoft antwoordt dan met AADSTS900561 ("endpoint only accepts POST").
-// Bovendien zou de sessie dan in de browser landen i.p.v. in de app. Daarom
-// mag de volledige inlogflow gewoon binnen het tabblad zelf plaatsvinden.
-const AUTH_HOST_SUFFIXES = [
-  'login.microsoftonline.com',
-  'login.microsoft.com',
-  'login.live.com',
-  'login.windows.net',
-  'account.live.com',
-  'supabase.co',
-  'oauth.lovable.app'
-];
-
-function isAuthUrl(url) {
-  try {
-    const hostname = new URL(url).hostname;
-    return AUTH_HOST_SUFFIXES.some(suffix => hostname === suffix || hostname.endsWith(`.${suffix}`));
-  } catch {
-    return false;
-  }
+// Tabbalk en balk van een los venster: nooit wegnavigeren of pop-ups openen.
+// Anders vervangt bv. een op de balk gesleept bestand de hele balk, en krijgt
+// dat bestand de preload (electronAPI) erbij.
+function stayOnOwnPage(webContents) {
+  webContents.on('will-navigate', (event) => event.preventDefault());
+  webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 }
 
 function isRefreshShortcut(input) {
@@ -281,7 +336,8 @@ function maybeShowChangelogNotice() {
     isNewInstall: previousVersion === null,
     changelog: getLatestChangelogEntry(),
     seenTours: appSettings.seenWhatsNewTours,
-    preferencesChosen: appSettings.preferencesChosen
+    preferencesChosen: appSettings.preferencesChosen,
+    setupVersion: appSettings.setupVersion
   });
 }
 
@@ -327,45 +383,7 @@ function applyUpdateChannel() {
 //     Zonder deze regel: kritiek voor iedereen onder de nieuwe versie.
 //   - "Reden: ...": korte uitleg in de melding.
 // Zie "Updatemelding" hieronder voor wat de gebruiker dan ziet.
-function parseVersion(version) {
-  const match = String(version || '').match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?/);
-  return match ? { parts: match.slice(1, 4).map(Number), pre: match[4] || null } : null;
-}
-
-// < 0 als a ouder is dan b, 0 gelijk, > 0 nieuwer. Een gewone versie is
-// nieuwer dan de bèta's ervan (1.3.0 > 1.3.0-beta.2).
-function compareVersions(a, b) {
-  const va = parseVersion(a);
-  const vb = parseVersion(b);
-  if (!va || !vb) return 0;
-  for (let i = 0; i < 3; i++) {
-    if (va.parts[i] !== vb.parts[i]) return va.parts[i] - vb.parts[i];
-  }
-  if (va.pre === vb.pre) return 0;
-  if (va.pre === null) return 1;
-  if (vb.pre === null) return -1;
-  return va.pre.localeCompare(vb.pre, undefined, { numeric: true });
-}
-
-// Release-tekst als platte tekst (de updater geeft HTML, soms per versie).
-function releaseNotesText(updateInfo) {
-  const notes = updateInfo.releaseNotes;
-  const raw = Array.isArray(notes) ? notes.map(entry => entry && entry.note).join('\n') : String(notes || '');
-  return `${updateInfo.releaseName || ''}\n${raw}`
-    .replace(/<\/(p|li|h\d|div)>|<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-}
-
-function criticalUpdateFrom(updateInfo) {
-  const text = releaseNotesText(updateInfo);
-  if (!/kritieke update/i.test(text)) return null;
-  const minimum = (text.match(/minimale versie:?\s*v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/i) || [])[1] || updateInfo.version;
-  if (compareVersions(app.getVersion(), minimum) >= 0) return null;
-  const reason = ((text.match(/reden:?\s*([^\n]+)/i) || [])[1] || '').trim();
-  return { reason };
-}
+// De regels zelf staan in rules.js (getest in scripts/test-rules.js).
 
 // ---------- Updatemelding ----------
 //
@@ -449,7 +467,7 @@ function downloadPendingUpdate() {
 }
 
 function handleUpdateAvailable(updateInfo) {
-  const critical = criticalUpdateFrom(updateInfo);
+  const critical = criticalUpdateFrom(updateInfo, app.getVersion());
   if (!pendingUpdate || pendingUpdate.version !== updateInfo.version) {
     clearTimeout(updateReminderTimer);
     updateReminderTimer = null;
@@ -491,6 +509,22 @@ function handleUpdateAvailable(updateInfo) {
 // zonder console, en een niet-detached proces sluit Windows mee af met de
 // app. wscript start PowerShell verborgen en los van de app.
 // Resolvet zodra het venstertje in beeld is (of na een paar seconden toch).
+// Mappen van showUpdatingWindow van eerdere updates opruimen (het script zelf
+// kan dat niet: het logo staat nog open zolang het venster er is). Alleen
+// mappen ouder dan een uur, zodat een lopende update niets kwijtraakt.
+function removeOldUpdateFolders() {
+  const tmp = require('os').tmpdir();
+  try {
+    for (const name of fs.readdirSync(tmp)) {
+      if (!name.startsWith('singeling-update-')) continue;
+      const dir = path.join(tmp, name);
+      if (Date.now() - fs.statSync(dir).mtimeMs > 60 * 60 * 1000) fs.rmSync(dir, { recursive: true, force: true });
+    }
+  } catch {
+    // Opruimen is nooit belangrijk genoeg om de start te hinderen.
+  }
+}
+
 function showUpdatingWindow(version, { maxSeconds = 180, processName = 'Singeling App' } = {}) {
   return new Promise((resolve) => {
     try {
@@ -500,7 +534,7 @@ function showUpdatingWindow(version, { maxSeconds = 180, processName = 'Singelin
       const marker = path.join(dir, 'shown');
       const launcherPath = path.join(dir, 'start.vbs');
       fs.writeFileSync(scriptPath, fs.readFileSync(path.join(__dirname, 'update-window.ps1')));
-      const logoFile = appSettings.darkMode ? 'assets/singeling-logo.png' : 'assets/singeling-logo-licht.png';
+      const logoFile = darkActive() ? 'assets/singeling-logo.png' : 'assets/singeling-logo-licht.png';
       fs.writeFileSync(logoPath, fs.readFileSync(path.join(__dirname, logoFile)));
       // In VBScript is "" een aanhalingsteken binnen een string.
       const quoted = (value) => `""${String(value).replace(/"/g, '')}""`;
@@ -508,7 +542,7 @@ function showUpdatingWindow(version, { maxSeconds = 180, processName = 'Singelin
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', quoted(scriptPath),
         '-OldPid', String(process.pid),
         '-Version', quoted(version || ''),
-        '-Dark', appSettings.darkMode ? '1' : '0',
+        '-Dark', darkActive() ? '1' : '0',
         '-LogoPath', quoted(logoPath),
         '-Marker', quoted(marker),
         '-MaxSeconds', String(maxSeconds),
@@ -744,12 +778,11 @@ function sendNavigationState(tabId) {
     canGoBack: effectiveCanGoBack,
     canGoForward
   });
-  view.webContents.executeJavaScript(`window.__electronCanGoBack = ${effectiveCanGoBack};`).catch(() => {});
 }
 
 function openButtonInNewTab(view, button, parentTabId) {
   const url = view.webContents.getURL();
-  const newTabId = openInNewTabFromTab(parentTabId, url);
+  const newTabId = openInNewTabFromTab(parentTabId, url, false);
   const newView = tabs.get(newTabId);
   if (!newView) return;
 
@@ -770,7 +803,7 @@ function openButtonInNewTab(view, button, parentTabId) {
           element.click();
         }
       })();
-    `);
+    `).catch(() => {});
   });
 }
 
@@ -834,21 +867,11 @@ function closeIfStillBlank(view, tabId) {
 // twee elkaar eindeloos en springt het scherm ~4x per seconde heen en weer.
 // Door zulke regels over te slaan komt de pagina altijd vers binnen.
 function findOtherPageIndex(navigationHistory, direction) {
-  const pathOf = (url) => {
-    try {
-      const parsed = new URL(url);
-      if (!['http:', 'https:'].includes(parsed.protocol)) return null;
-      return parsed.origin + parsed.pathname.replace(/\/$/, '');
-    } catch {
-      return null;
-    }
-  };
-
   const entries = navigationHistory.getAllEntries();
   const activeIndex = navigationHistory.getActiveIndex();
-  const currentPath = pathOf(entries[activeIndex] && entries[activeIndex].url);
+  const currentPath = pagePath(entries[activeIndex] && entries[activeIndex].url);
   for (let i = activeIndex + direction; i >= 0 && i < entries.length; i += direction) {
-    const path = pathOf(entries[i].url);
+    const path = pagePath(entries[i].url);
     if (path && path !== currentPath) return i;
   }
   return -1;
@@ -874,35 +897,112 @@ function findOtherPageIndex(navigationHistory, direction) {
 // inhoud (bv. de specificatie-preview: HTML die de app in een leeg venster
 // schrijft en die van een witte pagina uitgaat, of een PDF) houdt wit, anders
 // schijnt de donkere achtergrond door en staat de zwarte tekst op zwart.
-// Leescomfort (zachtere kleuren, zie soft-mode.js): in licht zachtgrijs i.p.v.
-// fel wit, in donker donkergrijs i.p.v. bijna zwart.
-function softLightActive() {
-  return appSettings.softColors && !appSettings.darkMode;
+// Oogcomfort (zachtere kleuren, zie soft-mode.js): alleen in licht,
+// zachtgrijs i.p.v. fel wit. Donker blijft zoals het is.
+// Donker zoals het er nu echt uitziet. Het thema "Origineel" (de app zoals
+// hij is, themes.js isOriginal) kent geen licht/donker: dan altijd licht. De
+// keuze zelf (appSettings.darkMode, ook de automatische wissel) blijft
+// bewaard en geldt weer bij een ander thema. Zo ook bij een thema met maar één
+// stand (themes.js fixedMode): dan altijd die stand.
+function darkActive() {
+  const mode = themes.fixedMode(activeTheme());
+  if (mode) return mode === 'dark';
+  return !!appSettings.darkMode && !themes.isOriginal(activeTheme());
 }
 
-function softDarkActive() {
-  return appSettings.softColors && appSettings.darkMode;
+// Oogcomfort geldt niet bij een thema met een vast palet (themes.js): dat
+// heeft zijn eigen uitstraling. De instelling zelf blijft bewaard.
+// softActive() is de stand zelf (de chrome, losse vensters en het
+// hulpkaartje krijgen die als class en kijken zelf of het licht is);
+// softLightActive() is of de pagina's nu echt zachter worden.
+function softActive() {
+  return !!appSettings.softColors && themes.supportsSoft(activeTheme());
+}
+
+function softLightActive() {
+  return softActive() && !darkActive();
+}
+
+// Thema's zijn nog bèta: alleen wie bèta-updates aan heeft ziet de keuze en
+// het gekozen thema. Zet iemand bèta uit, dan blijft de keuze bewaard maar
+// geldt het standaardthema.
+function themesAvailable() {
+  return !!appSettings.betaUpdates;
+}
+
+function activeTheme() {
+  return themesAvailable() ? appSettings.appTheme : themes.DEFAULT_THEME;
+}
+
+// Kleur van de pagina-achtergrond bij een thema, of null bij het standaardthema.
+function themedBackground() {
+  return themes.themeBackground(activeTheme(), darkActive(), softActive());
 }
 
 // Achtergrond van een app-pagina tijdens het laden, per thema.
 function pageBackground() {
-  if (appSettings.darkMode) return softDarkActive() ? SOFT_DARK_BACKGROUND : DARK_MODE_BACKGROUND;
+  const themed = themedBackground();
+  if (themed) return themed;
+  if (darkActive()) return DARK_MODE_BACKGROUND;
   return softLightActive() ? SOFT_MODE_BACKGROUND : '#ffffff';
 }
 
-function applyDarkMode(view) {
+// fade: het oude beeld loopt in 0,6 s over in het nieuwe (View Transitions:
+// één momentopname die vervaagt, i.p.v. elk element apart laten meekleuren,
+// wat op de zware pagina's hapert). Met "animaties uit" in Windows direct.
+const PAGE_FADE_CSS = '::view-transition-group(root),::view-transition-old(root),::view-transition-new(root){animation-duration:600ms;animation-timing-function:ease}';
+
+function applyDarkMode(view, { fade = false } = {}) {
   if (view.webContents.isDestroyed()) return;
   const internal = isInternalUrl(view.webContents.getURL());
   view.setBackgroundColor(internal ? pageBackground() : '#ffffff');
   if (!internal) return;
-  view.webContents.executeJavaScript(
-    `document.documentElement.classList.toggle('dark', ${appSettings.darkMode});
+  const toggle = `document.documentElement.classList.toggle('dark', ${darkActive()});
+     document.documentElement.classList.toggle('sg-original', ${themes.isOriginal(activeTheme())});
+     document.documentElement.classList.toggle('sg-wallpaper', ${themes.hasWallpaper(activeTheme())});
      document.documentElement.classList.toggle('sg-soft', ${softLightActive()});
-     document.documentElement.classList.toggle('sg-soft-dark', ${softDarkActive()});`
+     for (const name of ${JSON.stringify(themes.THEME_CLASSES)}) {
+       document.documentElement.classList.toggle(name, name === ${JSON.stringify('sg-theme-' + activeTheme())});
+     }`;
+  view.webContents.executeJavaScript(fade
+    ? `(() => {
+        const run = () => { ${toggle} };
+        if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return run();
+        const style = document.createElement('style');
+        style.textContent = ${JSON.stringify(PAGE_FADE_CSS)};
+        document.head.appendChild(style);
+        document.startViewTransition(run).finished.finally(() => style.remove());
+      })()`
+    : toggle
   ).catch(() => {});
 }
 
+// CSS van het gekozen thema (themes.js) in een Singeling-pagina. Alleen het
+// actieve thema, en bij een wissel de vorige eruit; een volledige
+// paginalading haalt alles zelf al weg (dan komt dom-ready hier opnieuw).
+const themeCssKeys = new WeakMap(); // webContents -> sleutel van insertCSS
+
+async function insertThemeCss(view) {
+  const contents = view.webContents;
+  if (contents.isDestroyed() || !isInternalUrl(contents.getURL())) return;
+  const previousKey = themeCssKeys.get(contents);
+  themeCssKeys.delete(contents);
+  if (previousKey) contents.removeInsertedCSS(previousKey).catch(() => {});
+  const css = themes.pageThemeCss(activeTheme());
+  if (!css) return;
+  const key = await contents.insertCSS(css).catch(() => null);
+  if (key && !contents.isDestroyed()) themeCssKeys.set(contents, key);
+}
+
 // Classes op <html> voor de pagina-aanpassingen uit page-tweaks.js.
+// Doorzichtige tinten dicht maken, alleen bij een thema met achtergrond: het
+// script loopt alle CSS-regels van de pagina af, dat is zonde zonder thema.
+// Het script zelf draait per pagina maar één keer (window.__sgSolidTints).
+function applySolidTints(view) {
+  if (view.webContents.isDestroyed() || !isInternalUrl(view.webContents.getURL())) return;
+  if (themes.hasWallpaper(activeTheme())) view.webContents.executeJavaScript(SOLID_TINTS_SCRIPT).catch(() => {});
+}
+
 function applyPageTweaks(view) {
   if (view.webContents.isDestroyed() || !isInternalUrl(view.webContents.getURL())) return;
   view.webContents.executeJavaScript(
@@ -922,6 +1022,8 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       view.webContents.insertCSS(DARK_MODE_CSS).catch(() => {});
       view.webContents.insertCSS(SOFT_MODE_CSS).catch(() => {});
       view.webContents.insertCSS(PAGE_TWEAKS_CSS).catch(() => {});
+      insertThemeCss(view);
+      applySolidTints(view);
     }
     applyDarkMode(view);
     applyPageTweaks(view);
@@ -1003,19 +1105,21 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       }
       return;
     }
-    if (internalNavigations.has(tabId)) {
-      internalNavigations.delete(tabId);
-      return;
-    }
     if (!isInternalUrl(url)) {
       event.preventDefault();
       openExternalSafe(url);
       closeIfStillBlank(view, tabId);
       return;
     }
+    // Pas na de externe-sitecheck: een achtergebleven vlag mag nooit een
+    // externe site in de tab laten laden.
+    if (internalNavigations.has(tabId)) {
+      internalNavigations.delete(tabId);
+      return;
+    }
     if (!isDetachedTab(tabId) && !appSettings.tabBarDisabled && (lockedTabs.has(tabId) || appSettings.openAllLinksInNewTab)) {
       event.preventDefault();
-      createTab(url, true, false, tabId);
+      switchToOpenTab(url, tabId) || createTab(url, true, false, tabId);
     }
     // Anders (of in een los venster): laat de navigatie gewoon hier plaatsvinden.
   });
@@ -1038,9 +1142,31 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     if (!isDetachedTab(tabId) && mainWindow && !mainWindow.isDestroyed() && url && url !== 'about:blank') {
       mainWindow.webContents.send('update-tab-url', { tabId, url });
     }
+    if (url) telemetry.visit(tabId, url);
   });
 
-  view.webContents.on('did-navigate-in-page', () => sendNavigationState(tabId));
+  view.webContents.on('render-process-gone', () => telemetry.crash());
+
+  view.webContents.on('did-navigate-in-page', (event, url, isMainFrame) => {
+    if (isMainFrame) telemetry.visit(tabId, url);
+    // Terug binnen de webapp blijft op dezelfde pagina; ook dan de vlag wissen.
+    internalNavigations.delete(tabId);
+    sendNavigationState(tabId);
+  });
+
+  // Het inlogvenster (zie hieronder) mag alleen inlog- en app-pagina's tonen;
+  // een andere link daarin gaat naar de browser, nieuwe vensters niet.
+  view.webContents.on('did-create-window', (popup) => {
+    popup.webContents.on('will-navigate', (event, url) => {
+      if (isAuthUrl(url) || isInternalUrl(url)) return;
+      event.preventDefault();
+      openExternalSafe(url);
+    });
+    popup.webContents.setWindowOpenHandler(({ url }) => {
+      openExternalSafe(url);
+      return { action: 'deny' };
+    });
+  });
 
   view.webContents.setWindowOpenHandler((details) => {
     if (details.url && details.url !== 'about:blank') {
@@ -1144,9 +1270,10 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     }).catch(() => {});
   });
 
-  view.webContents.on('page-title-updated', (event, title) => {
+  // Alleen een los venster toont de paginatitel; de tabbalk leidt de naam
+  // uit de URL af (update-tab-url).
+  view.webContents.on('page-title-updated', () => {
     if (isDetachedTab(tabId)) sendDetachedState(tabId);
-    else mainWindow.webContents.send('update-tab-title', { tabId, title });
   });
 
   // Vang SPA route-wijzigingen (pushState/replaceState) af in de webview
@@ -1163,8 +1290,47 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       window.__electronForceNewTab = ${appSettings.openAllLinksInNewTab};
       // Los venster of tabbalk uit (geen tabbalk): links en knoppen blijven in dit scherm.
       window.__electronDetached = ${isDetachedTab(tabId) || appSettings.tabBarDisabled};
+      // Ook na herladen (F5, login-redirect) moet de pagina het slot nog weten.
+      window.__electronTabLocked = ${lockedTabs.has(tabId)};
       if (!window.__electronHandlersInstalled) {
         window.__electronHandlersInstalled = true;
+
+        // Wijst url naar een oudercontext van de huidige pagina (bv.
+        // /sales-orders vanuit /sales-orders/123)? Gebruikt door de
+        // pushState-override én de click-listener, zodat beide hetzelfde
+        // beslissen. De startpagina (/) telt nooit als "terug": elk pad begint
+        // met /, dus anders werd bv. "Dashboard Klokken" (link naar /) in de
+        // navigatie altijd als terugknop gezien en nooit geopend.
+        const isParentPath = (url) => {
+          const destination = new URL(url, window.location.href);
+          const destPath = destination.pathname.replace(/\\/$/, '');
+          const currentPath = window.location.pathname.replace(/\\/$/, '');
+          return destination.origin === window.location.origin &&
+            destPath !== '' &&
+            destPath !== currentPath &&
+            currentPath.startsWith(destPath + '/');
+        };
+
+        // Terug: main.js kiest eerdere pagina in deze tab, de brontab, een
+        // tab waar url al open staat, of opent url hier (__electronGoInPage).
+        // url is de lijst waar "terug" heen hoort (leeg = geen).
+        const backTo = (url) => console.log('ELECTRON_BACK_BUTTON:' + (url || ''));
+        // Ouderpagina van de huidige: /customers/3360 -> /customers. Nooit /.
+        const parentOfCurrent = () => {
+          const parent = window.location.pathname.replace(/\\/$/, '').replace(/\\/[^/]*$/, '');
+          return parent ? window.location.origin + parent : '';
+        };
+        // Binnen de webapp navigeren zonder herladen: zelf pushState (langs
+        // onze override, die dit dan doorlaat) en de router laten meelezen.
+        window.__electronGoInPage = (url) => {
+          window.__electronInPageNav = true;
+          try {
+            history.pushState({ usr: null, key: Math.random().toString(36).slice(2, 10), idx: ((history.state && history.state.idx) || 0) + 1 }, '', url);
+          } finally {
+            window.__electronInPageNav = false;
+          }
+          window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
+        };
 
         ['pushState', 'replaceState'].forEach(type => {
           const original = history[type];
@@ -1183,10 +1349,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             // breadcrumb "Verkooporders" vanuit /sales-orders/123 terug naar
             // /sales-orders) is terugnavigatie, geen "nieuwe" bestemming -
             // forceer daar dus ook geen nieuw tabblad voor.
-            const destPath = nextUrl.pathname.endsWith('/') ? nextUrl.pathname.slice(0, -1) : nextUrl.pathname;
-            const currentPath = window.location.pathname;
-            const isBreadcrumbBack = destPath !== currentPath && currentPath.startsWith(destPath) &&
-              (currentPath[destPath.length] === '/' || destPath === '');
+            const isBreadcrumbBack = isParentPath(nextUrl.href);
             // Klikbare rijen/kaarten/knoppen (bv. een offerte in de lijst bij
             // Quotations) zijn geen <a href>, dus de linkhandler hieronder
             // ziet ze niet: de site navigeert zelf via pushState. Een
@@ -1211,7 +1374,14 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             const fromLaunchPad = type === 'pushState' &&
               Date.now() - (window.__electronLaunchPadAt || 0) < 2000;
             if (fromLaunchPad && isRealNavigation) window.__electronLaunchPadAt = 0;
-            if (!window.__electronDetached && isRealNavigation && !isBreadcrumbBack && (fromRowClick || fromNewTabAction || fromLaunchPad || window.__electronTabLocked || window.__electronForceNewTab)) {
+            // Een knop zonder link die naar de lijst terug navigeert (bv.
+            // "← Verkoopoffertes" op een offerte) is een terugknop: net als
+            // "Terug" en breadcrumb-links via main.js (brontab, of anders hier).
+            if (!window.__electronDetached && !window.__electronInPageNav && fromRowClick && isBreadcrumbBack) {
+              backTo(nextUrl.href);
+              return;
+            }
+            if (!window.__electronDetached && !window.__electronInPageNav && isRealNavigation && !isBreadcrumbBack && (fromRowClick || fromNewTabAction || fromLaunchPad || window.__electronTabLocked || window.__electronForceNewTab)) {
               console.log('ELECTRON_LOCKED_NAVIGATE:' + nextUrl.href);
               return;
             }
@@ -1260,12 +1430,12 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
         // naar de tab waar dit tabblad uit geopend is) lost dit voor elke
         // knop op, ongeacht het label.
         history.back = function() {
-          console.log('ELECTRON_BACK_BUTTON');
+          backTo(parentOfCurrent());
         };
         const originalGo = history.go.bind(history);
         history.go = function(delta) {
           if (delta === undefined || delta < 0) {
-            console.log('ELECTRON_BACK_BUTTON');
+            backTo(parentOfCurrent());
             return;
           }
           return originalGo(delta);
@@ -1283,6 +1453,94 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
         document.addEventListener('focusout', () => {
           console.log('ELECTRON_FOCUS_EDITABLE:false');
         });
+
+        // Pop-up open (donkere achtergrondlaag van de webapp, shadcn/Radix:
+        // .fixed.inset-0 met data-state="open")? Dan dimt de tabbalk mee in
+        // dezelfde kleur, zie ELECTRON_MODAL in main.js.
+        let modalCheckQueued = false;
+        const reportModal = () => {
+          modalCheckQueued = false;
+          const overlay = [...document.querySelectorAll('.fixed.inset-0[data-state="open"]')]
+            .find(el => !/^(transparent|rgba\\(0, 0, 0, 0\\))$/.test(getComputedStyle(el).backgroundColor));
+          const color = overlay ? getComputedStyle(overlay).backgroundColor : '';
+          if (color === window.__electronModalColor) return;
+          window.__electronModalColor = color;
+          console.log('ELECTRON_MODAL:' + color);
+        };
+        new MutationObserver(() => {
+          if (!modalCheckQueued) { modalCheckQueued = true; requestAnimationFrame(reportModal); }
+        }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-state'] });
+        reportModal();
+
+        // Aantal meldingen bij het belletje (knop met svg.lucide-bell, het
+        // getal staat in een rondje ernaast) naar main.js: taakbalk en
+        // Windows-melding, zie ELECTRON_BADGE. Een timer i.p.v.
+        // requestAnimationFrame: die staat stil in een tab op de achtergrond
+        // of een geminimaliseerd venster, en juist dan moet dit doorkomen.
+        // Een 0 telt pas als hij 3 seconden blijft: bij een paginawissel staat
+        // het belletje even zonder getal. Anders verdween het rondje op de
+        // taakbalk telkens, en gaf "0 -> 5" daarna een valse Windows-melding.
+        let badgeTimer = null;
+        let zeroTimer = null;
+        const reportBadge = (zeroConfirmed = false) => {
+          const bell = [...document.querySelectorAll('button')].find(button => button.querySelector('svg.lucide-bell'));
+          if (!bell) return; // Geen belletje (bv. inlogpagina): niets melden.
+          const count = parseInt(bell.textContent.replace(/\\D/g, ''), 10) || 0;
+          if (count > 0) {
+            clearTimeout(zeroTimer);
+            zeroTimer = null;
+          } else if (!zeroConfirmed) {
+            if (!zeroTimer) zeroTimer = setTimeout(() => { zeroTimer = null; reportBadge(true); }, 3000);
+            return;
+          }
+          if (count === window.__electronBadgeCount) return;
+          window.__electronBadgeCount = count;
+          console.log('ELECTRON_BADGE:' + count);
+        };
+        // Berichtje in de pagina zelf als er een melding bijkomt terwijl je in
+        // de app zit (main.js updateNotificationCount). Klikken opent het
+        // belletje; na 6 seconden verdwijnt het vanzelf. In de accentkleur van
+        // het thema (--primary, met --primary-foreground als tekst): valt op en
+        // past toch bij elk thema.
+        window.__electronShowNotice = (title) => {
+          document.getElementById('sg-notice')?.remove();
+          const notice = document.createElement('button');
+          notice.id = 'sg-notice';
+          notice.type = 'button';
+          notice.setAttribute('role', 'status');
+          notice.style.cssText = 'position:fixed;top:14px;right:18px;z-index:2147483647;display:flex;align-items:center;gap:10px;' +
+            'padding:10px 14px;border-radius:10px;border:0;background:hsl(var(--primary));' +
+            'color:hsl(var(--primary-foreground));font:inherit;font-size:13px;text-align:left;cursor:pointer;' +
+            'box-shadow:0 8px 24px rgba(0,0,0,.18);animation:sg-notice-in .2s ease-out;';
+          notice.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>' +
+            '<span><strong style="display:block;font-weight:600"></strong><span style="opacity:.85">Klik om te bekijken</span></span>';
+          notice.querySelector('strong').textContent = title;
+          if (!document.getElementById('sg-notice-style')) {
+            const style = document.createElement('style');
+            style.id = 'sg-notice-style';
+            style.textContent = '@keyframes sg-notice-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}' +
+              '@media (prefers-reduced-motion: reduce){#sg-notice{animation:none!important}}';
+            document.head.appendChild(style);
+          }
+          notice.addEventListener('click', (event) => {
+            event.stopPropagation();
+            notice.remove();
+            [...document.querySelectorAll('button')].find(button => button.querySelector('svg.lucide-bell'))?.click();
+          });
+          document.body.appendChild(notice);
+          // Muis erop: blijft staan; muis eraf: nog 3 seconden.
+          let hideTimer = setTimeout(() => notice.remove(), 6000);
+          notice.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+          notice.addEventListener('mouseleave', () => {
+            hideTimer = setTimeout(() => notice.remove(), 3000);
+          });
+        };
+
+        new MutationObserver(() => {
+          clearTimeout(badgeTimer);
+          badgeTimer = setTimeout(() => reportBadge(), 300);
+        }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+        reportBadge();
 
         // Enter in de zoekbalk-pop-up kiest het geselecteerde resultaat. Dat is
         // geen klik, dus hier apart onthouden (capture: vóór de site zelf).
@@ -1367,25 +1625,16 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           // deze check werden ze als gewone link behandeld en dus - zoals alle
           // links - in een nieuw tabblad geopend, i.p.v. terug te gaan naar de
           // tab waar de order uit geopend is.
+          // Links in het hoofdmenu (zijbalk) zijn geen breadcrumb: vanuit
+          // /assemblies/123 moet "Assemblies" in het menu gewoon de lijst
+          // openen, niet terugspringen naar de tab waar je vandaan kwam.
+          const isMenuLink = isLink &&
+            !!clickable.closest('aside, [data-sidebar], nav:not([aria-label*="breadcrumb" i])');
           let isBreadcrumbBack = false;
-          if (isLink) {
-            try {
-              const destination = new URL(clickable.href, window.location.href);
-              const currentPath = window.location.pathname;
-              const destPath = destination.pathname.endsWith('/')
-                ? destination.pathname.slice(0, -1)
-                : destination.pathname;
-              // De startpagina (/) telt nooit als "terug": elk pad begint
-              // met /, dus anders werd bv. "Dashboard Klokken" (link naar /)
-              // in de navigatie altijd als terugknop gezien en nooit geopend.
-              isBreadcrumbBack = destination.origin === window.location.origin &&
-                destPath !== '' &&
-                destPath !== currentPath &&
-                currentPath.startsWith(destPath) &&
-                currentPath[destPath.length] === '/';
-            } catch {
-              isBreadcrumbBack = false;
-            }
+          try {
+            isBreadcrumbBack = isLink && !isMenuLink && isParentPath(clickable.href);
+          } catch {
+            // Ongeldige href: geen breadcrumb.
           }
 
           // In een los venster is er geen brontab om naar terug te gaan; daar
@@ -1394,7 +1643,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
             // Terugknoppen (en breadcrumb-achtige "terug naar de lijst"-links)
             // zijn een uitzondering op "alle links in nieuwe tab": die moeten
             // gewoon terugnavigeren, niet iets nieuws openen.
-            console.log('ELECTRON_BACK_BUTTON');
+            backTo(isBreadcrumbBack ? clickable.href : parentOfCurrent());
             event.preventDefault();
             event.stopImmediatePropagation();
             return;
@@ -1418,7 +1667,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           console.log('ELECTRON_LINK_CLICK:' + url.href);
         }, true);
       }
-    `);
+    `).catch(() => {});
   });
 
   // Vang signalen uit de tab op en stuur ze door naar de juiste tabactie
@@ -1437,7 +1686,8 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       return;
     }
 
-    if (message === 'ELECTRON_BACK_BUTTON') {
+    if (message.startsWith('ELECTRON_BACK_BUTTON')) {
+      const target = message.slice('ELECTRON_BACK_BUTTON:'.length);
       // Gebruikt bewust de 'view' uit de sluiting van attachNavigationHandlers
       // (niet tabs.get(tabId)): die laatste is leeg voor een losgetrokken tab
       // (zie detachTab), waardoor in-pagina "terug" binnen zo'n los venster
@@ -1454,14 +1704,25 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
         return;
       }
 
-      // Alleen relevant als deze tab nog in de tabbalk zit: eerst de tab
-      // waar dit tabblad daadwerkelijk uit geopend is (parentTabs); pas als
-      // dat er niet is, terugvallen op de laatst bekeken tab. Anders springt
-      // de terugknop naar wat toevallig het laatst actief was, in plaats van
-      // terug naar waar de pagina vandaan kwam. Een losgetrokken venster
-      // heeft geen andere tabs om naar terug te vallen.
-      const previousTabId = parentTabs.get(tabId) || previousTabs.get(tabId);
-      if (previousTabId && tabs.has(previousTabId)) switchTab(previousTabId, { recordHistory: false });
+      // Alleen als deze tab in de tabbalk zit (niet los, tabbalk niet uit):
+      // de tab waar dit tabblad uit geopend is, en anders een tab waar de
+      // lijst (target) al open staat. Niet de laatst bekeken tab: dat kon
+      // van alles zijn. Deze tab blijft open.
+      const inTabBar = !isDetachedTab(tabId) && !appSettings.tabBarDisabled;
+      const parentTabId = parentTabs.get(tabId);
+      if (inTabBar && parentTabId && tabs.has(parentTabId)) {
+        switchTab(parentTabId, { recordHistory: false });
+        return;
+      }
+      if (inTabBar && target && switchToOpenTab(target, tabId)) return;
+
+      // Nergens om naar terug te gaan: de lijst hier openen, zonder herladen
+      // als het kan. Zo werkt "terug" overal hetzelfde, ook als de brontab
+      // al dicht is.
+      if (target && isInternalUrl(target)) {
+        view.webContents.executeJavaScript(`window.__electronGoInPage(${JSON.stringify(target)});`)
+          .catch(() => { if (!view.webContents.isDestroyed()) view.webContents.loadURL(target); });
+      }
       return;
     }
 
@@ -1477,6 +1738,17 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
 
     if (message.startsWith('ELECTRON_FOCUS_EDITABLE:')) {
       isFocusOnEditableField = message.endsWith('true');
+      return;
+    }
+
+    if (message.startsWith('ELECTRON_BADGE:')) {
+      updateNotificationCount(Number(message.slice('ELECTRON_BADGE:'.length)) || 0, tabId);
+      return;
+    }
+
+    if (message.startsWith('ELECTRON_MODAL:')) {
+      // Los venster heeft geen tabbalk om te dimmen.
+      if (!isDetachedTab(tabId)) mainWindow.webContents.send('tab-modal', { tabId, color: message.slice('ELECTRON_MODAL:'.length) });
     }
   });
 }
@@ -1517,10 +1789,7 @@ function createTab(url, makeActive = true, lockTab = false, parentTabId = null) 
   tabs.set(tabId, view);
   if (parentTabId && tabs.has(parentTabId)) parentTabs.set(tabId, parentTabId);
 
-  if (lockTab) {
-    lockedTabs.add(tabId);
-    view.webContents.executeJavaScript('window.__electronTabLocked = true;');
-  }
+  if (lockTab) lockedTabs.add(tabId);
 
   // Laat de tabbar (index.html) weten dat er een nieuwe tab is
   mainWindow.webContents.send('tab-created', { tabId, url });
@@ -1602,7 +1871,9 @@ let curtainTimer = null;
 let curtainWaitingFor = null;
 
 function curtainColor() {
-  if (appSettings.darkMode) return softDarkActive() ? SOFT_DARK_BACKGROUND : DARK_MODE_BACKGROUND;
+  const themed = themedBackground();
+  if (themed) return themed;
+  if (darkActive()) return DARK_MODE_BACKGROUND;
   return softLightActive() ? SOFT_MODE_BACKGROUND : LIGHT_MODE_BACKGROUND;
 }
 
@@ -1673,10 +1944,6 @@ const HELP_POPOVER_HTML = `<!doctype html><html><head><meta charset="utf-8"><sty
     --bg: #ffffff; --border: #dfe2e6; --text: #16181d;
     --text-2: #32363c; --muted: #6b7178; --shadow: 0 12px 30px rgba(22, 24, 29, 0.16);
   }
-  html.soft:not(.light) {
-    --bg: #2a2d33; --border: rgba(255, 255, 255, 0.1); --text: #dfe1e4;
-    --text-2: #c2c6cc; --muted: #9a9fa7;
-  }
   html.light.soft {
     --bg: #efefec; --border: #cdcdc8; --text: #2b2d31;
     --text-2: #45484e; --muted: #62666c;
@@ -1706,12 +1973,23 @@ const HELP_POPOVER_HTML = `<!doctype html><html><head><meta charset="utf-8"><sty
     border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   }
   .soon b { color: var(--accent); }
+  .report-buttons { display: flex; gap: 8px; margin-top: 8px; }
+  .report-buttons button {
+    flex: 1; padding: 8px 10px; border-radius: 4px; border: 1px solid var(--border); cursor: pointer;
+    background: transparent; color: var(--text); font: inherit; font-size: 12.5px; font-weight: 600;
+  }
+  .report-buttons button:hover { border-color: var(--accent); color: var(--accent); }
+  [hidden] { display: none !important; }
 </style></head><body><div class="card">
   <h1>Iets gevonden dat niet goed gaat?</h1>
   <div class="item">
     <div class="q">De app zelf doet raar</div>
     <div class="a">Het gaat om de "schil" om de pagina's heen: de balk met tabbladen en knoppen hier bovenin. Bijvoorbeeld: de app start of sluit niet goed, tabbladen of vensters doen vreemd, of een update lukt niet.</div>
-    <div class="who">Stuur <b>Nick</b> een bericht via Slack.</div>
+    <div class="who" id="who-nick">Stuur <b>Nick</b> een bericht via Slack.</div>
+    <div class="report-buttons" id="report" hidden>
+      <button type="button" data-melding="bug">Bug melden</button>
+      <button type="button" data-melding="idee">Idee insturen</button>
+    </div>
   </div>
   <div class="item">
     <div class="q">Er klopt iets niet op een pagina, of je mist iets</div>
@@ -1719,14 +1997,28 @@ const HELP_POPOVER_HTML = `<!doctype html><html><head><meta charset="utf-8"><sty
     <div class="who">Neem contact op met <b>Laurens</b>.</div>
   </div>
   <div class="item hint">Twijfel je? Vraag het gewoon aan een van beiden.</div>
-  <div class="soon"><b>Binnenkort:</b> dan kun je een probleem ook direct hier melden. Houd deze knop dus in de gaten!</div>
+  <div class="soon" id="soon"><b>Binnenkort:</b> dan kun je een probleem ook direct hier melden. Houd deze knop dus in de gaten!</div>
 </div>
+<style id="theme-style"></style>
 <script>
-  window.setTheme = (dark, soft) => {
+  window.setTheme = (dark, soft, themeCss) => {
     document.documentElement.classList.toggle('light', !dark);
     document.documentElement.classList.toggle('soft', !!soft);
+    document.documentElement.classList.toggle('themed', !!themeCss);
+    document.getElementById('theme-style').textContent = themeCss || '';
   };
   window.measure = () => Math.ceil(document.body.getBoundingClientRect().height);
+  // Meldknoppen (in plaats van "stuur Nick een bericht") alleen als deze
+  // installatie een rapport-adres heeft; main.js vangt de klik op via
+  // console-message (dit venstertje heeft geen preload).
+  window.setReports = (on) => {
+    document.getElementById('report').hidden = !on;
+    document.getElementById('who-nick').hidden = on;
+    document.getElementById('soon').hidden = on;
+  };
+  for (const button of document.querySelectorAll('[data-melding]')) {
+    button.addEventListener('click', () => console.log('SG_MELDING:' + button.dataset.melding));
+  }
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') window.blur(); });
 </script></body></html>`;
 
@@ -1742,6 +2034,13 @@ function ensureHelpPopover() {
   helpPopover.setBackgroundColor('#00000000');
   helpPopover.webContents.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(HELP_POPOVER_HTML)}`);
   helpPopover.webContents.on('blur', () => closeHelpPopover());
+  helpPopover.webContents.on('console-message', (event) => {
+    const type = event.message.startsWith('SG_MELDING:') && event.message.slice('SG_MELDING:'.length);
+    if (type === 'bug' || type === 'idee') {
+      closeHelpPopover();
+      openMeldingForm(type).catch(() => {});
+    }
+  });
   helpPopover.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown' && input.key === 'Escape') closeHelpPopover();
   });
@@ -1762,7 +2061,7 @@ function closeHelpPopover() {
 async function openHelpPopover(anchor) {
   const view = ensureHelpPopover();
   if (view.webContents.isLoading()) await new Promise(resolve => view.webContents.once('did-finish-load', resolve));
-  await view.webContents.executeJavaScript(`setTheme(${!!appSettings.darkMode}, ${!!appSettings.softColors});`).catch(() => {});
+  await view.webContents.executeJavaScript(`setTheme(${darkActive()}, ${softActive()}, ${JSON.stringify(themes.helpPopoverThemeCss(activeTheme()))}); setReports(${telemetry.available()});`).catch(() => {});
   const height = await view.webContents.executeJavaScript('measure();').catch(() => 200);
   const { width: windowWidth } = mainWindow.getContentBounds();
   // Rechts uitgelijnd op de knop (het kaartje heeft 12px marge rondom).
@@ -1775,6 +2074,48 @@ async function openHelpPopover(anchor) {
   view.webContents.focus();
   mainWindow.webContents.send('help-popover-changed', true);
 }
+
+// ---------- Meldscherm (bug of idee, via het kevertje) ----------
+//
+// Eerst een schermafbeelding van de pagina waar je was (straks ligt het
+// meldscherm eroverheen), dan het scherm in de tabbalk openen. Versturen gaat
+// via telemetry.submitMelding: lukt het niet, dan later vanzelf.
+async function openMeldingForm(type) {
+  const view = tabs.get(activeTabId);
+  let screenshot = null;
+  let page = '';
+  if (view && !view.webContents.isDestroyed()) {
+    try {
+      const url = new URL(view.webContents.getURL());
+      if (isInternalUrl(url.href)) page = (url.pathname + url.search).slice(0, 300);
+      let image = await view.webContents.capturePage();
+      if (image.getSize().width > 1400) image = image.resize({ width: 1400, quality: 'good' });
+      for (const quality of [70, 50, 35]) {
+        const data = `data:image/jpeg;base64,${image.toJPEG(quality).toString('base64')}`;
+        if (data.length < 1400 * 1024) { screenshot = data; break; }
+      }
+    } catch {
+      // Geen schermafbeelding: de melding kan ook zonder.
+    }
+  }
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('open-melding', { type, screenshot, page });
+}
+
+ipcMain.handle('send-melding', async (event, melding) => {
+  if (event.sender !== mainWindow.webContents || !melding || typeof melding !== 'object') return 'invalid';
+  const clean = {
+    type: melding.type === 'idee' ? 'idee' : 'bug',
+    title: String(melding.title || '').slice(0, 120),
+    text: String(melding.text || '').slice(0, 5000),
+    name: String(melding.name || '').slice(0, 80),
+    page: String(melding.page || '').slice(0, 300),
+    screenshot: typeof melding.screenshot === 'string' && melding.screenshot.startsWith('data:image/jpeg;base64,') ? melding.screenshot : null,
+    theme: activeTheme(),
+    dark: darkActive()
+  };
+  if (!clean.title.trim() && !clean.text.trim()) return 'invalid';
+  return telemetry.submitMelding(clean);
+});
 
 ipcMain.on('toggle-help-popover', (event, anchor) => {
   if (event.sender !== mainWindow.webContents || !anchor) return;
@@ -1805,7 +2146,8 @@ async function captureTabThumbnail(tabId) {
   if (!view || view.webContents.isDestroyed() || view.getBounds().width === 0) return;
   try {
     const image = await view.webContents.capturePage();
-    if (image.isEmpty()) return;
+    // Tab tijdens het vastleggen gesloten of losgekoppeld: niet meer bewaren.
+    if (image.isEmpty() || tabs.get(tabId) !== view) return;
     const small = image.resize({ width: THUMBNAIL_WIDTH, quality: 'good' });
     tabThumbnails.set(tabId, `data:image/jpeg;base64,${small.toJPEG(75).toString('base64')}`);
   } catch {
@@ -1817,19 +2159,11 @@ function closeTab(tabId) {
   const view = tabs.get(tabId);
   if (!view) return;
 
-  // Zelfde volgorde als bij de terugknop: eerst terug naar de tab waaruit
-  // deze geopend is, pas daarna naar de laatst bekeken tab.
-  const fallbackTabId = parentTabs.get(tabId) || previousTabs.get(tabId);
-
   // Beide defensief: een view/webContents die al kapot is (bv. na een
   // geblokkeerde externe navigatie of een gecrashte renderer) mag het sluiten
   // nooit laten crashen - dat is een main-process exception en gooit de HELE
   // app onderuit, niet alleen dit tabblad.
-  try {
-    mainWindow.contentView.removeChildView(view);
-  } catch {
-    // Al losgekoppeld; niets meer te doen.
-  }
+  removeTabFromBar(tabId, view);
   try {
     if (view.webContents && !view.webContents.isDestroyed()) {
       view.webContents.close();
@@ -1837,29 +2171,48 @@ function closeTab(tabId) {
   } catch {
     // Al gesloten/vervallen.
   }
-  tabs.delete(tabId);
-  parentTabs.delete(tabId);
-  previousTabs.delete(tabId);
-  tabThumbnails.delete(tabId);
-  for (const [id, previousTabId] of previousTabs) {
-    if (previousTabId === tabId) previousTabs.delete(id);
+}
+
+// Tab uit de tabbalk halen (sluiten of loskoppelen): alle administratie
+// opruimen, ook verwijzingen van andere tabs ernaar (anders blijft hun
+// terugknop naar een tab wijzen die er niet meer is), en als dit de actieve
+// tab was een andere kiezen.
+function removeTabFromBar(tabId, view) {
+  // Zelfde volgorde als bij de terugknop: eerst terug naar de tab waaruit
+  // deze geopend is, pas daarna naar de laatst bekeken tab.
+  const fallbackTabId = parentTabs.get(tabId) || previousTabs.get(tabId);
+  const wasActive = activeTabId === tabId;
+
+  try {
+    mainWindow.contentView.removeChildView(view);
+  } catch {
+    // Al losgekoppeld; niets meer te doen.
   }
+  tabs.delete(tabId);
+  tabThumbnails.delete(tabId);
   lockedTabs.delete(tabId);
+  internalNavigations.delete(tabId);
+  tabNotificationCounts.delete(tabId);
+  telemetry.forgetTab(tabId);
+  for (const map of [parentTabs, previousTabs]) {
+    map.delete(tabId);
+    for (const [id, otherTabId] of map) {
+      if (otherTabId === tabId) map.delete(id);
+    }
+  }
   mainWindow.webContents.send('tab-closed', tabId);
 
-  if (activeTabId === tabId) {
-    if (fallbackTabId && tabs.has(fallbackTabId)) {
-      switchTab(fallbackTabId);
-      return;
-    }
-
-    const remaining = [...tabs.keys()];
-    if (remaining.length > 0) {
-      switchTab(remaining[remaining.length - 1]);
-    } else {
-      activeTabId = null;
-      createTab(START_URL);
-    }
+  if (!wasActive) return;
+  if (fallbackTabId && tabs.has(fallbackTabId)) {
+    switchTab(fallbackTabId);
+    return;
+  }
+  const remaining = [...tabs.keys()];
+  if (remaining.length > 0) {
+    switchTab(remaining[remaining.length - 1]);
+  } else {
+    activeTabId = null;
+    createTab(START_URL);
   }
 }
 
@@ -1907,6 +2260,137 @@ function popupTabMenu(menu, tabId, x, y) {
   else menu.popup({ window: mainWindow, x, y });
 }
 
+// Pad zonder query/hash (zoals bij isRealNavigation); null voor about:blank
+// e.d. Gebruikt door switchToOpenTab en findOtherPageIndex.
+function pagePath(url) {
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+    return parsed.origin + parsed.pathname.replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+}
+
+// Staat deze pagina al in een andere tab open? Dan daarheen i.p.v. een
+// dubbele tab. De tab waar de link vandaan komt telt niet mee.
+// ---------- Anonieme gebruiksgegevens ----------
+//
+// Zie telemetry.js: welk thema, welke pagina-soorten, hoeveel CPU en geheugen.
+// Alleen met telemetry.config.json naast de app (adres + sleutel van
+// tools/rapport-server, niet in git) én de schakelaar in Instellingen aan.
+const telemetryConfig = loadConfig(__dirname);
+const telemetry = createTelemetry({
+  dir: app.getPath('userData'),
+  appVersion: app.getVersion(),
+  config: telemetryConfig,
+  isEnabled: () => appSettings.telemetry,
+  // CPU: 100 = één hele kern. Het deel van de pagina waar je op staat komt
+  // van het proces van die tab (kan ook andere tabs van dezelfde site omvatten).
+  getMetrics: () => {
+    const view = tabs.get(activeTabId);
+    const pid = view && !view.webContents.isDestroyed() ? view.webContents.getOSProcessId() : -1;
+    let totalCpu = 0;
+    let activeCpu = 0;
+    let memKb = 0;
+    for (const metric of app.getAppMetrics()) {
+      totalCpu += metric.cpu.percentCPUUsage;
+      memKb += metric.memory.workingSetSize;
+      if (metric.pid === pid) activeCpu += metric.cpu.percentCPUUsage;
+    }
+    const windowFocused = !!mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused() && !mainWindow.isMinimized();
+    // Voorgrond = een van de app-vensters (ook een los venster) heeft de focus.
+    const anyFocused = !!BrowserWindow.getFocusedWindow() && !(mainWindow && !mainWindow.isDestroyed() && mainWindow.isMinimized());
+    return { totalCpu, activeCpu, memMb: memKb / 1024, windowFocused, anyFocused };
+  },
+  getActive: () => {
+    const view = tabs.get(activeTabId);
+    return view && !view.webContents.isDestroyed() ? pageKind(view.webContents.getURL()) : null;
+  },
+  getSnapshot: () => ({
+    theme: activeTheme(), dark: darkActive(), themeMode: appSettings.themeMode, soft: softActive(),
+    zoom: Math.round(appSettings.zoomFactor * 100) / 100, tabBarDisabled: appSettings.tabBarDisabled,
+    allLinksNewTab: appSettings.openAllLinksInNewTab, beta: appSettings.betaUpdates,
+    notifications: appSettings.windowsNotifications, notClocked: appSettings.notClockedMode,
+    tabs: tabs.size, detached: detachedWindows.size, startTabs: appSettings.startTabs.length,
+    groups: appSettings.tabGroups.length, displays: screen.getAllDisplays().length
+  })
+});
+
+// ---------- Meldingen (belletje van de webapp) ----------
+//
+// Elke tab meldt het getal bij het belletje (ELECTRON_BADGE). Alle tabs tonen
+// dezelfde meldingen, dus de laatste melding telt voor het taakbalkicoon
+// (index.html tekent het rondje, zie set-taskbar-badge).
+// Een Windows-melding alleen als het getal in een tab zelf omhooggaat: niet
+// als tabs even van elkaar verschillen (net gelezen in tab A, tab B meldt
+// nog zijn oude getal), niet bij de eerste telling van een tab (start,
+// nieuwe tab, herladen), en één keer als meerdere tabs dezelfde zien.
+let notificationCount = 0;
+const tabNotificationCounts = new Map(); // tabId -> laatste getal van die tab
+let lastNotificationAt = 0;
+let notificationTabId = null;
+let lastNotification = null; // vasthouden, anders ruimt JS hem op en werkt klikken niet
+
+function updateNotificationCount(count, tabId) {
+  const tabPrevious = tabNotificationCounts.get(tabId);
+  tabNotificationCounts.set(tabId, count);
+  if (count !== notificationCount) {
+    notificationCount = count;
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('notification-count', count);
+  }
+  if (tabPrevious === undefined || count <= tabPrevious) return;
+  if (Date.now() - lastNotificationAt < 10 * 1000) return;
+  lastNotificationAt = Date.now();
+  notificationTabId = tabId;
+  const added = count - tabPrevious;
+  const title = added === 1 ? 'Nieuwe melding' : `${added} nieuwe meldingen`;
+
+  // Zit je in de app: een berichtje in de tab die je bekijkt, geen
+  // Windows-melding (zie __electronShowNotice in het paginascript).
+  const activeView = tabs.get(activeTabId);
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused() && activeView && !activeView.webContents.isDestroyed()) {
+    activeView.webContents.executeJavaScript(`window.__electronShowNotice && window.__electronShowNotice(${JSON.stringify(title)});`).catch(() => {});
+    return;
+  }
+
+  // Instellingen > Algemeen; het getal op de taakbalk blijft altijd.
+  if (!appSettings.windowsNotifications || !Notification.isSupported()) return;
+  const notification = new Notification({
+    title: `${title} voor jou`,
+    body: 'Klik om de Singeling App te openen.',
+    icon: path.join(__dirname, 'assets/singeling-logo.png')
+  });
+  // Klikken: app naar voren, op de tab die de melding zag.
+  notification.on('click', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+    if (tabs.has(notificationTabId)) switchTab(notificationTabId);
+  });
+  lastNotification = notification;
+  notification.show();
+}
+
+ipcMain.on('set-taskbar-badge', (event, dataUrl) => {
+  if (event.sender !== mainWindow.webContents || process.platform !== 'win32') return;
+  const count = notificationCount || 0;
+  mainWindow.setOverlayIcon(
+    count > 0 && typeof dataUrl === 'string' ? nativeImage.createFromDataURL(dataUrl) : null,
+    count > 0 ? `${count} ongelezen ${count === 1 ? 'melding' : 'meldingen'}` : ''
+  );
+});
+
+function switchToOpenTab(url, fromTabId) {
+  const path = pagePath(url);
+  const match = path && [...tabs.entries()].find(([id, view]) =>
+    id !== fromTabId && !isDetachedTab(id) && pagePath(view.webContents.getURL()) === path);
+  if (!match) return null;
+  switchTab(match[0]);
+  return match[0];
+}
+
 // Een link of knop die normaal een nieuwe tab opent.
 function openLinkFromTab(tabId, view, url) {
   if (!isInternalUrl(url)) {
@@ -1914,13 +2398,14 @@ function openLinkFromTab(tabId, view, url) {
   } else if (isDetachedTab(tabId) || appSettings.tabBarDisabled) {
     view.webContents.loadURL(url);
   } else {
-    createTab(url, true, false, tabId);
+    switchToOpenTab(url, tabId) || createTab(url, true, false, tabId);
   }
 }
 
 // Expliciet "in nieuw tabblad": vanuit een los venster in het hoofdvenster.
-function openInNewTabFromTab(tabId, url) {
-  const newTabId = createTab(url, true, false, tabId);
+// reuseOpenTab=false bij openButtonInNewTab: die opent bewust dezelfde pagina.
+function openInNewTabFromTab(tabId, url, reuseOpenTab = true) {
+  const newTabId = (reuseOpenTab && switchToOpenTab(url, tabId)) || createTab(url, true, false, tabId);
   if (newTabId && isDetachedTab(tabId) && mainWindow && !mainWindow.isDestroyed()) mainWindow.focus();
   return newTabId;
 }
@@ -1940,7 +2425,6 @@ function sendDetachedState(tabId) {
   const title = webContents.getTitle();
   detached.window.setTitle(title ? `${title} - Singeling App` : 'Singeling App');
   detached.window.webContents.send('detached-state', { canGoBack, canGoForward, title });
-  webContents.executeJavaScript(`window.__electronCanGoBack = ${canGoBack};`).catch(() => {});
 }
 
 // [tabId, { window, view }] van het losse venster waar de balk bij hoort.
@@ -1977,38 +2461,7 @@ function detachTab(tabId, screenX, screenY) {
   const view = tabs.get(tabId);
   if (!view) return;
 
-  const fallbackTabId = parentTabs.get(tabId) || previousTabs.get(tabId);
-  const wasActive = activeTabId === tabId;
-
-  try {
-    mainWindow.contentView.removeChildView(view);
-  } catch {
-    // Al losgekoppeld; niets meer te doen.
-  }
-  tabs.delete(tabId);
-  parentTabs.delete(tabId);
-  previousTabs.delete(tabId);
-  tabThumbnails.delete(tabId);
-  for (const [id, previousTabId] of previousTabs) {
-    if (previousTabId === tabId) previousTabs.delete(id);
-  }
-  lockedTabs.delete(tabId);
-  mainWindow.webContents.send('tab-closed', tabId);
-
-  if (wasActive) {
-    if (fallbackTabId && tabs.has(fallbackTabId)) {
-      switchTab(fallbackTabId);
-    } else {
-      const remaining = [...tabs.keys()];
-      if (remaining.length > 0) {
-        switchTab(remaining[remaining.length - 1]);
-      } else {
-        activeTabId = null;
-        createTab(START_URL);
-      }
-    }
-  }
-
+  removeTabFromBar(tabId, view);
   createDetachedWindow(view, tabId, screenX, screenY);
 }
 
@@ -2039,7 +2492,7 @@ function createDetachedWindow(view, tabId, screenX, screenY) {
     // Geen Windows-titelbalk: de balk (detached.html) is de titelbalk, met
     // dezelfde eigen vensterknoppen als het hoofdvenster.
     titleBarStyle: 'hidden',
-    backgroundColor: appSettings.darkMode ? '#0f1115' : '#ffffff',
+    backgroundColor: detachedBarColor(),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -2051,10 +2504,14 @@ function createDetachedWindow(view, tabId, screenX, screenY) {
   // Het venster zelf toont de smalle balk (detached.html); de pagina komt
   // daaronder.
   detachedWindow.on('page-title-updated', (event) => event.preventDefault());
+  stayOnOwnPage(detachedWindow.webContents);
   detachedWindow.loadFile(path.join(__dirname, 'detached.html'), {
-    query: { theme: appSettings.darkMode ? 'dark' : 'light', soft: appSettings.softColors ? '1' : '0' }
+    query: { theme: darkActive() ? 'dark' : 'light', soft: softActive() ? '1' : '0' }
   });
-  detachedWindow.webContents.once('did-finish-load', () => sendNavigationState(tabId));
+  detachedWindow.webContents.once('did-finish-load', () => {
+    sendNavigationState(tabId);
+    detachedWindow.webContents.send('detached-chrome-theme', themes.chromeThemeCss(activeTheme()));
+  });
 
   detachedWindow.contentView.addChildView(view);
   const layoutView = () => {
@@ -2092,13 +2549,19 @@ function createDetachedWindow(view, tabId, screenX, screenY) {
 }
 
 // IPC vanuit index.html (tabbar UI)
-ipcMain.on('switch-tab', (event, tabId) => switchTab(tabId));
-ipcMain.on('close-tab', (event, tabId) => closeTab(tabId));
+ipcMain.on('switch-tab', (event, tabId) => {
+  if (event.sender === mainWindow.webContents) switchTab(tabId);
+});
+ipcMain.on('close-tab', (event, tabId) => {
+  if (event.sender === mainWindow.webContents) closeTab(tabId);
+});
 ipcMain.on('detach-tab', (event, { tabId, screenX, screenY }) => {
   if (event.sender !== mainWindow.webContents || !tabs.has(tabId)) return;
   detachTab(tabId, screenX, screenY);
 });
-ipcMain.on('request-new-tab', (event, url) => createTab(url || START_URL));
+ipcMain.on('request-new-tab', (event, url) => {
+  if (event.sender === mainWindow.webContents) createTab(url || START_URL);
+});
 
 // ---------- Link invoeren (knop in de tabbalk) ----------
 //
@@ -2132,7 +2595,7 @@ ipcMain.handle('open-entered-link', (event, text) => {
   if (event.sender !== mainWindow.webContents) return { ok: false };
   const url = normalizeEnteredLink(text);
   if (!url) return { ok: false };
-  createTab(url, true, false, activeTabId);
+  switchToOpenTab(url, null) || createTab(url, true, false, activeTabId);
   return { ok: true, url };
 });
 ipcMain.on('navigate-active-tab', (event, action) => {
@@ -2159,20 +2622,14 @@ ipcMain.on('navigate-active-tab', (event, action) => {
     view.webContents.reload();
   }
 });
-ipcMain.on('set-tab-locked', (event, { tabId, locked }) => {
-  if (event.sender !== mainWindow.webContents || !tabs.has(tabId)) return;
-
-  if (locked) lockedTabs.add(tabId);
-  else lockedTabs.delete(tabId);
-  tabs.get(tabId).webContents.executeJavaScript(`window.__electronTabLocked = ${!!locked};`);
-  mainWindow.webContents.send('tab-lock-changed', { tabId, locked: !!locked });
-});
 ipcMain.on('show-tab-context-menu', (event, { tabId, x, y }) => {
   if (event.sender !== mainWindow.webContents || !tabs.has(tabId)) return;
 
   const locked = lockedTabs.has(tabId);
   const currentUrl = tabs.get(tabId).webContents.getURL();
   const isStartTab = appSettings.startTabs.some(tab => tab.url === currentUrl);
+  // Alleen app-pagina's bewaren (geen about:blank van een PDF-voorbeeld e.d.).
+  const canSave = isInternalUrl(currentUrl);
 
   const groupSubmenu = appSettings.tabGroups.map(group => ({
     label: group.name,
@@ -2215,7 +2672,7 @@ ipcMain.on('show-tab-context-menu', (event, { tabId, x, y }) => {
         const nextLocked = !lockedTabs.has(tabId);
         if (nextLocked) lockedTabs.add(tabId);
         else lockedTabs.delete(tabId);
-        tabs.get(tabId).webContents.executeJavaScript(`window.__electronTabLocked = ${nextLocked};`);
+        tabs.get(tabId).webContents.executeJavaScript(`window.__electronTabLocked = ${nextLocked};`).catch(() => {});
         mainWindow.webContents.send('tab-lock-changed', { tabId, locked: nextLocked });
       }
     },
@@ -2223,6 +2680,7 @@ ipcMain.on('show-tab-context-menu', (event, { tabId, x, y }) => {
       label: 'Openen bij opstarten',
       type: 'checkbox',
       checked: isStartTab,
+      enabled: canSave || isStartTab,
       click: () => {
         const index = appSettings.startTabs.findIndex(tab => tab.url === currentUrl);
         if (index !== -1) {
@@ -2236,6 +2694,7 @@ ipcMain.on('show-tab-context-menu', (event, { tabId, x, y }) => {
     },
     {
       label: 'Toevoegen aan tabgroup',
+      enabled: canSave,
       submenu: groupSubmenu
     }
   ]);
@@ -2289,26 +2748,109 @@ ipcMain.handle('get-settings', (event) => {
     openAllLinksInNewTab: appSettings.openAllLinksInNewTab,
     tabBarDisabled: appSettings.tabBarDisabled,
     showOnboarding: appSettings.showOnboarding,
+    // Eerste start na een update (niet na een nieuwe installatie): dan is de
+    // korte "Nieuw in deze versie"-rondleiding verplicht (welkomstscherm in
+    // index.html). lastSeenChangelogVersion wordt pas bijgewerkt na "Start"
+    // (maybeShowChangelogNotice).
+    // Instellingen > Debug alleen bij npm start en in een bètaversie.
+    debugAvailable: DEBUG_AVAILABLE,
+    debugPort: !!appSettings.debugPort,
+    debugPortNumber: DEBUG_PORT,
+    // Eerste start na een installatie: de volledige uitleg is dan verplicht.
+    firstStartAfterInstall: appSettings.lastSeenChangelogVersion === null,
+    firstStartAfterUpdate: appSettings.lastSeenChangelogVersion !== null
+      && appSettings.lastSeenChangelogVersion !== app.getVersion(),
     blockCtrlB: appSettings.blockCtrlB,
+    windowsNotifications: appSettings.windowsNotifications,
+    telemetry: appSettings.telemetry,
+    telemetryAvailable: !!telemetryConfig,
+    debugUnlocked: appSettings.debugUnlocked,
     notClockedMode: appSettings.notClockedMode,
     // Keuzescherm (thema + klokmelding) al gezien? Zonder dit veld dacht
     // index.html bij elke start van niet en kwam het scherm steeds terug.
     preferencesChosen: appSettings.preferencesChosen,
+    setupVersion: appSettings.setupVersion,
     darkMode: appSettings.darkMode,
     softColors: appSettings.softColors,
     themeMode: appSettings.themeMode,
     themeTimes: appSettings.themeTimes,
     themeSunOffset: appSettings.themeSunOffset,
     betaUpdates: appSettings.betaUpdates,
+    appTheme: appSettings.appTheme,
+    themes: themes.themeCatalog(),
+    previewFontCss: themes.previewFontCss(),
+    themesAvailable: themesAvailable(),
+    softSupported: themes.supportsSoft(activeTheme()),
+    originalTheme: themes.isOriginal(activeTheme()),
+    fixedMode: themes.fixedMode(activeTheme()),
+    chromeThemeCss: themes.chromeThemeCss(activeTheme()),
     customWindowControls: CUSTOM_WINDOW_CONTROLS,
     appVersion: app.getVersion(),
     windowMaximized: mainWindow.isMaximized(),
     updateVersion: updateAvailableInfo ? updateAvailableInfo.version : null
   };
 });
-// Leescomfort: zachtere kleuren aan/uit. Net als bij licht/donker eerst het
+// Oogcomfort: zachtere kleuren aan/uit. Net als bij licht/donker eerst het
 // gordijn in de oude kleur, zodat de nieuwe kleuren er rustig onder vandaan
 // komen.
+// Kleurenthema (themes.js). Zelfde overgang als bij oogcomfort.
+ipcMain.on('set-app-theme', (event, id) => {
+  if (event.sender !== mainWindow.webContents || !themes.isTheme(id) || !themesAvailable()) return;
+  if (id === appSettings.appTheme) return;
+  const previousColor = curtainColor();
+  appSettings.appTheme = id;
+  saveSettings();
+  applyThemeChange(previousColor);
+});
+
+function detachedBarColor() {
+  return themes.themeBarColor(activeTheme(), darkActive(), softActive())
+    || (darkActive() ? '#0f1115' : '#ffffff');
+}
+
+// De chrome-kleuren van het thema naar de tabbalk (index.html), plus of de
+// keuze zichtbaar is.
+function sendChromeTheme() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send('chrome-theme-changed', {
+    appTheme: appSettings.appTheme,
+    themesAvailable: themesAvailable(),
+    softSupported: themes.supportsSoft(activeTheme()),
+    originalTheme: themes.isOriginal(activeTheme()),
+    fixedMode: themes.fixedMode(activeTheme()),
+    css: themes.chromeThemeCss(activeTheme())
+  });
+}
+
+function applyThemeChange(previousColor) {
+  if (activeTabId && tabs.has(activeTabId)) {
+    coverActiveView(tabs.get(activeTabId), {
+      color: previousColor,
+      revealDelay: CURTAIN_THEME_DELAY_MS,
+      fadeMs: CURTAIN_THEME_FADE_MS,
+      waitForLoad: false
+    });
+  }
+  for (const view of tabs.values()) {
+    insertThemeCss(view);
+    applyDarkMode(view);
+    applySolidTints(view);
+  }
+  sendChromeTheme();
+  const css = themes.chromeThemeCss(activeTheme());
+  for (const detached of detachedWindows.values()) {
+    insertThemeCss(detached.view);
+    applyDarkMode(detached.view);
+    applySolidTints(detached.view);
+    if (!detached.window.isDestroyed()) {
+      detached.window.setBackgroundColor(detachedBarColor());
+      detached.window.webContents.send('detached-chrome-theme', css);
+      detached.window.webContents.send('detached-soft', softActive());
+      detached.window.webContents.send('detached-theme', darkActive());
+    }
+  }
+}
+
 ipcMain.on('set-soft-colors', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
   const previousColor = curtainColor();
@@ -2325,13 +2867,22 @@ ipcMain.on('set-soft-colors', (event, value) => {
   for (const view of tabs.values()) applyDarkMode(view);
   for (const detached of detachedWindows.values()) {
     applyDarkMode(detached.view);
-    if (!detached.window.isDestroyed()) detached.window.webContents.send('detached-soft', appSettings.softColors);
+    if (!detached.window.isDestroyed()) {
+      detached.window.setBackgroundColor(detachedBarColor());
+      detached.window.webContents.send('detached-soft', softActive());
+    }
   }
 });
 ipcMain.on('set-beta-updates', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
+  const previousTheme = activeTheme();
+  const previousColor = curtainColor();
   appSettings.betaUpdates = !!value;
   saveSettings();
+  // Thema's zijn nog bèta (zie themesAvailable): het gekozen thema gaat aan
+  // of uit, en de keuze in de instellingen verschijnt of verdwijnt.
+  if (activeTheme() !== previousTheme) applyThemeChange(previousColor);
+  else sendChromeTheme();
   if (!app.isPackaged) return;
   applyUpdateChannel();
   // Meteen stil opnieuw kijken, zodat het update-bolletje klopt met de
@@ -2341,6 +2892,165 @@ ipcMain.on('set-beta-updates', (event, value) => {
 ipcMain.on('set-block-ctrl-b', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
   appSettings.blockCtrlB = !!value;
+  saveSettings();
+});
+ipcMain.on('set-windows-notifications', (event, value) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.windowsNotifications = !!value;
+  saveSettings();
+});
+// ---------- Beheer: rapport-server in de app ----------
+//
+// Instellingen > Debug > Beheer. Ontgrendelen met een eigen wachtwoord: de
+// eerste keer kies je het, daarna alleen nog de scrypt-hash in settings.json
+// (nooit het wachtwoord zelf, en niets in de code). Ingelogd blijft ingelogd
+// na een herstart, tot je vergrendelt. Wachtwoord vergeten: adminPasswordHash
+// in settings.json leegmaken.
+//
+// De server (rapport/server.js) gebruikt als sleutel voor het insturen die
+// uit telemetry.config.json, dezelfde die de apps van collega's hebben. De
+// leessleutel voor het overzicht maken we bij elke start opnieuw aan en
+// staat alleen in het geheugen.
+const RAPPORT_VIEW_KEY = crypto.randomBytes(24).toString('hex');
+const RAPPORT_DATA_DIR = path.join(app.getPath('userData'), 'rapport-data');
+let rapportServer = null;
+let rapportError = '';
+
+function rapportPort() {
+  try { return Number(new URL(telemetryConfig.url).port) || 8787; } catch { return 8787; }
+}
+
+// Meldingen die op schijf staan, ook als de server uit staat.
+function countStoredMeldingen() {
+  try { return fs.readdirSync(path.join(RAPPORT_DATA_DIR, 'meldingen')).filter(name => name.endsWith('.json')).length; } catch { return 0; }
+}
+
+// Nieuwe meldingen: open (niet gearchiveerd) en binnengekomen na het laatste
+// keer kijken. Alleen terwijl de server draait (en je bent ingelogd): zo ziet
+// niemand anders dit balletje, want alleen bij jou draait de server.
+function unseenMeldingen() {
+  if (!appSettings.adminUnlocked || !rapportServer || !rapportServer.running()) return 0;
+  const dir = path.join(RAPPORT_DATA_DIR, 'meldingen');
+  // Bestandsnamen beginnen met het tijdstip van binnenkomst (zelfde opmaak,
+  // dus op naam te vergelijken): alleen wat na het laatste kijken kwam hoeft
+  // gelezen te worden, hoeveel meldingen er ook in totaal zijn.
+  const since = new Date(appSettings.rapportSeenAt).toISOString().replace(/[:.]/g, '-');
+  let count = 0;
+  try {
+    for (const name of fs.readdirSync(dir).filter(n => n.endsWith('.json') && n > since)) {
+      if (!JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8')).archivedAt) count += 1;
+    }
+  } catch { /* geen map of een kapot bestand: tel gewoon wat er is */ }
+  return count;
+}
+
+function sendRapportBadge() {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('rapport-badge', unseenMeldingen());
+}
+
+function rapportStatus() {
+  const running = !!rapportServer && rapportServer.running();
+  return {
+    unlocked: appSettings.adminUnlocked,
+    hasPassword: !!appSettings.adminPasswordHash,
+    available: !!telemetryConfig,
+    running,
+    autostart: appSettings.rapportServerAutostart,
+    lockOnRestart: appSettings.adminLockOnRestart,
+    stored: countStoredMeldingen(),
+    unseen: unseenMeldingen(),
+    address: `${os.hostname()}:${rapportPort()}`,
+    dataDir: RAPPORT_DATA_DIR,
+    error: rapportError,
+    dashboardUrl: running ? `http://localhost:${rapportPort()}/?key=${RAPPORT_VIEW_KEY}` : null
+  };
+}
+
+async function startRapportServer() {
+  if (!telemetryConfig) {
+    rapportError = 'Deze installatie heeft geen telemetry.config.json, dus geen sleutel voor de server.';
+    return;
+  }
+  try {
+    rapportServer = rapportServer || createRapportServer({
+      token: telemetryConfig.token, viewToken: RAPPORT_VIEW_KEY, port: rapportPort(), dataDir: RAPPORT_DATA_DIR,
+      log: (line) => console.log(`[Rapport] ${line}`),
+      onMelding: sendRapportBadge
+    });
+    await rapportServer.start();
+    rapportError = '';
+    sendRapportBadge();
+  } catch (error) {
+    rapportError = error && error.code === 'EADDRINUSE'
+      ? `Poort ${rapportPort()} is al in gebruik. Draait de losse server (npm run rapport) nog?`
+      : `Starten lukt niet: ${error && error.message}`;
+  }
+}
+
+async function stopRapportServer() {
+  if (rapportServer) await rapportServer.stop();
+  sendRapportBadge(); // server uit: geen balletje
+}
+
+function hashPassword(password, salt = crypto.randomBytes(16)) {
+  return `${salt.toString('hex')}:${crypto.scryptSync(password, salt, 32).toString('hex')}`;
+}
+
+function passwordMatches(password, stored) {
+  const [saltHex, hashHex] = String(stored).split(':');
+  if (!saltHex || !hashHex) return false;
+  const expected = Buffer.from(hashHex, 'hex');
+  const actual = crypto.scryptSync(password, Buffer.from(saltHex, 'hex'), expected.length);
+  return crypto.timingSafeEqual(expected, actual);
+}
+
+ipcMain.handle('admin-status', (event) => (event.sender === mainWindow.webContents ? rapportStatus() : null));
+
+ipcMain.handle('admin-unlock', (event, password) => {
+  if (event.sender !== mainWindow.webContents || typeof password !== 'string') return { ok: false };
+  if (!appSettings.adminPasswordHash) {
+    if (password.length < 6) return { ok: false, reason: 'kort' };
+    appSettings.adminPasswordHash = hashPassword(password); // eerste keer: dit wordt het wachtwoord
+  } else if (!passwordMatches(password, appSettings.adminPasswordHash)) {
+    return { ok: false, reason: 'fout' };
+  }
+  appSettings.adminUnlocked = true;
+  saveSettings();
+  return { ok: true, status: rapportStatus() };
+});
+
+
+ipcMain.handle('rapport-server', async (event, action) => {
+  if (event.sender !== mainWindow.webContents || !appSettings.adminUnlocked) return null;
+  if (action === 'seen') {
+    appSettings.rapportSeenAt = Date.now();
+    saveSettings();
+    sendRapportBadge();
+  }
+  if (action === 'start') await startRapportServer();
+  if (action === 'stop') await stopRapportServer();
+  if (action === 'lock-on' || action === 'lock-off') {
+    appSettings.adminLockOnRestart = action === 'lock-on';
+    saveSettings();
+  }
+  if (action === 'autostart-on' || action === 'autostart-off') {
+    appSettings.rapportServerAutostart = action === 'autostart-on';
+    saveSettings();
+  }
+  return rapportStatus();
+});
+
+// Gewone versie: Debug pas zichtbaar na Ctrl+Shift+Alt+D (index.html); de
+// app onthoudt dat. De debugpoort en testschermen blijven alleen in bèta/npm start.
+ipcMain.on('unlock-debug', (event) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.debugUnlocked = true;
+  saveSettings();
+});
+
+ipcMain.on('set-telemetry', (event, value) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.telemetry = !!value;
   saveSettings();
 });
 ipcMain.on('set-not-clocked-mode', (event, mode) => {
@@ -2356,8 +3066,9 @@ ipcMain.on('set-not-clocked-mode', (event, mode) => {
 // Naast handmatig (de knop in de tabbalk) kan het thema automatisch wisselen:
 //   - 'systeem': volgt de Windows-instelling (licht/donker voor apps)
 //   - 'tijden':  donker tussen twee vaste tijden (bv. 18:00 - 07:00)
-//   - 'zon':     donker na zonsondergang tot zonsopkomst, met een
-//                verschuiving in minuten. Zon op/onder wordt hier berekend
+//   - 'zon':     donker na zonsondergang tot zonsopkomst, met voor licht en
+//                donker elk een eigen verschuiving in minuten. Zon op/onder
+//                wordt hier berekend
 //                voor Singeling in Wormerveer (geen internet nodig).
 // De knop in de tabbalk werkt dan als tijdelijke uitzondering: die geldt tot
 // het volgende omslagmoment (of tot Windows wisselt), daarna neemt de
@@ -2413,12 +3124,13 @@ function themeMoments(now) {
     }
     return moments;
   }
-  const offsetMs = appSettings.themeSunOffset * 60000;
+  const lightMs = appSettings.themeSunOffset.light * 60000;
+  const darkMs = appSettings.themeSunOffset.dark * 60000;
   const moments = [];
   for (const day of [-1, 0, 1]) {
     const { sunrise, sunset } = sunTimes(addDays(now, day));
-    if (sunrise) moments.push({ at: new Date(sunrise.getTime() + offsetMs), dark: false });
-    if (sunset) moments.push({ at: new Date(sunset.getTime() + offsetMs), dark: true });
+    if (sunrise) moments.push({ at: new Date(sunrise.getTime() + lightMs), dark: false });
+    if (sunset) moments.push({ at: new Date(sunset.getTime() + darkMs), dark: true });
   }
   return moments;
 }
@@ -2453,6 +3165,10 @@ function setDarkModeValue(value) {
 // van thema wisselt): zet het thema op de automatische stand, tenzij de
 // knop in de tabbalk tijdelijk iets anders heeft gekozen.
 function applyThemeSchedule() {
+  // Tijdens de instelassistent (en de rondleiding) wisselt de app niet
+  // vanzelf: je kiest daar zelf, en na afloop geldt de automatische stand
+  // alsnog (onboarding-ended).
+  if (onboardingActive) return;
   const now = new Date();
   const scheduled = scheduledTheme(now);
   if (!scheduled) {
@@ -2490,13 +3206,13 @@ function formatClock(date) {
 // Voor het instellingenscherm: wanneer het vandaag licht/donker wordt.
 function themeScheduleInfo() {
   const { sunrise, sunset } = sunTimes(new Date());
-  const offsetMs = appSettings.themeSunOffset * 60000;
+  const { light, dark } = appSettings.themeSunOffset;
   const scheduled = scheduledTheme();
   return {
     sunrise: formatClock(sunrise),
     sunset: formatClock(sunset),
-    lightFrom: formatClock(sunrise && new Date(sunrise.getTime() + offsetMs)),
-    darkFrom: formatClock(sunset && new Date(sunset.getTime() + offsetMs)),
+    lightFrom: formatClock(sunrise && new Date(sunrise.getTime() + light * 60000)),
+    darkFrom: formatClock(sunset && new Date(sunset.getTime() + dark * 60000)),
     nextChange: scheduled && scheduled.nextChange ? formatClock(scheduled.nextChange) : null,
     overridden: !!themeOverride
   };
@@ -2511,7 +3227,7 @@ ipcMain.on('set-theme-schedule', (event, { mode, times, sunOffset } = {}) => {
   if (event.sender !== mainWindow.webContents || !THEME_MODES.includes(mode)) return;
   appSettings.themeMode = mode;
   if (times) appSettings.themeTimes = validThemeTimes(times);
-  if (sunOffset !== undefined) appSettings.themeSunOffset = validSunOffset(Number(sunOffset));
+  if (sunOffset !== undefined) appSettings.themeSunOffset = validSunOffsets(sunOffset);
   saveSettings();
   themeOverride = null;
   applyThemeSchedule();
@@ -2529,29 +3245,22 @@ ipcMain.on('set-dark-mode', (event, value) => {
 });
 
 function applyDarkModeChange(value) {
-  // Eerst het gordijn in de oude kleur over de actieve tab, dan pas het
-  // thema wisselen: zo komt het nieuwe thema er rustig onder vandaan in
-  // plaats van in één klap om te springen.
-  const previousColor = curtainColor();
-  const wasDark = appSettings.darkMode;
+  // De pagina loopt rustig over in de nieuwe kleuren (applyDarkMode fade),
+  // in hetzelfde tempo als de tabbalk, i.p.v. in één klap om te springen.
+  const wasDark = darkActive();
   appSettings.darkMode = !!value;
   saveSettings();
-  fadeTitleBarOverlay(wasDark, appSettings.darkMode, CURTAIN_THEME_FADE_MS);
-  if (activeTabId && tabs.has(activeTabId)) {
-    coverActiveView(tabs.get(activeTabId), {
-      color: previousColor,
-      revealDelay: CURTAIN_THEME_DELAY_MS,
-      fadeMs: CURTAIN_THEME_FADE_MS,
-      waitForLoad: false
-    });
-  }
+  if (darkActive() === wasDark) return; // bv. bij het thema "Origineel"
+  fadeTitleBarOverlay(wasDark, darkActive(), CURTAIN_THEME_FADE_MS);
   // Direct effect voor al open tabs, zonder herladen. Ook in losse vensters.
-  for (const view of tabs.values()) applyDarkMode(view);
+  // Wat je ziet (de actieve tab, losse vensters) loopt rustig over, net als
+  // de tabbalk; de rest wisselt direct.
+  for (const [id, view] of tabs) applyDarkMode(view, { fade: id === activeTabId });
   for (const detached of detachedWindows.values()) {
-    applyDarkMode(detached.view);
+    applyDarkMode(detached.view, { fade: true });
     if (!detached.window.isDestroyed()) {
-      detached.window.setBackgroundColor(appSettings.darkMode ? '#0f1115' : '#ffffff');
-      detached.window.webContents.send('detached-theme', appSettings.darkMode);
+      detached.window.setBackgroundColor(detachedBarColor());
+      detached.window.webContents.send('detached-theme', darkActive());
     }
   }
 }
@@ -2634,10 +3343,48 @@ ipcMain.on('changelog-notice-opened', (event) => {
   applyActiveTabBounds();
 });
 // Keuzescherm na de rondleiding (thema + klokmelding) is doorlopen.
-ipcMain.on('mark-preferences-chosen', (event) => {
-  if (event.sender !== mainWindow.webContents) return;
+// Instelassistent doorlopen (bevat ook het oude keuzescherm).
+ipcMain.on('mark-setup-done', (event, version) => {
+  if (event.sender !== mainWindow.webContents || !Number.isInteger(version)) return;
+  appSettings.setupVersion = Math.max(appSettings.setupVersion, version);
   appSettings.preferencesChosen = true;
   saveSettings();
+});
+// Debugpoort aan/uit: werkt pas na een herstart (zie appendSwitch bovenaan),
+// dus meteen herstarten.
+ipcMain.on('set-debug-port', (event, value) => {
+  if (event.sender !== mainWindow.webContents || !DEBUG_AVAILABLE) return;
+  appSettings.debugPort = value ? app.getVersion() : false;
+  saveSettings();
+  app.relaunch();
+  app.quit();
+});
+
+// Instellingen > Debug (alleen bij npm start en in een bètaversie):
+// de app herstarten alsof hij net geïnstalleerd of bijgewerkt is, zodat je de
+// echte schermen bij de start ziet (welkomstscherm, instelassistent, "Nieuw in
+// deze versie"). Alleen de velden daarvoor gaan terug; tabs, thema en de
+// rest van de instellingen blijven.
+ipcMain.on('debug-simulate-start', (event, { mode, fromVersion, seenTours } = {}) => {
+  if (event.sender !== mainWindow.webContents || !DEBUG_AVAILABLE) return;
+  if (mode === 'install') {
+    Object.assign(appSettings, {
+      lastSeenChangelogVersion: null, setupVersion: 0, preferencesChosen: false,
+      seenWhatsNewTours: [], showOnboarding: true
+    });
+  } else if (mode === 'update' && typeof fromVersion === 'string' && Array.isArray(seenTours)) {
+    // Zoals iemand die op fromVersion zat: keuzescherm toen al gezien, de
+    // instelassistent (nieuwer) nog niet.
+    Object.assign(appSettings, {
+      lastSeenChangelogVersion: fromVersion, setupVersion: 0, preferencesChosen: true,
+      seenWhatsNewTours: seenTours.map(String)
+    });
+  } else {
+    return;
+  }
+  saveSettings();
+  app.relaunch();
+  app.quit();
 });
 ipcMain.on('mark-whats-new-seen', (event, ids) => {
   if (event.sender !== mainWindow.webContents || !Array.isArray(ids)) return;
@@ -2653,11 +3400,16 @@ ipcMain.on('onboarding-started', (event) => {
   if (event.sender !== mainWindow.webContents) return;
   onboardingActive = true;
   applyActiveTabBounds();
+  // Staat de app vanzelf op donker (automatisch: zon, tijden of Windows),
+  // dan begint de assistent in licht. Een eigen keuze voor donker
+  // (handmatig of via de knop) blijft staan.
+  if (scheduledTheme() && !themeOverride && appSettings.darkMode) setDarkModeValue(false);
 });
 ipcMain.on('onboarding-ended', (event) => {
   if (event.sender !== mainWindow.webContents) return;
   onboardingActive = false;
   applyActiveTabBounds();
+  applyThemeSchedule(); // nu alsnog de automatische stand
 });
 // Taboverzicht: eerst het voorbeeld van de actieve tab vernieuwen (die is
 // nu nog in beeld), dan alle voorbeelden teruggeven.
@@ -2952,6 +3704,7 @@ let closeAnimationRunning = false;
 // de animatie: dan niet (nog eens) animeren.
 app.on('before-quit', () => {
   appQuitting = true;
+  telemetry.flush({ final: true });
 });
 
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -3202,8 +3955,13 @@ function createWindow() {
   // Thema en versie meegeven, zodat het splash-scherm meteen in licht/donker
   // verschijnt en altijd het echte versienummer toont.
   splashWindow.loadFile('splash.html', {
-    // Laadscherm altijd in de gewone kleuren (ook met Leescomfort aan).
-    query: { theme: appSettings.darkMode ? 'dark' : 'light', version: app.getVersion() }
+    // Laadscherm altijd in de gewone kleuren (ook met Oogcomfort aan); bij
+    // een thema volgt alleen de laadbalk de accentkleur.
+    query: {
+      theme: darkActive() ? 'dark' : 'light',
+      version: app.getVersion(),
+      accent: themes.themeAccent(activeTheme(), darkActive()) || ''
+    }
   });
   const splashStartTime = Date.now();
 
@@ -3220,7 +3978,7 @@ function createWindow() {
     // tabbalk, in de kleuren van het huidige thema.
     titleBarStyle: 'hidden',
     // Zonder overlay tekent Windows geen knoppen; dan doet index.html dat.
-    ...(CUSTOM_WINDOW_CONTROLS ? {} : { titleBarOverlay: titleBarOverlayColors(appSettings.darkMode) }),
+    ...(CUSTOM_WINDOW_CONTROLS ? {} : { titleBarOverlay: titleBarOverlayColors(darkActive()) }),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -3230,6 +3988,7 @@ function createWindow() {
   });
 
   mainWindow.on('page-title-updated', (event) => event.preventDefault());
+  stayOnOwnPage(mainWindow.webContents);
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
   createCurtain();
 
@@ -3346,6 +4105,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  setTimeout(removeOldUpdateFolders, 30 * 1000);
+
   // Electron staat standaard ELKE toestemmingsvraag toe (camera, microfoon,
   // locatie, meldingen, ...), ook voor externe pagina's zoals de
   // inlogschermen. Alleen de eigen app krijgt die rechten nog.
@@ -3358,6 +4119,8 @@ app.whenReady().then(() => {
   });
 
   loadSettings();
+  telemetry.start();
+  if (appSettings.adminUnlocked && appSettings.rapportServerAutostart) startRapportServer();
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

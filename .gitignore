@@ -37,3 +37,7 @@ desktop.ini
 # Overig
 *.log
 *.tmp
+
+# Rapport-server: sleutel en adres zijn intern, en de verzamelde gegevens horen
+# niet in een openbare repo.
+telemetry.config.json

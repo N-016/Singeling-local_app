@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const incomingChannels = ['open-link-field', 'dark-mode-changed', 'update-notice-show', 'update-notice-state', 'update-notice-hide', 'tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed', 'help-popover-changed'];
+const incomingChannels = ['open-link-field', 'dark-mode-changed', 'update-notice-show', 'update-notice-state', 'update-notice-hide', 'tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed', 'help-popover-changed', 'chrome-theme-changed', 'tab-modal', 'notification-count', 'open-melding', 'rapport-badge'];
 
 contextBridge.exposeInMainWorld('electronAPI', {
   switchTab: (tabId) => ipcRenderer.send('switch-tab', tabId),
@@ -8,7 +8,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   requestNewTab: (url) => ipcRenderer.send('request-new-tab', url),
   openEnteredLink: (text) => ipcRenderer.invoke('open-entered-link', text),
   navigateActiveTab: (action) => ipcRenderer.send('navigate-active-tab', action),
-  setTabLocked: (tabId, locked) => ipcRenderer.send('set-tab-locked', { tabId, locked }),
   showTabContextMenu: (tabId, x, y) => ipcRenderer.send('show-tab-context-menu', { tabId, x, y }),
   detachTab: (tabId, { screenX, screenY }) => ipcRenderer.send('detach-tab', { tabId, screenX, screenY }),
   acceptAppNotice: () => ipcRenderer.send('app-notice-accepted'),
@@ -24,12 +23,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setTabBarDisabled: (value) => ipcRenderer.send('set-tab-bar-disabled', value),
   setShowOnboarding: (value) => ipcRenderer.send('set-show-onboarding', value),
   setBlockCtrlB: (value) => ipcRenderer.send('set-block-ctrl-b', value),
+  setWindowsNotifications: (value) => ipcRenderer.send('set-windows-notifications', value),
+  setTelemetry: (value) => ipcRenderer.send('set-telemetry', value),
+  sendMelding: (melding) => ipcRenderer.invoke('send-melding', melding),
+  adminStatus: () => ipcRenderer.invoke('admin-status'),
+  adminUnlock: (password) => ipcRenderer.invoke('admin-unlock', password),
+  rapportServer: (action) => ipcRenderer.invoke('rapport-server', action),
+  unlockDebug: () => ipcRenderer.send('unlock-debug'),
   setNotClockedMode: (mode) => ipcRenderer.send('set-not-clocked-mode', mode),
-  markPreferencesChosen: () => ipcRenderer.send('mark-preferences-chosen'),
+  markSetupDone: (version) => ipcRenderer.send('mark-setup-done', version),
+  debugSimulateStart: (scenario) => ipcRenderer.send('debug-simulate-start', scenario),
+  setDebugPort: (value) => ipcRenderer.send('set-debug-port', value),
+  setTaskbarBadge: (dataUrl) => ipcRenderer.send('set-taskbar-badge', dataUrl),
   setBetaUpdates: (value) => ipcRenderer.send('set-beta-updates', value),
   setDarkMode: (value) => ipcRenderer.send('set-dark-mode', value),
   setThemeSchedule: (schedule) => ipcRenderer.send('set-theme-schedule', schedule),
   setSoftColors: (value) => ipcRenderer.send('set-soft-colors', value),
+  setAppTheme: (id) => ipcRenderer.send('set-app-theme', id),
   getThemeScheduleInfo: () => ipcRenderer.invoke('get-theme-schedule-info'),
   windowControl: (action) => ipcRenderer.send('window-control', action),
   toggleHelpPopover: (anchor) => ipcRenderer.send('toggle-help-popover', anchor),

@@ -10,6 +10,11 @@
         if (splashParams.get('theme') === 'light') {
             document.documentElement.classList.add('theme-light');
         }
+        // Kleurenthema (bèta): de laadbalk in de accentkleur van het thema.
+        const splashAccent = splashParams.get('accent');
+        if (/^#[0-9a-f]{6}$/i.test(splashAccent || '')) {
+            document.documentElement.style.setProperty('--accent', splashAccent);
+        }
     </script>
     <style>
         /* Zelfde kleuren als de chrome in index.html. */
@@ -81,7 +86,7 @@
             width: 220px;
             height: 220px;
             border-radius: 50%;
-            background: rgba(255, 81, 0, 0.16);
+            background: color-mix(in srgb, var(--accent) 16%, transparent);
             filter: blur(60px);
             pointer-events: none;
         }
@@ -153,8 +158,8 @@
             left: 0;
             width: 38%;
             border-radius: 2px;
-            background: linear-gradient(90deg, rgba(255, 81, 0, 0), var(--accent) 35%, #ff8a3d);
-            box-shadow: 0 0 8px rgba(255, 81, 0, 0.6);
+            background: linear-gradient(90deg, transparent, var(--accent) 35%, color-mix(in srgb, var(--accent) 70%, #ffffff));
+            box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
             animation: slide 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
         }
 

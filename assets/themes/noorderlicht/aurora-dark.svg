@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 1200" preserveAspectRatio="none">
+  <!-- Losse laag boven de lucht; themes.js laat hem langzaam verschuiven. -->
+  <defs>
+    <linearGradient id="band1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4fe3b0" stop-opacity="0"/>
+      <stop offset="0.45" stop-color="#4fe3b0" stop-opacity="0.55"/>
+      <stop offset="0.75" stop-color="#38bdf8" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="band2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a78bfa" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#a78bfa" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#4fe3b0" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft" x="-10%" y="-30%" width="120%" height="160%">
+      <feGaussianBlur stdDeviation="28"/>
+    </filter>
+  </defs>
+  <g filter="url(#soft)">
+    <path d="M-100 330 C 300 180, 600 420, 1000 300 S 1700 140, 2100 320 S 2500 260, 2600 300 L 2600 560 C 2200 520, 1800 640, 1400 540 S 600 620, 200 560 S -100 600, -100 600 Z" fill="url(#band1)"/>
+    <path d="M-100 200 C 400 120, 800 300, 1200 220 S 2000 120, 2600 240 L 2600 380 C 2100 330, 1700 420, 1200 360 S 300 400, -100 380 Z" fill="url(#band2)"/>
+    <path d="M300 420 C 700 360, 1000 520, 1400 440 S 2000 360, 2300 460 L 2300 620 C 1900 600, 1500 680, 1100 610 S 500 660, 300 640 Z" fill="url(#band1)" opacity="0.6"/>
+  </g>
+</svg>
