@@ -2,6 +2,44 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.3.0] - 2026-10-21
+
+### Toegevoegd
+- **Thema's** (Instellingen > Thema's): geef de app een eigen uiterlijk. Een zon/maan-icoontje laat zien welke thema's licht én donker hebben, en bovenaan zie je wat je nu gekozen hebt.
+  - **Totaalthema's**, die verder gaan dan kleuren (ook knoppen, vensters, tabbladen en de tabbalk): Heuvel (de pc van rond 2002) en Bedienpaneel (zoals de bediening van de lasersnijder). Nog in ontwikkeling.
+  - **Dynamisch**, er beweegt rustig iets: Noorderlicht, Werkplaats, Haven, Arcade, Blauwdruk en Laser. Staan animaties in Windows uit, dan staat alles stil.
+  - **Thema's** met een eigen sfeer, lettertype en achtergrond: Rosé Pine, Cassette, Metaal, Rijstpapier, Terminal en Delfts blauw.
+  - **Kleurensets**, alleen andere kleuren: Singeling, Blauw, Groen, Roze, Crème en Lavendel.
+  - **Hoog contrast**: Hal. Zwart op wit (of wit op zwart), duidelijke randen en een goed zichtbare selectierand, voor schermen en tablets op de werkvloer.
+  - **Origineel**: de app precies zoals de webapp hem maakt.
+- **Instelassistent**: kies in een paar schermen je thema, licht of donker, oogcomfort, de melding "Niet geklokt op een order" en of je Windows-meldingen wilt. Je ziet elke keuze meteen. Later open je hem via Instellingen > Algemeen.
+- **Nieuw in deze versie**: na een update zie je in een paar schermen wat er nieuw is.
+- **Bug of idee melden**: klik op het kevertje en kies "Bug melden" of "Idee insturen". De pagina waar je was en een schermafbeelding gaan mee (die kun je uitvinken). Lukt versturen even niet, dan gaat het later vanzelf.
+- **Meldingen van het belletje**: het aantal staat als rondje op het taakbalkicoon. Komt er een nieuwe melding bij, dan krijg je een berichtje in de app, of een melding in Windows als de app niet op de voorgrond staat. Die Windows-melding kun je uitzetten in Instellingen > Algemeen.
+- **Anonieme gebruiksgegevens**: de app deelt anoniem processor- en geheugengebruik, crashes, je appversie en welke onderdelen je gebruikt, zodat we kunnen zien wat beter moet. Geen namen en geen inhoud van pagina's. Uit te zetten in Instellingen > Algemeen.
+- **Al open? Dan spring je erheen**: open je een pagina die al in een tab staat, dan ga je naar die tab in plaats van een dubbele te openen.
+- **Scrollen in de tabbalk**: met het scrollwiel of touchpad schuif je door je tabs. De + voor een nieuw tabblad staat nu direct achter je tabs.
+
+### Gewijzigd
+- **Terugknoppen werken overal hetzelfde**: "Terug", "← Verkoopoffertes" en andere knoppen terug naar de lijst gaan naar de tab waar je vandaan kwam, of naar een tab waar de lijst al open staat. Je offerte of relatie blijft dan open. Is er zo'n tab niet, dan opent de lijst in dezelfde tab.
+- Licht/donker wisselt nu standaard vanzelf met zonsopkomst en -ondergang, en de overgang is rustig, ook op de pagina's. Wie bewust Windows of vaste tijden had gekozen, houdt dat. De verschuiving voor licht en donker stel je apart in. Tijdens de instelassistent wisselt de app niet vanzelf.
+- Een paar thema's hebben maar één stand: Terminal en Blauwdruk zijn alleen donker, Delfts blauw, Heuvel en Bedienpaneel alleen licht. De licht/donker-knop verdwijnt dan even; je eigen keuze blijft bewaard.
+- Leescomfort heet nu Oogcomfort en werkt alleen in de lichte weergave.
+- Opent een pagina een pop-up, dan wordt de tabbalk mee donker.
+- De rondleiding is korter: twee pagina's over werken met tabs en de knoppen bovenin.
+
+### Opgelost
+- Terug na het sluiten van de tab waar je vandaan kwam, deed niets.
+- Een vergrendelde tab vergat na herladen (F5) dat hij vergrendeld was.
+- Vanuit een assembly opende "Assemblies" in het menu de lijst niet, maar sprong de app terug naar de vorige tab.
+- Een bestand per ongeluk op de tabbalk slepen liet de balk verdwijnen tot een herstart.
+- Viel de pc uit tijdens het opslaan van je instellingen, dan kon je je starttabs en tabgroepen kwijtraken.
+- Een PDF-voorbeeld als starttab gaf bij de volgende start een lege app.
+- Een externe site kon soms in de app openen in plaats van in je browser.
+- Stond er in de beschrijving van een update toevallig "geen kritieke update", dan kon die onterecht als verplicht gelden.
+- In de Scheduler was de stippellijn van de capaciteit in donker niet te zien.
+- Op pagina's met een thema-achtergrond waren sommige kaarten doorzichtig (bv. de ingeklokte medewerkers op de Shopfloor), en de achtergrond schoof op als er een keuzelijst openklapte.
+
 ## [1.3.0-beta.2] - 2026-10-19
 
 Bètaversie: alleen voor wie "Bèta-versies ontvangen" aan heeft staan.
