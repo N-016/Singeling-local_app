@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const incomingChannels = ['open-link-field', 'dark-mode-changed', 'update-notice-show', 'update-notice-state', 'update-notice-hide', 'tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed', 'help-popover-changed', 'chrome-theme-changed', 'tab-modal', 'notification-count', 'open-melding', 'rapport-badge'];
+const incomingChannels = ['open-link-field', 'dark-mode-changed', 'update-notice-show', 'update-notice-state', 'update-notice-hide', 'tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'tab-group-state', 'toggle-tab-overview', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed', 'help-popover-changed', 'chrome-theme-changed', 'tab-modal', 'notification-count', 'open-melding', 'rapport-badge'];
 
 contextBridge.exposeInMainWorld('electronAPI', {
   switchTab: (tabId) => ipcRenderer.send('switch-tab', tabId),
@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   adminUnlock: (password) => ipcRenderer.invoke('admin-unlock', password),
   rapportServer: (action) => ipcRenderer.invoke('rapport-server', action),
   unlockDebug: () => ipcRenderer.send('unlock-debug'),
+  getCrashLog: () => ipcRenderer.invoke('get-crash-log'),
+  clearCrashLog: () => ipcRenderer.send('clear-crash-log'),
   setNotClockedMode: (mode) => ipcRenderer.send('set-not-clocked-mode', mode),
   markSetupDone: (version) => ipcRenderer.send('mark-setup-done', version),
   debugSimulateStart: (scenario) => ipcRenderer.send('debug-simulate-start', scenario),
@@ -62,6 +64,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeTabGroup: (id) => ipcRenderer.send('remove-tab-group', id),
   removeTabGroupUrl: (groupId, urlIndex) => ipcRenderer.send('remove-tab-group-url', { groupId, urlIndex }),
   openTabGroup: (id) => ipcRenderer.send('open-tab-group', id),
+  showGroupMenu: (x, y) => ipcRenderer.send('show-group-menu', { x, y }),
+  createTabGroup: () => ipcRenderer.invoke('create-tab-group'),
+  moveTabToGroup: (tabId, groupId) => ipcRenderer.send('move-tab-to-group', { tabId, groupId }),
+  setTabGroupRemember: (id, value) => ipcRenderer.send('set-tab-group-remember', { id, value }),
   on: (channel, callback) => {
     if (!incomingChannels.includes(channel)) return undefined;
 

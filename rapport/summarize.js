@@ -42,8 +42,9 @@ function sanitize(raw) {
     time: { open: num(raw.time && raw.time.open, 1e7), focus: num(raw.time && raw.time.focus, 1e7) },
     visits: counts(raw.visits),
     seconds: counts(raw.seconds),
-    cpu: { n: num(cpu.n, 1e6), sum: num(cpu.sum, 1e9), max: num(cpu.max, 1e5), memSum: num(cpu.memSum, 1e10), memMax: num(cpu.memMax, 1e6), byKind },
-    crashes: num(raw.crashes, 1e5)
+    cpu: { n: num(cpu.n, 1e6), sum: num(cpu.sum, 1e9), max: num(cpu.max, 1e5), memSum: num(cpu.memSum, 1e10), memMax: num(cpu.memMax, 1e6), sysSum: num(cpu.sysSum, 1e12), sysMax: num(cpu.sysMax, 1e7), byKind },
+    crashes: num(raw.crashes, 1e5),
+    crashKinds: counts(raw.crashKinds)
   };
 }
 
@@ -79,9 +80,11 @@ function summarize(reports) {
   const visits = {}; const seconds = {}; const pageCpu = {};
   const byTheme = {}; const byVersion = {}; const darkMinutes = { dark: 0, light: 0 };
   const total = { n: 0, sum: 0, max: 0, memSum: 0, memMax: 0 };
+  const crashKinds = {};
   const days = {}; // YYYY-MM-DD -> { ids: Set, minutes }
   const time = { open: 0, focus: 0 };
   const timeByInstall = {}; // id -> { open, focus }
+  const memByInstall = {}; // id -> { n, app, sys, sysMax, appMax } (MB), alleen rapporten met pc-geheugen
 
   for (const report of reports) {
     const day = stamp(report).slice(0, 10);
@@ -96,6 +99,7 @@ function summarize(reports) {
     if (!out.to || stamp(report) > out.to) out.to = stamp(report);
     out.minutes += report.minutes;
     out.crashes += report.crashes;
+    for (const [kind, n] of Object.entries(report.crashKinds || {})) add(crashKinds, kind, n);
     if (report.time) {
       time.open += report.time.open; time.focus += report.time.focus;
       const t = timeByInstall[report.id] || (timeByInstall[report.id] = { open: 0, focus: 0 });
@@ -109,6 +113,11 @@ function summarize(reports) {
     }
     total.n += report.cpu.n; total.sum += report.cpu.sum; total.max = Math.max(total.max, report.cpu.max);
     total.memSum += report.cpu.memSum; total.memMax = Math.max(total.memMax, report.cpu.memMax);
+    if (report.cpu.sysSum > 0) {
+      const m = memByInstall[report.id] || (memByInstall[report.id] = { n: 0, app: 0, sys: 0, sysMax: 0, appMax: 0 });
+      m.n += report.cpu.n; m.app += report.cpu.memSum; m.sys += report.cpu.sysSum;
+      m.sysMax = Math.max(m.sysMax, report.cpu.sysMax); m.appMax = Math.max(m.appMax, report.cpu.memMax);
+    }
     const theme = report.settings.theme || 'onbekend';
     const t = byTheme[theme] || (byTheme[theme] = { minutes: 0, n: 0, sum: 0, max: 0, memSum: 0 });
     t.minutes += report.minutes; t.n += report.cpu.n; t.sum += report.cpu.sum; t.max = Math.max(t.max, report.cpu.max); t.memSum += report.cpu.memSum;
@@ -129,6 +138,17 @@ function summarize(reports) {
       .map(([id, t]) => ({ id: id.slice(0, 4), percent: Math.round((t.focus / t.open) * 100), hours: Math.round(t.open / 360) / 10 }))
       .sort((a, b) => b.percent - a.percent).slice(0, 30)
   };
+  // Geheugen per pc: heeft iemand genoeg RAM? Hoe vol zit de pc (gemiddeld en
+  // op het drukste moment), en welk deel daarvan is de app. Volste pc bovenaan.
+  out.memory = Object.entries(memByInstall).filter(([id, m]) => m.n > 0 && latest.get(id).ramGb > 0).map(([id, m]) => {
+    const ramMb = latest.get(id).ramGb * 1024;
+    return {
+      id: id.slice(0, 4), ramGb: latest.get(id).ramGb,
+      pcAvg: Math.round((m.sys / m.n / ramMb) * 100), pcMax: Math.min(100, Math.round((m.sysMax / ramMb) * 100)),
+      appAvgMb: Math.round(m.app / m.n), appMaxMb: Math.round(m.appMax), appShare: m.sys > 0 ? Math.round((m.app / m.sys) * 100) : 0
+    };
+  }).sort((a, b) => b.pcMax - a.pcMax).slice(0, 50);
+  out.crashKinds = top(crashKinds, 15);
   out.byDay = Object.keys(days).sort().map(day => ({ day, installs: days[day].ids.size, hours: Math.round(days[day].minutes / 6) / 10 }));
   const installs = [...latest.values()];
   const count = (pick) => { const m = {}; for (const r of installs) add(m, pick(r) ?? 'onbekend'); return top(m, 12); };

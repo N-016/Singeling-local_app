@@ -609,7 +609,7 @@ function windowCss(sel, not, o) {
     display: flex; align-items: center;
     margin: 0;
     overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-    color: #ffffff !important;
+    color: ${o.titleColor || '#ffffff'} !important;
     font-size: 13px !important;
     font-weight: 700 !important;
     text-shadow: ${o.titleShadow || 'none'};
@@ -947,6 +947,7 @@ const BEDIENPANEEL = {
     position: fixed;
     inset: 0;
     border: 5px solid ${PANEL_BLUE};
+    box-shadow: inset 0 0 0 2px #f5c518; /* de gele lijn langs het scherm, zoals op de machine */
     pointer-events: none;
     z-index: 2147483646;
   }
@@ -1091,10 +1092,11 @@ const BEDIENPANEEL = {
   ${sel} div:is(.text-2xl, .text-3xl).font-bold.text-success${not} { color: #4ade80 !important; }
   ${sel} div:is(.text-2xl, .text-3xl).font-bold.text-warning${not} { color: #ffb020 !important; }
 
-  /* Vensters: kader in paneelblauw, titel wit in een donkere balk (windowCss). */
+  /* Vensters zoals het meldingsvenster op de machine: oranje titelbalk met
+     donkere tekst en een gele rand (windowCss). */
   ${windowCss(sel, not, {
-    frame: `3px solid ${PANEL_BLUE}`, radius: '2px', background: '#eef0fa',
-    barHeight: 30, bar: '#5c5f93', close: '#d6382a', closeSize: 24, closeRadius: '2px'
+    frame: '3px solid #f5c518', radius: '2px', background: '#eef0fa',
+    barHeight: 30, bar: '#f5a623', titleColor: '#1c1f4a', close: '#d6382a', closeSize: 24, closeRadius: '2px'
   })}
 
   /* Schuifbalken: smal en grijsblauw zoals op het paneel. */

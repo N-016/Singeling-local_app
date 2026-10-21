@@ -132,7 +132,7 @@ function render(s, alle, key) {
       ${tile(s.focus.percent === null ? '-' : `${s.focus.percent}%`, 'van de tijd op de voorgrond')}
       ${tile(`${s.cpu.avg}%`, 'gemiddelde CPU (100 = één kern)')}
       ${tile(`${nl(Math.round(s.cpu.memAvgMb))} MB`, 'gemiddeld geheugen')}
-      ${tile(nl(s.crashes), 'gecrashte tabs')}
+      ${tile(nl(s.crashes), 'crashes')}
     </div>
     <div class="grid">
       <div class="card"><h2>Meest bezochte pagina's</h2><p class="hint">Keer geopend, per soort pagina (zonder nummers).</p>
@@ -144,6 +144,9 @@ function render(s, alle, key) {
       <div class="card"><h2>Thema's: belasting</h2><p class="hint">Gemiddelde CPU van de hele app per thema. Zware thema's staan bovenaan.</p>
         ${bars(s.cpuByTheme.map(t => ({ label: t.theme, value: t.avgCpu, note: `${t.minutes} min, ${t.memAvgMb} MB` })), { unit: '%' })}
         ${table(['Thema', 'Minuten', 'Gem. CPU %', 'Piek %', 'Gem. geheugen MB'], s.cpuByTheme.map(t => [t.theme, t.minutes, t.avgCpu, t.maxCpu, t.memAvgMb]))}</div>
+      <div class="card"><h2>Geheugen per pc</h2><p class="hint">Hoe vol het werkgeheugen (RAM) van de pc gemiddeld en op het drukste moment zit, en hoeveel daarvan de app gebruikt. Boven de 90% wordt de pc traag: tijd voor meer RAM.</p>
+        ${bars(s.memory.map(p => ({ label: `Installatie ${p.id} (${p.ramGb} GB)`, value: p.pcMax, note: `gem. ${p.pcAvg}%, app ${nl(p.appAvgMb)} MB (${p.appShare}%)` })), { unit: '%', empty: 'Nog geen metingen (vanaf deze versie).' })}
+        ${table(['Installatie', 'RAM GB', 'Pc gem. %', 'Pc piek %', 'App gem. MB', 'App piek MB', 'Aandeel app %'], s.memory.map(p => [p.id, p.ramGb, p.pcAvg, p.pcMax, p.appAvgMb, p.appMaxMb, p.appShare]))}</div>
       <div class="card"><h2>Op de voorgrond</h2><p class="hint">Aandeel van de tijd dat de app open staat waarin het venster ook echt de focus heeft. ${s.focus.percent === null ? 'Nog geen meting.' : `Samen ${nl(s.focus.hoursFocus)} van ${nl(s.focus.hoursOpen)} uur.`}</p>
         ${bars(s.focus.byInstall.map(p => ({ label: 'Installatie ' + p.id, value: p.percent, note: p.hours + ' uur open' })), { unit: '%', empty: 'Nog geen metingen (een installatie telt mee na 10 minuten).' })}
         ${table(['Installatie', 'Op de voorgrond %', 'Uur open'], s.focus.byInstall.map(p => [p.id, p.percent, p.hours]))}</div>
@@ -156,6 +159,9 @@ function render(s, alle, key) {
       <div class="card"><h2>Thema's per installatie</h2><p class="hint">Welk thema staat er nu ingesteld.</p>
         ${bars(s.themeInstalls.map(([theme, n]) => ({ label: theme, value: n })))}
         ${table(['Thema', 'Installaties'], s.themeInstalls)}</div>
+      <div class="card"><h2>Crashes</h2><p class="hint">Wat crashte of vastliep, en waarom (oom = geheugen vol, hangt = reageerde niet meer). Details staan op de pc zelf in Instellingen > Debug.</p>
+        ${bars(s.crashKinds.map(([kind, n]) => ({ label: kind, value: n })), { empty: 'Geen crashes.' })}
+        ${table(['Wat:waarom', 'Aantal'], s.crashKinds)}</div>
       <div class="card"><h2>Appversies</h2><p class="hint">Wie heeft nog niet bijgewerkt?</p>
         ${bars(s.versions.map(([version, n]) => ({ label: version, value: n })))}
         ${table(['Versie', 'Installaties'], s.versions)}</div>

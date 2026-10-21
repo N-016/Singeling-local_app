@@ -305,6 +305,33 @@
       background: var(--hover-strong);
     }
 
+    /* Tabgroep (werkruimte, main.js): naam van de actieve groep, klik = menu. */
+    #group-btn {
+      flex: 0 0 auto;
+      width: auto;
+      max-width: 160px;
+      gap: 5px;
+      padding: 0 8px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    #group-btn-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #group-btn.in-group {
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 13%, transparent);
+    }
+
+    .tab.group-hidden {
+      display: none;
+    }
+
     /* Schuift open in de balk zelf (niet eronder, daar zit de pagina). */
     #open-link-field {
       position: relative;
@@ -625,7 +652,7 @@
       align-items: center;
       gap: 7px;
       flex: 0 0 auto;
-      max-width: 200px;
+      max-width: 160px;
       padding: 0 8px 0 14px;
       font-size: 12.5px;
       font-weight: 500;
@@ -1194,6 +1221,11 @@
       animation: fade-up 0.3s var(--ease) both;
     }
 
+    .settings-subtitle {
+      margin: 22px 0 4px;
+      font-size: 14px;
+    }
+
     .settings-section h3 {
       display: flex;
       align-items: center;
@@ -1366,12 +1398,7 @@
       display: block;
     }
 
-    /* ---------- Tabblad Thema's (bèta, themes.js) ---------- */
-    /* Alleen zichtbaar met bèta-updates aan (main.js). */
-    #settings-nav-themas.hidden {
-      display: none;
-    }
-
+    /* ---------- Tabblad Thema's (themes.js) ---------- */
     #settings-nav-debug.hidden {
       display: none;
     }
@@ -1388,6 +1415,19 @@
     .beheer h4 {
       margin: 0 0 6px;
       font-size: 14px;
+    }
+
+    .crash-list {
+      margin: 8px 0;
+      padding-left: 18px;
+      max-height: 260px;
+      overflow: auto;
+      font-size: 12px;
+    }
+
+    .crash-list li {
+      margin-bottom: 4px;
+      overflow-wrap: anywhere;
     }
 
     .beheer-server {
@@ -1445,11 +1485,6 @@
       background: var(--field-bg);
       color: var(--text);
       font: inherit;
-    }
-
-    .settings-nav-item .nav-beta {
-      margin-left: auto;
-      font-size: 8.5px;
     }
 
     .theme-group {
@@ -1896,7 +1931,8 @@
     }
 
     /* Starttabs: rij per tab, zoals de tabs in een tabgroep. */
-    #start-tabs-list {
+    #start-tabs-list,
+    #remembered-groups-list {
       list-style: none;
       margin: 0;
       padding: 0;
@@ -1943,6 +1979,11 @@
       font-size: 12px;
       color: var(--text-muted);
       cursor: pointer;
+    }
+
+    .start-tab-remove.confirm {
+      background: color-mix(in srgb, #d93a2b 15%, transparent);
+      color: #d93a2b;
     }
 
     .start-tab-remove {
@@ -3149,8 +3190,10 @@
 
     #tab-overview-body {
       flex: 1;
-      overflow-y: auto;
-      padding: 8px 32px 32px;
+      display: flex;
+      gap: 28px;
+      min-height: 0;
+      padding: 8px 32px 0;
     }
 
     .overview-section + .overview-section {
@@ -3182,71 +3225,105 @@
       display: none;
     }
 
-    /* ---- Tabgroepen in het overzicht ---- */
+    /* ---- Tabgroepen in het overzicht: links de groepen, rechts de tabs ---- */
 
-    #overview-groups {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-      gap: 16px;
-    }
-
-    .overview-group {
-      position: relative;
+    #overview-sidebar {
+      flex: 0 0 210px;
       display: flex;
       flex-direction: column;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-      transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
-      animation: card-in 0.35s var(--ease) both;
-      animation-delay: calc(var(--card-i, 0) * 25ms);
+      gap: 2px;
+      overflow-y: auto;
+      padding-bottom: 32px;
     }
 
-    /* Oranje balkje links, zoals bij de tabs. */
-    .overview-group::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background: var(--accent);
+    #overview-main {
+      flex: 1;
+      min-width: 0;
+      overflow-y: auto;
+      padding-bottom: 32px;
     }
 
-    .overview-group:hover {
-      border-color: var(--border-strong);
-      box-shadow: var(--shadow);
-    }
-
-    .overview-group.filtered-out {
-      display: none;
-    }
-
-    .overview-group-header {
+    .overview-group-item,
+    #overview-new-group {
       display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 10px 10px 10px 14px;
-      border-bottom: 1px solid var(--border);
+      gap: 8px;
+      width: 100%;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      text-align: left;
+      cursor: pointer;
+      transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
     }
 
-    .overview-group-icon {
-      flex-shrink: 0;
+    .overview-group-item:hover,
+    #overview-new-group:hover {
+      background: var(--hover);
+    }
+
+    .overview-group-item.selected {
+      background: color-mix(in srgb, var(--accent) 15%, transparent);
       color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Een tabkaart wordt hierop losgelaten. */
+    .overview-group-item.drop {
+      outline: 2px dashed var(--accent);
+      outline-offset: -2px;
+    }
+
+    .overview-group-item-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #overview-new-group {
+      margin-top: 6px;
+      color: var(--accent);
+    }
+
+    #overview-group-head {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      min-height: 34px;
+      margin: 6px 0 16px;
+    }
+
+    .overview-group-title {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .overview-group-autostart {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-muted);
+      cursor: pointer;
     }
 
     /* Naam: ziet eruit als gewone tekst, wordt bij klikken een invoerveld. */
     .overview-group-name {
-      flex: 1;
+      flex: 0 1 260px;
       min-width: 0;
       padding: 4px 6px;
       border: 1px solid transparent;
       border-radius: 4px;
       background: transparent;
       color: var(--text);
-      font-size: 13px;
+      font-size: 16px;
       font-weight: 600;
       transition: border-color 0.15s var(--ease), background-color 0.15s var(--ease);
     }
@@ -3282,83 +3359,26 @@
       transform: scale(0.95);
     }
 
-    .overview-group-open:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-
-    .overview-group-delete,
-    .overview-group-url-remove {
+    .overview-group-delete {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      width: 26px;
-      height: 26px;
+      width: 28px;
+      height: 28px;
       padding: 0;
       border: 0;
       border-radius: 4px;
       background: transparent;
-      color: var(--text-faint);
+      color: var(--text-muted);
       cursor: pointer;
-      transition: background-color 0.15s var(--ease), color 0.15s var(--ease), opacity 0.15s var(--ease);
+      transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
     }
 
+    .overview-group-delete.confirm,
     .overview-group-delete:hover {
       background: color-mix(in srgb, #d93a2b 15%, transparent);
       color: #d93a2b;
-    }
-
-    .overview-group-urls {
-      list-style: none;
-      margin: 0;
-      padding: 6px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .overview-group-urls li {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 3px 4px 3px 8px;
-      border-radius: 4px;
-      font-size: 12.5px;
-      color: var(--text-2);
-      transition: background-color 0.15s var(--ease);
-    }
-
-    .overview-group-urls li:hover {
-      background: var(--hover);
-    }
-
-    .overview-group-url-label {
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .overview-group-url-remove {
-      width: 22px;
-      height: 22px;
-      opacity: 0;
-    }
-
-    .overview-group-urls li:hover .overview-group-url-remove {
-      opacity: 1;
-    }
-
-    .overview-group-url-remove:hover {
-      background: var(--hover-strong);
-      color: var(--text);
-    }
-
-    .overview-group-urls li.overview-group-empty {
-      color: var(--text-faint);
-      font-style: italic;
     }
 
     /* Kaart per tab: voorbeeld + naam. Het balkje links volgt de tabbalk:
@@ -3747,7 +3767,7 @@
       }
     }
 </style>
-  <!-- Kleurenthema (bèta): CSS uit themes.js, via main.js. Leeg = standaard. -->
+  <!-- Kleurenthema: CSS uit themes.js, via main.js. Leeg = standaard. -->
   <style id="chrome-theme-style"></style>
   <!-- Lettertypes voor de voorbeelden in het tabblad Thema's. -->
   <style id="theme-preview-fonts"></style>
@@ -3787,6 +3807,10 @@
         <input id="open-link-input" type="text" spellcheck="false" autocomplete="off" aria-label="Link uit het productiesysteem" placeholder="Plak of typ een link uit het productiesysteem… (Enter)">
         <span id="open-link-error" class="open-link-error" hidden>Alleen links binnen het Singeling-productiesysteem</span>
       </div>
+      <button id="group-btn" class="navigation-button" type="button" title="Tabgroep kiezen" aria-label="Tabgroep kiezen" aria-haspopup="menu">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+        <span id="group-btn-name">Algemeen</span>
+      </button>
       <div id="tab-scroll">
         <div id="tabs"></div>
         <!-- Direct achter de tabs; sticky, dus bij veel tabs blijft hij rechts in beeld. -->
@@ -3802,7 +3826,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </button>
       </div>
-      <button id="tab-overview-btn" class="navigation-button" type="button" title="Overzicht van alle tabs" aria-label="Overzicht van alle tabs">
+      <button id="tab-overview-btn" class="navigation-button" type="button" title="Overzicht van alle tabs (Ctrl+Spatie)" aria-label="Overzicht van alle tabs">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
       </button>
       <div id="tabbar-zoom" title="Zoomniveau van de pagina">
@@ -3876,13 +3900,13 @@
       </button>
     </div>
     <div id="tab-overview-body">
-      <section id="overview-groups-section" class="overview-section">
-        <h3 class="overview-section-title">Tabgroepen <span id="overview-groups-count" class="overview-count"></span></h3>
-        <div id="overview-groups"></div>
-        <p id="overview-groups-empty" class="overview-hint">Nog geen tabgroepen. Rechtsklik op een tab en kies "Toevoegen aan tabgroup".</p>
-      </section>
-      <section class="overview-section">
-        <h3 class="overview-section-title">Open tabs <span id="tab-overview-count" class="overview-count"></span></h3>
+      <nav id="overview-sidebar" aria-label="Tabgroepen">
+        <h3 class="overview-section-title">Tabgroepen</h3>
+        <div id="overview-group-list"></div>
+        <button id="overview-new-group" type="button">+ Nieuwe groep</button>
+      </nav>
+      <section id="overview-main">
+        <div id="overview-group-head"></div>
         <div id="tab-overview-grid"></div>
         <p id="tab-overview-empty" class="overview-hint hidden">Geen tabs gevonden.</p>
       </section>
@@ -3894,10 +3918,10 @@
       <h2 id="settings-title">Instellingen</h2>
       <button class="settings-nav-item active" type="button" data-section="general"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>Algemeen</button>
       <button class="settings-nav-item" type="button" data-section="weergave"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>Weergave</button>
-      <button id="settings-nav-themas" class="settings-nav-item hidden" type="button" data-section="themas"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></svg>Thema's<span class="beta-badge nav-beta">bèta</span></button>
+      <button id="settings-nav-themas" class="settings-nav-item" type="button" data-section="themas"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></svg>Thema's</button>
       <button class="settings-nav-item" type="button" data-section="updates"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Updates<span id="settings-nav-update-dot" class="nav-dot hidden" title="Update beschikbaar"></span></button>
       <button class="settings-nav-item" type="button" data-section="zoom"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>Zoomen<span id="settings-nav-zoom" class="nav-meta">100%</span></button>
-      <button class="settings-nav-item" type="button" data-section="start"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>Starttabs<span id="settings-nav-start-count" class="nav-meta"></span></button>
+      <button class="settings-nav-item" type="button" data-section="start"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>Tabs<span id="settings-nav-start-count" class="nav-meta"></span></button>
       <button id="settings-nav-debug" class="settings-nav-item hidden" type="button" data-section="debug"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 2 1.9 1.9"/><path d="M14.1 3.9 16 2"/><path d="M9 7.1V6a3 3 0 1 1 6 0v1.1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.5 13H3"/><path d="M21 13h-3.5"/></svg>Debug</button>
       <button id="settings-back" class="settings-back" type="button" title="Terug naar de pagina (Esc)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
@@ -3914,26 +3938,12 @@
     </button>
     <div class="settings-section" data-section="general">
       <h3>Algemeen</h3>
-      <p class="settings-intro">Rondleiding, instelassistent, changelog en hoe links en sneltoetsen zich gedragen.</p>
+      <p class="settings-intro">Rondleiding, instelassistent, changelog, sneltoetsen en meldingen.</p>
       <div class="general-actions">
         <button id="show-changelog-btn" type="button">Changelog bekijken</button>
         <button id="restart-onboarding-btn" type="button">Rondleiding opnieuw volgen</button>
         <button id="restart-setup-btn" type="button">Instelassistent openen</button>
       </div>
-      <label class="general-toggle">
-        <span class="toggle-text">
-          Alle links altijd in een nieuw tabblad openen
-          <span class="settings-hint">Geldt voor alle tabs, ook niet-vastgezette. Externe links (buiten Singeling) blijven gewoon in je standaardbrowser openen.</span>
-        </span>
-        <input type="checkbox" class="switch" id="open-all-links-new-tab-checkbox">
-      </label>
-      <label class="general-toggle">
-        <span class="toggle-text">
-          Tabbalk uitschakelen
-          <span class="settings-hint">Eén scherm zonder tabbladen: links openen in hetzelfde scherm en de balk bovenin toont alleen nog zoom, licht/donker, het kevertje en dit instellingen-icoon. Opent een knop een preview (bv. een specificatie of PDF), dan verschijnt die even als tabblad zodat je hem weer kunt sluiten. Bij het aanzetten worden de andere open tabbladen gesloten.</span>
-        </span>
-        <input type="checkbox" class="switch" id="tab-bar-disabled-checkbox">
-      </label>
       <label class="general-toggle">
         <span class="toggle-text">
           Ctrl+B blokkeren
@@ -4002,8 +4012,8 @@
     </div>
 
     <div class="settings-section hidden" data-section="themas">
-      <h3>Thema's <span class="beta-badge">bèta</span></h3>
-      <p class="settings-intro">Geef de app een eigen uiterlijk. Zolang dit een bèta is zie je dit tabblad alleen met "Bèta-versies ontvangen" aan (Updates).</p>
+      <h3>Thema's</h3>
+      <p class="settings-intro">Geef de app een eigen uiterlijk.</p>
       <!-- Nu gekozen: groot voorbeeld, wat het thema doet en of het licht en
            donker heeft (zie renderThemeSummary). -->
       <div class="theme-summary">
@@ -4117,6 +4127,15 @@
           <iframe id="beheer-frame" title="Overzicht van gebruik en meldingen" hidden></iframe>
         </div>
       </div>
+      <div class="beheer">
+        <h4>Crashes</h4>
+        <p class="settings-hint" id="crash-hint">Wat er op deze pc crashte of vastliep (laatste 50), nieuwste bovenaan.</p>
+        <ol id="crash-list" class="crash-list"></ol>
+        <div class="general-actions">
+          <button id="crash-copy" type="button">Kopiëren</button>
+          <button id="crash-clear" type="button">Wissen</button>
+        </div>
+      </div>
       <div id="debug-dev">
       <p class="settings-intro">Alleen in een bètaversie of als je de app vanuit de code start (npm start).</p>
       <label class="general-toggle">
@@ -4131,13 +4150,32 @@
         <button id="debug-sim-update" type="button">Scherm na update (vanaf 1.2.4)</button>
         <button id="debug-sim-install" type="button">Scherm nieuwe installatie</button>
       </div>
-      <p class="settings-hint">De themapagina en het thema-nieuws verschijnen alleen met "Bèta-versies ontvangen" aan (Updates), net als bij gebruikers.</p>
       </div>
     </div>
 
     <div class="settings-section hidden" data-section="start">
-      <h3>Starttabs</h3>
-      <p class="settings-intro">Tabs die automatisch openen als je de app start.</p>
+      <h3>Tabs</h3>
+      <p class="settings-intro">Hoe tabs en links zich gedragen, en welke tabs er bij het starten openen. Tabgroepen maak en beheer je in het taboverzicht (het vierkantjes-icoon in de tabbalk).</p>
+      <label class="general-toggle">
+        <span class="toggle-text">
+          Alle links altijd in een nieuw tabblad openen
+          <span class="settings-hint">Geldt voor alle tabs, ook niet-vastgezette. Externe links (buiten Singeling) blijven gewoon in je standaardbrowser openen.</span>
+        </span>
+        <input type="checkbox" class="switch" id="open-all-links-new-tab-checkbox">
+      </label>
+      <label class="general-toggle">
+        <span class="toggle-text">
+          Tabbalk uitschakelen
+          <span class="settings-hint">Eén scherm zonder tabbladen: links openen in hetzelfde scherm en de balk bovenin toont alleen nog zoom, licht/donker, het kevertje en dit instellingen-icoon. Opent een knop een preview (bv. een specificatie of PDF), dan verschijnt die even als tabblad zodat je hem weer kunt sluiten. Bij het aanzetten worden de andere open tabbladen gesloten.</span>
+        </span>
+        <input type="checkbox" class="switch" id="tab-bar-disabled-checkbox">
+      </label>
+      <h4 class="settings-subtitle">Onthouden tabgroepen</h4>
+      <p class="settings-hint">Groepen waarbij je "Onthouden voor de volgende keer" hebt aangezet. Openen doe je in het taboverzicht.</p>
+      <ul id="remembered-groups-list" ></ul>
+      <p id="remembered-groups-empty" class="settings-hint">Nog geen onthouden groepen. Maak er een in het taboverzicht en zet "Onthouden" aan.</p>
+      <h4 class="settings-subtitle">Starttabs</h4>
+      <p class="settings-hint">Tabs die automatisch openen als je de app start.</p>
       <div id="settings-section-start">
         <ul id="start-tabs-list"></ul>
         <p id="start-tabs-empty" class="settings-hint">Nog geen tabs. Rechtsklik op een tab en kies "Openen bij opstarten".</p>
@@ -4364,7 +4402,7 @@
           </li>
           <li class="setup-feature">
             <span class="setup-feature-icon" aria-hidden="true" data-icon-from="#tab-overview-btn"></span>
-            <div><h2>Taboverzicht</h2><p>Al je tabs en tabgroepen in één oogopslag, met een voorbeeld van elke pagina.</p></div>
+            <div><h2>Taboverzicht</h2><p>Al je tabs in één oogopslag, met een voorbeeld van elke pagina. Open en sluit het met Ctrl+Spatie. Ook je tabgroepen beheer je hier.</p></div>
           </li>
           <li class="setup-feature">
             <span class="setup-feature-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="14" height="11" rx="2"/><rect x="8" y="10" width="14" height="11" rx="2"/></svg></span>
@@ -4373,6 +4411,32 @@
           <li class="setup-feature">
             <span class="setup-feature-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
             <div><h2>Starttabs</h2><p>Rechtsklik op een tab en kies "Openen bij opstarten": dan staat hij er bij elke start meteen.</p></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="setup-page" data-page="uitleg-groepen">
+        <div class="setup-icon" aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+        </div>
+        <h1 id="setup-title-uitleg-groepen">Tabgroepen</h1>
+        <p class="setup-lead">Houd werk bij elkaar, bijvoorbeeld per order, zonder dat je andere tabs kwijtraakt.</p>
+        <ul class="setup-features">
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true" data-icon-from="#tab-overview-btn"></span>
+            <div><h2>Een groep maken</h2><p>Open het taboverzicht (Ctrl+Spatie) en klik links op "+ Nieuwe groep". Geef hem een naam, bijvoorbeeld het ordernummer. Of rechtsklik op een tab en kies "Verplaatsen naar groep".</p></div>
+          </li>
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l-3 3 3 3"/><path d="M9 5l3-3 3 3"/><path d="M15 19l-3 3-3-3"/><path d="M19 9l3 3-3 3"/><path d="M2 12h20"/><path d="M12 2v20"/></svg></span>
+            <div><h2>Tabs erin slepen</h2><p>Sleep een tab in het overzicht op een groep. De tabbalk laat dan alleen de tabs van jouw groep zien; de andere tabs blijven gewoon open en verdwijnen niet.</p></div>
+          </li>
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true" data-icon-from="#group-btn"></span>
+            <div><h2>Wisselen tussen groepen</h2><p>Klik links in de tabbalk op de groepsnaam (eerst staat daar "Algemeen") en kies een andere groep.</p></div>
+          </li>
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>
+            <div><h2>Onthouden of niet</h2><p>Een groep verdwijnt als je zijn laatste tab sluit of de app opnieuw start. Wil je hem bewaren, zet dan "Onthouden voor de volgende keer" aan. Dan staat hij er de volgende keer weer.</p></div>
           </li>
         </ul>
       </div>
@@ -4396,13 +4460,39 @@
             <span class="setup-feature-icon" aria-hidden="true" data-icon-from="#dark-mode-btn"></span>
             <div><h2>Licht of donker</h2><p>Wissel met één klik, of laat het vanzelf gaan bij Instellingen > Weergave.</p></div>
           </li>
-          <li class="setup-feature">
+          <li class="setup-feature" id="setup-help-feature">
             <span class="setup-feature-icon" aria-hidden="true" data-icon-from="#help-btn"></span>
             <div><h2>Hulp nodig?</h2><p>Klik op het kevertje: Nick helpt als de app raar doet, Laurens als er iets niet klopt op een pagina.</p></div>
           </li>
           <li class="setup-feature">
             <span class="setup-feature-icon" aria-hidden="true" data-icon-from="#settings-btn"></span>
             <div><h2>Instellingen</h2><p>Via de moersleutel pas je alles aan. Daar vind je deze uitleg ook terug.</p></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="setup-page" data-page="uitleg-melden">
+        <div class="setup-icon" aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.9 1.9"/><path d="M14.1 3.9 16 2"/><path d="M9 7.1V6a3 3 0 1 1 6 0v1.1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.5 13H3"/><path d="M21 13h-3.5"/></svg>
+        </div>
+        <h1 id="setup-title-uitleg-melden">Iets mis? Meld het meteen</h1>
+        <p class="setup-lead">Een fout in de app of een pagina, of een idee: laat het Nick weten.</p>
+        <ul class="setup-features">
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true" data-icon-from="#help-btn"></span>
+            <div><h2>Het kevertje</h2><p>Klik op het kevertje bovenin de balk en kies "Bug melden" als er iets niet werkt, of "Idee insturen" voor iets wat beter kan. Typ kort wat je zag of wilt.</p></div>
+          </li>
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg></span>
+            <div><h2>Een schermafbeelding gaat mee</h2><p>Zo ziet Nick precies wat jij ziet, en op welke pagina je was. Wil je dat niet, haal dan het vinkje weg.</p></div>
+          </li>
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+            <div><h2>Lukt versturen even niet?</h2><p>Dan probeert de app het later zelf nog eens. Je hoeft niets opnieuw te doen.</p></div>
+          </li>
+          <li class="setup-feature">
+            <span class="setup-feature-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+            <div><h2>Liever even praten?</h2><p>Nick helpt als de app raar doet, Laurens als er iets niet klopt op een pagina.</p></div>
           </li>
         </ul>
       </div>
@@ -4599,7 +4689,7 @@
     // Wie hem doorlopen heeft (setupVersion in de instellingen), krijgt hem
     // niet nog eens. Verhoog SETUP_VERSION als er een vraag bij komt die
     // iedereen moet zien. Opnieuw doorlopen kan via Instellingen > Algemeen.
-    const SETUP_VERSION = 2; // 2: vraag over meldingen erbij (1.3.0)
+    const SETUP_VERSION = 3; // 2: vraag over meldingen erbij; 3: thema's voor iedereen (1.3.0)
     const SETUP_LEAVE_MS = 350;
     const setupAssistant = document.getElementById('setup-assistant');
     const setupBack = document.getElementById('setup-back');
@@ -4616,14 +4706,16 @@
     const SETUP_PAGES = [
       { id: 'intro', when: () => !setupRun.whatsNew },
       { id: 'nieuw', when: () => !!setupRun.whatsNew },
-      { id: 'thema', when: () => setupRun.questions && themesOffered },
+      { id: 'thema', when: () => setupRun.questions },
       { id: 'weergave', when: () => setupRun.questions && !originalTheme && !fixedMode },
       // Oogcomfort werkt alleen in licht: na een keuze voor donker overslaan.
       { id: 'leescomfort', when: () => setupRun.questions && softSupported && document.documentElement.classList.contains('theme-light') },
       { id: 'melding', when: () => setupRun.questions && !(setupRun.whatsNew && preferencesChosen) },
       { id: 'meldingen', when: () => setupRun.questions },
       { id: 'uitleg-tabs', when: () => setupRun.tour },
+      { id: 'uitleg-groepen', when: () => setupRun.tour },
       { id: 'uitleg-balk', when: () => setupRun.tour },
+      { id: 'uitleg-melden', when: () => setupRun.tour && reportsAvailable },
       { id: 'klaar' }
     ];
     let setupRun = null; // { questions, tour, whatsNew, changelog } zolang de assistent open is
@@ -4631,7 +4723,6 @@
     let setupTimer = null;
     let setupDoneVersion = SETUP_VERSION; // pas na getSettings bekend
     let preferencesChosen = true; // idem: oude keuzescherm al gezien?
-    let themesOffered = false; // thema's beschikbaar (bèta), zie renderAppThemeChoice
     // De eerste keer staat er op de themapagina nog niets aangevinkt: je kiest
     // zelf (tot dan blijft het huidige thema gewoon actief). "Ga door" kan pas
     // na een klik op een thema. Bij opnieuw doorlopen staat je thema er al.
@@ -4647,14 +4738,11 @@
       if (!settings) return;
       setupDoneVersion = settings.setupVersion || 0;
       preferencesChosen = !!settings.preferencesChosen;
-      themesOffered = !!settings.themesAvailable;
       reportsAvailable = !!settings.telemetryAvailable;
     });
 
-    // Zonder thema's en met het oude keuzescherm al gezien valt er niets
-    // nieuws te kiezen.
     function setupNeeded() {
-      return setupDoneVersion < SETUP_VERSION && (themesOffered || !preferencesChosen);
+      return setupDoneVersion < SETUP_VERSION;
     }
 
     function visibleSetupPages() {
@@ -4828,20 +4916,18 @@
         const lead = document.getElementById('setup-intro-lead');
         if (setupRun.questions && setupRun.tour) {
           title.textContent = 'Welkom bij de Singeling App';
-          lead.textContent = themesOffered
-            ? 'Kies een thema dat bij je past, stel licht of donker in en zie in twee pagina\'s hoe de app werkt. Alles is later aan te passen bij Instellingen.'
-            : 'In een paar stappen stel je de app in en zie je hoe hij werkt. Alles is later aan te passen bij Instellingen.';
+          lead.textContent = 'Kies een thema dat bij je past, stel licht of donker in en zie in een paar pagina\'s hoe de app werkt. Alles is later aan te passen bij Instellingen.';
         } else if (setupRun.tour) {
           title.textContent = 'Zo werkt de app';
-          lead.textContent = 'In twee pagina\'s zie je wat de app allemaal kan.';
+          lead.textContent = 'In een paar pagina\'s zie je wat de app allemaal kan.';
         } else {
           title.textContent = 'Maak de app van jou';
-          lead.textContent = themesOffered
-            ? 'Nieuw: thema\'s! In een paar stappen geef je de app een eigen uiterlijk en kies je hoe hij eruitziet. Alles is later aan te passen bij Instellingen.'
-            : 'In een paar stappen kies je hoe de app eruitziet. Alles is later aan te passen bij Instellingen.';
+          lead.textContent = 'Nieuw: thema\'s! In een paar stappen geef je de app een eigen uiterlijk en kies je hoe hij eruitziet. Alles is later aan te passen bij Instellingen.';
         }
       } else if (id === 'nieuw') {
         renderSetupWhatsNew();
+      } else if (id === 'uitleg-balk') {
+        document.getElementById('setup-help-feature').style.display = reportsAvailable ? 'none' : '';
       } else if (id === 'weergave') {
         renderSetupWeergave();
       } else if (id === 'leescomfort') {
@@ -4986,7 +5072,7 @@
     // dat om een update vanaf een oudere versie na te bootsen).
     // Een feature heeft een eigen icoon (svg) of dat van een knop in de
     // tabbalk (iconFrom), zodat je de knop herkent. when: alleen als het nu
-    // geldt (bv. thema's zijn nog bèta).
+    // geldt (bv. melden alleen met een rapport-adres).
     const FEATURE_ICONS = {
       tabs: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M9 4v5"/></svg>',
       zoom: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/><path d="M8 11h6"/><path d="M11 8v6"/></svg>',
@@ -5005,6 +5091,14 @@
         ]
       },
       {
+        id: '2026-10-tabgroepen',
+        since: '1.3.0',
+        features: [
+          { iconFrom: '#group-btn', title: 'Tabgroepen', text: 'Houd werk bij elkaar, bijvoorbeeld per order. Maak een groep in het taboverzicht (+ Nieuwe groep) en sleep tabs erheen: de tabbalk toont dan alleen de tabs van die groep, de rest blijft open. Met "Onthouden" bewaar je een groep voor de volgende keer.' },
+          { iconFrom: '#tab-overview-btn', title: 'Ctrl+Spatie', text: 'Open en sluit het taboverzicht met Ctrl+Spatie, ook als je in een pagina zit.' }
+        ]
+      },
+      {
         id: '2026-10-meldingen-tabs',
         since: '1.3.0',
         features: [
@@ -5015,7 +5109,6 @@
       {
         id: '2026-10-themas',
         since: '1.3.0',
-        when: () => themesOffered,
         features: [
           { iconFrom: '#settings-nav-themas', title: 'Thema\'s', text: 'Geef de app een eigen uiterlijk. Bij de dynamische thema\'s beweegt er rustig iets in de achtergrond.' },
           { icon: 'contrast', title: 'Hoog contrast', text: 'Het thema Hal is extra goed leesbaar op schermen op de werkvloer, in fel licht en vanaf een afstand.' },
@@ -5122,7 +5215,8 @@
     //     niet gezien hebt), dan de vragen als die in deze versie nog niet
     //     doorlopen zijn (bv. thema kiezen), dan "Klaar" met een link naar de
     //     changelog.
-    //   - Niets nieuws en niets te kiezen: alleen de changelog.
+    //   - Niets nieuws en niets te kiezen: niets (geen lap tekst bij de start;
+    //     de changelog staat in Instellingen).
     window.electronAPI.on('whats-new', ({ isNewInstall, changelog, seenTours, preferencesChosen: chosen, setupVersion }) => {
       const unseen = unseenWhatsNew(seenTours || []);
       preferencesChosen = !!chosen;
@@ -5134,10 +5228,7 @@
       }
 
       clearTimeout(setupTimer);
-      if (unseen.length === 0 && !setupNeeded()) {
-        showChangelogOverlay('Wat is er nieuw?', changelog);
-        return;
-      }
+      if (unseen.length === 0 && !setupNeeded()) return;
       setupTimer = setTimeout(() => openSetup({ questions: setupNeeded(), whatsNew: unseen.length > 0 ? unseen : null, changelog }), TOUR_START_DELAY_MS);
     });
 
@@ -5166,7 +5257,6 @@
     // placeholder met de beginletter.
     const tabOverview = document.getElementById('tab-overview');
     const tabOverviewGrid = document.getElementById('tab-overview-grid');
-    const tabOverviewCount = document.getElementById('tab-overview-count');
     const tabOverviewSearch = document.getElementById('tab-overview-search');
     const tabOverviewEmpty = document.getElementById('tab-overview-empty');
     const tabOverviewBtn = document.getElementById('tab-overview-btn');
@@ -5187,6 +5277,12 @@
       card.dataset.search = `${title} ${url}`.toLowerCase();
       card.title = url;
       card.style.setProperty('--card-i', Math.min(index, 20));
+      // Op een groep links slepen = tab naar die groep.
+      card.draggable = true;
+      card.addEventListener('dragstart', (event) => {
+        event.dataTransfer.setData(TAB_DRAG_TYPE, tabId);
+        event.dataTransfer.effectAllowed = 'move';
+      });
 
       const thumb = document.createElement('div');
       thumb.className = 'overview-thumb';
@@ -5226,105 +5322,214 @@
       return card;
     }
 
-    // ---- Tabgroepen (beheerd in het overzicht) ----
-    const overviewGroups = document.getElementById('overview-groups');
-    const overviewGroupsCount = document.getElementById('overview-groups-count');
-    const overviewGroupsEmpty = document.getElementById('overview-groups-empty');
-    const GROUP_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>';
-    const TRASH_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
-
-    function buildOverviewGroup(group, index) {
+    // Bewaarde pagina van een groep die niet open is: zonder voorbeeld.
+    // Klik = de groep openen (in de tabbalk) op deze pagina.
+    function buildSavedCard(group, url, index) {
+      const title = formatTabTitle(url);
       const card = document.createElement('div');
-      card.className = 'overview-group';
-      card.dataset.groupId = group.id;
-      card.dataset.search = [group.name, ...group.urls.map(url => `${formatTabTitle(url)} ${url}`)].join(' ').toLowerCase();
+      card.className = 'overview-card';
+      card.dataset.search = `${title} ${url}`.toLowerCase();
+      card.title = url;
       card.style.setProperty('--card-i', Math.min(index, 20));
 
-      const header = document.createElement('div');
-      header.className = 'overview-group-header';
+      const thumb = document.createElement('div');
+      thumb.className = 'overview-thumb';
+      const placeholder = document.createElement('div');
+      placeholder.className = 'overview-thumb-placeholder';
+      placeholder.textContent = (title.trim()[0] || '?').toUpperCase();
+      thumb.appendChild(placeholder);
 
-      const icon = document.createElement('span');
-      icon.className = 'overview-group-icon';
-      icon.innerHTML = GROUP_ICON;
+      const footer = document.createElement('div');
+      footer.className = 'overview-footer';
+      const titleEl = document.createElement('span');
+      titleEl.className = 'overview-title';
+      titleEl.textContent = title;
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'overview-close';
+      removeBtn.title = 'Uit de groep halen';
+      removeBtn.innerHTML = TAB_CLOSE_ICON;
+      removeBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        window.electronAPI.removeTabGroupUrl(group.id, index);
+      });
+      footer.append(titleEl, removeBtn);
+
+      card.append(thumb, footer);
+      card.addEventListener('click', () => {
+        closeTabOverview();
+        window.electronAPI.openTabGroup(group.id);
+      });
+      return card;
+    }
+
+    // ---- Tabgroepen in het overzicht (zoals Safari op de iPad) ----
+    //
+    // Links de groepen, rechts de tabs van de gekozen groep. Een groep kiezen
+    // opent nog niets: een groep die niet open is (na een herstart, of als
+    // verzameling bewaard) toont zijn bewaarde pagina's, en pas "Openen" of
+    // een klik op een pagina zet zijn tabs in de tabbalk. Een tab naar een
+    // andere groep: sleep zijn kaart op die groep links.
+    const overviewGroupList = document.getElementById('overview-group-list');
+    const overviewGroupHead = document.getElementById('overview-group-head');
+    const TRASH_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+    const TAB_DRAG_TYPE = 'application/x-singeling-tab';
+    let savedGroups = []; // appSettings.tabGroups: { id, name, urls, remember }
+    let overviewGroupId = null; // de groep rechts in beeld (null = Algemeen)
+    let overviewThumbnails = {};
+
+    const liveTabsOf = (groupId) => [...tabsContainer.children]
+      .filter(tab => !tab.classList.contains('closing') && (groupState.tabGroupOf[tab.dataset.tabId] || null) === groupId);
+
+    function renderOverviewSidebar() {
+      overviewGroupList.replaceChildren(...[{ id: null, name: 'Algemeen' }, ...savedGroups].map(group => {
+        const open = liveTabsOf(group.id).length;
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'overview-group-item';
+        item.classList.toggle('selected', group.id === overviewGroupId);
+        item.title = group.remember ? 'Wordt onthouden' : '';
+        const name = document.createElement('span');
+        name.className = 'overview-group-item-name';
+        name.textContent = group.name;
+        const meta = document.createElement('span');
+        meta.className = 'overview-count';
+        meta.textContent = open > 0 || !group.id ? open : `${group.urls.length} bewaard`;
+        item.append(name, meta);
+        item.addEventListener('click', () => {
+          overviewGroupId = group.id;
+          renderOverview();
+        });
+        item.addEventListener('dragover', (event) => {
+          if (!event.dataTransfer.types.includes(TAB_DRAG_TYPE)) return;
+          event.preventDefault();
+          item.classList.add('drop');
+        });
+        item.addEventListener('dragleave', () => item.classList.remove('drop'));
+        item.addEventListener('drop', (event) => {
+          event.preventDefault();
+          item.classList.remove('drop');
+          const tabId = event.dataTransfer.getData(TAB_DRAG_TYPE);
+          if (tabId) window.electronAPI.moveTabToGroup(tabId, group.id);
+        });
+        return item;
+      }));
+    }
+
+    function renderOverviewHead() {
+      // Niet onder iemand vandaan halen die net de naam aan het typen is.
+      if (overviewGroupHead.contains(document.activeElement) && overviewGroupHead.dataset.groupId === String(overviewGroupId)) return;
+      overviewGroupHead.dataset.groupId = String(overviewGroupId);
+      overviewGroupHead.replaceChildren();
+      const group = savedGroups.find(g => g.id === overviewGroupId);
+      if (!group) {
+        const title = document.createElement('h3');
+        title.className = 'overview-group-title';
+        title.textContent = 'Algemeen';
+        const hint = document.createElement('span');
+        hint.className = 'overview-hint';
+        hint.textContent = 'Welke tabs hier bij het opstarten opengaan, stel je in bij Instellingen > Starttabs.';
+        overviewGroupHead.append(title, hint);
+        return;
+      }
 
       const nameInput = document.createElement('input');
       nameInput.type = 'text';
       nameInput.className = 'overview-group-name';
       nameInput.value = group.name;
       nameInput.title = 'Klik om de naam te wijzigen';
+      nameInput.setAttribute('aria-label', 'Naam van de groep');
       nameInput.addEventListener('change', () => window.electronAPI.renameTabGroup(group.id, nameInput.value));
       // Enter = naam bevestigen (en niet de eerste zoektreffer openen).
       nameInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') nameInput.blur();
       });
 
-      const openBtn = document.createElement('button');
-      openBtn.type = 'button';
-      openBtn.className = 'overview-group-open';
-      openBtn.textContent = 'Openen';
-      openBtn.title = 'Open alle tabs uit deze groep';
-      openBtn.disabled = group.urls.length === 0;
-      openBtn.addEventListener('click', () => {
-        closeTabOverview();
-        window.electronAPI.openTabGroup(group.id);
-      });
+      const remember = document.createElement('label');
+      remember.className = 'overview-group-autostart';
+      remember.title = 'Aan: de groep blijft bewaard voor de volgende keer. Uit: hij verdwijnt zodra de laatste tab dicht gaat of de app opnieuw start.';
+      const rememberBox = document.createElement('input');
+      rememberBox.type = 'checkbox';
+      rememberBox.checked = !!group.remember;
+      rememberBox.addEventListener('change', () => window.electronAPI.setTabGroupRemember(group.id, rememberBox.checked));
+      remember.append(rememberBox, 'Onthouden voor de volgende keer');
 
+      overviewGroupHead.append(nameInput, remember);
+
+      if (liveTabsOf(group.id).length === 0) {
+        const openBtn = document.createElement('button');
+        openBtn.type = 'button';
+        openBtn.className = 'overview-group-open';
+        openBtn.textContent = 'Openen';
+        openBtn.title = 'De tabs van deze groep in de tabbalk zetten';
+        openBtn.addEventListener('click', () => {
+          closeTabOverview();
+          window.electronAPI.openTabGroup(group.id);
+        });
+        overviewGroupHead.append(openBtn);
+      }
+
+      // Twee keer klikken, tegen per ongeluk verwijderen. Open tabs blijven
+      // (ze gaan naar Algemeen); alleen de groep verdwijnt.
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
       deleteBtn.className = 'overview-group-delete';
       deleteBtn.title = 'Groep verwijderen';
       deleteBtn.innerHTML = TRASH_ICON;
-      deleteBtn.addEventListener('click', () => window.electronAPI.removeTabGroup(group.id));
-
-      header.append(icon, nameInput, openBtn, deleteBtn);
-
-      const urlList = document.createElement('ul');
-      urlList.className = 'overview-group-urls';
-      group.urls.forEach((url, urlIndex) => {
-        const item = document.createElement('li');
-        const label = document.createElement('span');
-        label.className = 'overview-group-url-label';
-        label.textContent = formatTabTitle(url);
-        label.title = url;
-        const removeBtn = document.createElement('button');
-        removeBtn.type = 'button';
-        removeBtn.className = 'overview-group-url-remove';
-        removeBtn.title = 'Uit groep halen';
-        removeBtn.innerHTML = TAB_CLOSE_ICON;
-        removeBtn.addEventListener('click', () => window.electronAPI.removeTabGroupUrl(group.id, urlIndex));
-        item.append(label, removeBtn);
-        urlList.appendChild(item);
+      deleteBtn.addEventListener('click', () => {
+        if (deleteBtn.classList.contains('confirm')) {
+          window.electronAPI.removeTabGroup(group.id);
+          return;
+        }
+        deleteBtn.classList.add('confirm');
+        deleteBtn.title = 'Nog een keer klikken om de groep te verwijderen. Open tabs gaan naar Algemeen.';
+        setTimeout(() => {
+          deleteBtn.classList.remove('confirm');
+          deleteBtn.title = 'Groep verwijderen';
+        }, 3000);
       });
-      if (group.urls.length === 0) {
-        const empty = document.createElement('li');
-        empty.className = 'overview-group-empty';
-        empty.textContent = 'Nog geen tabs in deze groep';
-        urlList.appendChild(empty);
-      }
-
-      card.append(header, urlList);
-      return card;
+      overviewGroupHead.append(deleteBtn);
     }
 
-    function renderTabGroups(tabGroups) {
-      overviewGroups.innerHTML = '';
-      (tabGroups || []).forEach((group, index) => overviewGroups.appendChild(buildOverviewGroup(group, index)));
+    function renderOverviewGrid() {
+      const group = savedGroups.find(g => g.id === overviewGroupId);
+      const live = liveTabsOf(overviewGroupId);
+      tabOverviewGrid.innerHTML = '';
+      if (live.length > 0 || !group) {
+        live.forEach((tab, index) => tabOverviewGrid.appendChild(buildOverviewCard(tab, index, overviewThumbnails)));
+      } else {
+        group.urls.forEach((url, index) => tabOverviewGrid.appendChild(buildSavedCard(group, url, index)));
+      }
       filterTabOverview();
     }
 
-    function updateTabOverviewCount() {
-      const cards = tabOverviewGrid.querySelectorAll('.overview-card:not(.removing)');
-      const visible = [...cards].filter(card => !card.classList.contains('filtered-out'));
-      tabOverviewCount.textContent = cards.length;
-      tabOverviewEmpty.classList.toggle('hidden', visible.length > 0);
+    function renderOverview() {
+      if (overviewGroupId && !savedGroups.some(g => g.id === overviewGroupId)) overviewGroupId = null;
+      renderOverviewSidebar();
+      renderOverviewHead();
+      renderOverviewGrid();
+    }
 
-      const groups = overviewGroups.querySelectorAll('.overview-group');
-      const visibleGroups = [...groups].filter(group => !group.classList.contains('filtered-out'));
-      overviewGroupsCount.textContent = groups.length;
-      overviewGroupsEmpty.textContent = groups.length === 0
-        ? 'Nog geen tabgroepen. Rechtsklik op een tab en kies "Toevoegen aan tabgroup".'
-        : 'Geen tabgroepen gevonden.';
-      overviewGroupsEmpty.classList.toggle('hidden', visibleGroups.length > 0);
+    function focusOverviewGroupName() {
+      const input = overviewGroupHead.querySelector('.overview-group-name');
+      if (!input) return;
+      input.focus();
+      input.select();
+    }
+
+    document.getElementById('overview-new-group').addEventListener('click', async () => {
+      overviewGroupId = await window.electronAPI.createTabGroup();
+      renderOverview();
+      focusOverviewGroupName();
+    });
+
+    function updateTabOverviewCount() {
+      const cards = [...tabOverviewGrid.querySelectorAll('.overview-card:not(.removing)')];
+      const visible = cards.filter(card => !card.classList.contains('filtered-out'));
+      tabOverviewEmpty.textContent = cards.length > 0 ? 'Geen tabs gevonden.'
+        : overviewGroupId ? 'Nog leeg. Sleep een tab vanuit een andere groep op deze groep links, of klik op Openen.'
+          : 'Geen tabs.';
+      tabOverviewEmpty.classList.toggle('hidden', visible.length > 0);
     }
 
     function filterTabOverview() {
@@ -5332,13 +5537,11 @@
       tabOverviewGrid.querySelectorAll('.overview-card').forEach(card => {
         card.classList.toggle('filtered-out', !!query && !card.dataset.search.includes(query));
       });
-      overviewGroups.querySelectorAll('.overview-group').forEach(card => {
-        card.classList.toggle('filtered-out', !!query && !card.dataset.search.includes(query));
-      });
       updateTabOverviewCount();
     }
 
-    async function openTabOverview() {
+    // focusGroupId: die groep rechts tonen (undefined = de groep in de tabbalk).
+    async function openTabOverview(focusGroupId) {
       if (tabOverviewOpen) return;
       if (settingsOpen) closeSettingsPanel();
       clearTimeout(tabOverviewHideTimer);
@@ -5350,13 +5553,11 @@
       ]);
       tabOverviewOpen = true;
       refreshBackButton();
-      renderTabGroups(settings ? settings.tabGroups : []);
-
-      tabOverviewGrid.innerHTML = '';
-      const openTabs = [...tabsContainer.children].filter(tab => !tab.classList.contains('closing'));
-      openTabs.forEach((tab, index) => tabOverviewGrid.appendChild(buildOverviewCard(tab, index, thumbnails || {})));
+      overviewThumbnails = thumbnails || {};
+      savedGroups = settings ? settings.tabGroups : [];
+      overviewGroupId = focusGroupId !== undefined ? focusGroupId : groupState.activeGroupId;
       tabOverviewSearch.value = '';
-      filterTabOverview();
+      renderOverview();
 
       tabOverview.classList.remove('hidden');
       window.electronAPI.notifyTabOverviewOpened();
@@ -5416,6 +5617,7 @@
       if (!card) return;
       card.classList.add('removing');
       updateTabOverviewCount();
+      renderOverviewSidebar();
       setTimeout(() => card.remove(), 200);
     });
 
@@ -5541,10 +5743,12 @@
     const TAB_CLOSE_ANIMATION_MS = 340;
 
     // main.js heeft een nieuwe tab (WebContentsView) aangemaakt
-    window.electronAPI.on('tab-created', ({ tabId, url }) => {
+    window.electronAPI.on('tab-created', ({ tabId, url, groupId }) => {
       const tab = document.createElement('div');
       tab.className = 'tab';
       tab.dataset.tabId = tabId;
+      if (groupId) groupState.tabGroupOf[tabId] = groupId;
+      applyGroupVisibility(tab);
       tab.draggable = true;
       // Via textContent, niet innerHTML: de titel komt uit een (gedecodeerde)
       // URL, en een link als .../%3Cimg%20onerror=...%3E zou anders als HTML
@@ -5552,6 +5756,7 @@
       const tabTitle = document.createElement('span');
       tabTitle.className = 'tab-title';
       tabTitle.textContent = formatTabTitle(url);
+      tab.title = tabTitle.textContent; // lange namen worden afgekapt: hier staat de hele naam
       // Vaste SVG-iconen (geen gebruikersinvoer), dus innerHTML is hier veilig.
       const tabLock = document.createElement('span');
       tabLock.className = 'tab-lock';
@@ -5624,6 +5829,28 @@
 
       // Schuif de tabbalk altijd mee naar de nieuwste (laatst aangemaakte) tab
       tabScroll.scrollTo({ left: tabScroll.scrollWidth, behavior: 'smooth' });
+      if (tabOverviewOpen) renderOverview();
+    });
+
+    // Tabgroepen (werkruimtes, main.js): de balk toont alleen de tabs van de
+    // actieve groep; de rest blijft open op de achtergrond.
+    let groupState = { activeGroupId: null, groups: [], tabGroupOf: {} };
+    const groupBtn = document.getElementById('group-btn');
+    function applyGroupVisibility(tab) {
+      tab.classList.toggle('group-hidden', (groupState.tabGroupOf[tab.dataset.tabId] || null) !== groupState.activeGroupId);
+    }
+    window.electronAPI.on('tab-group-state', (state) => {
+      groupState = state;
+      const active = state.groups.find(group => group.id === state.activeGroupId);
+      document.getElementById('group-btn-name').textContent = active ? active.name : 'Algemeen';
+      groupBtn.classList.toggle('in-group', !!active);
+      tabElements.forEach(applyGroupVisibility);
+      updateLockedTabPositions();
+      if (tabOverviewOpen) renderOverview();
+    });
+    groupBtn.addEventListener('click', () => {
+      const rect = groupBtn.getBoundingClientRect();
+      window.electronAPI.showGroupMenu(Math.round(rect.left), Math.round(rect.bottom));
     });
 
     // main.js heeft van actieve tab gewisseld
@@ -5677,6 +5904,7 @@
       // Een late melding van een net gesloten tab niet meer bewaren.
       if (!tab) return;
       tab.querySelector('.tab-title').textContent = formatTabTitle(url);
+      tab.title = tab.querySelector('.tab-title').textContent;
       updateLockedTabPositions();
       tabUrls.set(tabId, url);
     });
@@ -5790,6 +6018,16 @@
     });
     window.electronAPI.on('open-link-field', openLinkFieldShow);
 
+    // Ctrl+Spatie: taboverzicht open/dicht (vanuit een pagina via main.js).
+    const toggleTabOverview = () => (tabOverviewOpen ? closeTabOverview() : openTabOverview());
+    window.electronAPI.on('toggle-tab-overview', toggleTabOverview);
+    document.addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === ' ') {
+        event.preventDefault();
+        toggleTabOverview();
+      }
+    });
+
     // Hulpknop: main.js tekent het venstertje eronder (over de pagina heen).
     const helpBtn = document.getElementById('help-btn');
     helpBtn.addEventListener('click', () => {
@@ -5843,6 +6081,37 @@
       item.addEventListener('click', () => setSettingsSection(item.dataset.section));
     });
 
+    // Onthouden tabgroepen (zie het taboverzicht): naam, aantal pagina's en weghalen.
+    function renderRememberedGroups(groups) {
+      const list = document.getElementById('remembered-groups-list');
+      const remembered = (groups || []).filter(group => group.remember);
+      document.getElementById('remembered-groups-empty').classList.toggle('hidden', remembered.length > 0);
+      list.replaceChildren(...remembered.map(group => {
+        const item = document.createElement('li');
+        item.className = 'start-tab-item';
+        const row = document.createElement('div');
+        row.className = 'start-tab-row';
+        const label = document.createElement('span');
+        label.className = 'start-tab-label';
+        label.textContent = `${group.name} (${group.urls.length} ${group.urls.length === 1 ? 'pagina' : "pagina's"})`;
+        label.title = group.urls.map(formatTabTitle).join(', ');
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'start-tab-remove';
+        removeBtn.type = 'button';
+        removeBtn.title = 'Groep verwijderen';
+        removeBtn.innerHTML = TAB_CLOSE_ICON;
+        removeBtn.addEventListener('click', () => {
+          if (removeBtn.classList.contains('confirm')) return window.electronAPI.removeTabGroup(group.id);
+          removeBtn.classList.add('confirm');
+          removeBtn.title = 'Nog een keer klikken om de groep te verwijderen';
+          setTimeout(() => { removeBtn.classList.remove('confirm'); removeBtn.title = 'Groep verwijderen'; }, 3000);
+        });
+        row.append(label, removeBtn);
+        item.append(row);
+        return item;
+      }));
+    }
+
     function renderStartTabs(startTabs) {
       document.getElementById('settings-nav-start-count').textContent = startTabs.length || '';
       startTabsList.innerHTML = '';
@@ -5893,6 +6162,7 @@
       if (settings) {
         updateZoomLabel(settings.zoomFactor);
         renderStartTabs(settings.startTabs);
+        renderRememberedGroups(settings.tabGroups);
         document.getElementById('settings-version').textContent = settings.appVersion ? `v${settings.appVersion}` : '';
         // Bètaversie (bv. 1.3.0-beta.1): label erbij, zodat je bij een melding
         // meteen ziet dat iemand op een bèta zit.
@@ -6120,6 +6390,21 @@
       if (status) renderReportBadge(status.unseen);
     };
     document.getElementById('settings-nav-debug').addEventListener('click', refreshBeheer);
+
+    // Crashes (main.js recordCrash): lijstje met tijd, wat, waarom.
+    let crashLog = [];
+    const crashLine = (c) => `${new Date(c.at).toLocaleString('nl-NL')} · ${c.what}: ${c.reason}${c.detail ? ` · ${c.detail}` : ''} (v${c.version})`;
+    async function refreshCrashes() {
+      crashLog = await window.electronAPI.getCrashLog();
+      const list = document.getElementById('crash-list');
+      list.replaceChildren(...crashLog.map(c => Object.assign(document.createElement('li'), { textContent: crashLine(c) })));
+      document.getElementById('crash-hint').textContent = crashLog.length
+        ? 'Wat er op deze pc crashte of vastliep (laatste 50), nieuwste bovenaan.'
+        : 'Nog geen crashes op deze pc.';
+    }
+    document.getElementById('settings-nav-debug').addEventListener('click', refreshCrashes);
+    document.getElementById('crash-copy').addEventListener('click', () => window.electronAPI.copyToClipboard(crashLog.map(crashLine).join('\n')));
+    document.getElementById('crash-clear').addEventListener('click', () => { window.electronAPI.clearCrashLog(); crashLog = []; refreshCrashes(); });
     refreshBeheer();
 
     document.getElementById('beheer-unlock-btn').addEventListener('click', async () => {
@@ -6403,10 +6688,9 @@
 
     softColorsCheckbox.addEventListener('change', () => setSoftColors(softColorsCheckbox.checked));
 
-    // Kleurenthema (bèta, themes.js). main.js stuurt de CSS voor de chrome
+    // Kleurenthema (themes.js). main.js stuurt de CSS voor de chrome
     // (onder html.chrome-theme) en zet de pagina's zelf om.
     const chromeThemeStyle = document.getElementById('chrome-theme-style');
-    const themesNavItem = document.getElementById('settings-nav-themas');
     let appThemes = []; // catalogus uit main.js (themes.js themeCatalog)
     let appTheme = 'standaard';
 
@@ -6548,12 +6832,6 @@
       if (state.appTheme) appTheme = state.appTheme;
       if (Array.isArray(state.themes)) appThemes = state.themes;
       if (state.previewFontCss !== undefined) document.getElementById('theme-preview-fonts').textContent = state.previewFontCss;
-      if (state.themesAvailable !== undefined) {
-        themesOffered = !!state.themesAvailable;
-        themesNavItem.classList.toggle('hidden', !state.themesAvailable);
-        // Bèta uitgezet terwijl dit tabblad open stond: terug naar Weergave.
-        if (!state.themesAvailable && themesNavItem.classList.contains('active')) setSettingsSection('weergave');
-      }
       // Kaartjes één keer maken; daarna alleen de keuze bijwerken.
       if (themeCardsBuiltFor !== appThemes) {
         themeCardsBuiltFor = appThemes;
@@ -6920,19 +7198,22 @@
       setTimeout(() => document.body.classList.remove('intro'), 1800);
     });
     window.electronAPI.on('start-tabs-changed', (startTabs) => renderStartTabs(startTabs));
-    window.electronAPI.on('tab-groups-changed', (tabGroups) => renderTabGroups(tabGroups));
+    window.electronAPI.on('tab-groups-changed', (tabGroups) => {
+      savedGroups = tabGroups;
+      renderRememberedGroups(tabGroups);
+      if (tabOverviewOpen) renderOverview();
+    });
 
     // Rechtsklik-menu wil na "+ Nieuwe tabgroup" meteen het taboverzicht
     // openen, met de naam van de nieuwe groep klaar om direct over te typen.
     window.electronAPI.on('open-tab-overview', async ({ focusGroupId } = {}) => {
-      await openTabOverview();
-      if (!focusGroupId) return;
-      const input = document.querySelector(`.overview-group[data-group-id="${focusGroupId}"] .overview-group-name`);
-      if (input) {
-        input.scrollIntoView({ block: 'nearest' });
-        input.focus();
-        input.select();
+      if (tabOverviewOpen && focusGroupId) {
+        overviewGroupId = focusGroupId;
+        renderOverview();
+      } else {
+        await openTabOverview(focusGroupId);
       }
+      if (focusGroupId) focusOverviewGroupName();
     });
   </script>
 

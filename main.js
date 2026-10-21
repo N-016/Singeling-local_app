@@ -6,7 +6,7 @@ const { DARK_MODE_BACKGROUND, DARK_MODE_CSS } = require('./dark-mode');
 const { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT } = require('./page-tweaks');
 const { SOFT_MODE_BACKGROUND, SOFT_MODE_CSS } = require('./soft-mode');
 const themes = require('./themes');
-const { START_URL, APP_HOSTNAME, isInternalUrl, isAuthUrl, compareVersions, criticalUpdateFrom, pageKind } = require('./rules');
+const { START_URL, APP_HOSTNAME, isInternalUrl, isAuthUrl, isFileUrl, compareVersions, criticalUpdateFrom, pageKind } = require('./rules');
 const { createTelemetry, loadConfig } = require('./telemetry');
 const { createRapportServer } = require('./rapport/server');
 const crypto = require('crypto');
@@ -103,7 +103,7 @@ let appSettings = {
   darkMode: false,
   softColors: true, // oogcomfort: zachtere kleuren (alleen in licht: zachtgrijs; soft-mode.js). Standaard aan.
   betaUpdates: RUNNING_PRERELEASE, // ook bètaversies (GitHub pre-releases) als update aanbieden
-  appTheme: themes.DEFAULT_THEME, // kleurenthema (themes.js); voorlopig alleen met bèta-updates aan
+  appTheme: themes.DEFAULT_THEME, // kleurenthema (themes.js)
   // Licht/donker automatisch (zie "Licht/donker automatisch"):
   // 'handmatig' | 'systeem' | 'tijden' | 'zon'
   themeMode: 'zon', // standaard: zon op/onder (sinds 1.3.0; zie SUN_DEFAULT in loadSettings)
@@ -183,7 +183,10 @@ function loadSettings() {
       tabGroups: Array.isArray(parsed.tabGroups)
         ? parsed.tabGroups
           .filter(group => group && Array.isArray(group.urls))
-          .map(group => ({ ...group, urls: group.urls.filter(url => typeof url === 'string' && isInternalUrl(url)) }))
+          // Zonder 'Onthouden' is een groep tijdelijk: weg na een herstart. Groepen van
+          // vóór deze instelling blijven (die had je bewust bewaard).
+          .map(group => ({ id: group.id, name: group.name, remember: group.remember !== false, urls: group.urls.filter(url => typeof url === 'string' && isInternalUrl(url)) }))
+          .filter(group => group.remember)
         : [],
       lastSeenChangelogVersion: typeof parsed.lastSeenChangelogVersion === 'string' ? parsed.lastSeenChangelogVersion : null,
       seenWhatsNewTours: Array.isArray(parsed.seenWhatsNewTours) ? parsed.seenWhatsNewTours : [],
@@ -267,6 +270,8 @@ function adjustZoom(direction) {
 // mail-/bellinks gaan door naar de standaardapp.
 const SAFE_EXTERNAL_PROTOCOLS = ['http:', 'https:', 'mailto:', 'tel:'];
 
+const OPEN_AFTER_DOWNLOAD = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt', '.png', '.jpg', '.jpeg', '.dxf', '.dwg', '.step', '.stp', '.igs', '.iges'];
+
 function openExternalSafe(url) {
   try {
     if (SAFE_EXTERNAL_PROTOCOLS.includes(new URL(url).protocol)) shell.openExternal(url);
@@ -322,8 +327,8 @@ function getLatestChangelogEntry() {
 }
 
 // Na een update: index.html beslist wat er getoond wordt - een
-// "Nieuw in deze versie"-rondleiding als die er is en nog niet gezien is,
-// anders de laatste changelog-entry. Bij een gloednieuwe installatie
+// "Nieuw in deze versie" en/of de instelassistent als die er zijn, anders
+// niets (de changelog-tekst gaat mee voor de link op de laatste pagina). Bij een gloednieuwe installatie
 // (previousVersion === null) niets: dan loopt de volledige rondleiding al.
 function maybeShowChangelogNotice() {
   const currentVersion = app.getVersion();
@@ -923,15 +928,8 @@ function softLightActive() {
   return softActive() && !darkActive();
 }
 
-// Thema's zijn nog bèta: alleen wie bèta-updates aan heeft ziet de keuze en
-// het gekozen thema. Zet iemand bèta uit, dan blijft de keuze bewaard maar
-// geldt het standaardthema.
-function themesAvailable() {
-  return !!appSettings.betaUpdates;
-}
-
 function activeTheme() {
-  return themesAvailable() ? appSettings.appTheme : themes.DEFAULT_THEME;
+  return appSettings.appTheme;
 }
 
 // Kleur van de pagina-achtergrond bij een thema, of null bij het standaardthema.
@@ -1066,6 +1064,11 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     } else if (input.key === '0') {
       event.preventDefault();
       setZoomFactor(DEFAULT_ZOOM);
+    } else if (input.key === ' ' && !isDetachedTab(tabId)) {
+      // Ctrl+Spatie: taboverzicht open/dicht (ook als de focus in de pagina staat).
+      event.preventDefault();
+      mainWindow.webContents.focus();
+      mainWindow.webContents.send('toggle-tab-overview');
     } else if (input.key.toLowerCase() === 'l' && !isDetachedTab(tabId)) {
       // Ctrl+L: het veld "Link openen" in de tabbalk (zoals in een browser).
       event.preventDefault();
@@ -1143,12 +1146,19 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       mainWindow.webContents.send('update-tab-url', { tabId, url });
     }
     if (url) telemetry.visit(tabId, url);
+    syncGroupUrls(groupOf(tabId));
   });
 
-  view.webContents.on('render-process-gone', () => telemetry.crash());
+  view.webContents.on('render-process-gone', (event, details) => {
+    if (details.reason !== 'clean-exit') recordCrash('tab', details.reason, `${pageKind(view.webContents.getURL()) || ''} exitcode ${details.exitCode}`);
+  });
+  view.webContents.on('unresponsive', () => recordCrash('tab', 'hangt', pageKind(view.webContents.getURL()) || ''));
 
   view.webContents.on('did-navigate-in-page', (event, url, isMainFrame) => {
-    if (isMainFrame) telemetry.visit(tabId, url);
+    if (isMainFrame) {
+      telemetry.visit(tabId, url);
+      syncGroupUrls(groupOf(tabId));
+    }
     // Terug binnen de webapp blijft op dezelfde pagina; ook dan de vlag wissen.
     internalNavigations.delete(tabId);
     sendNavigationState(tabId);
@@ -1169,7 +1179,10 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
   });
 
   view.webContents.setWindowOpenHandler((details) => {
-    if (details.url && details.url !== 'about:blank') {
+    // Een bestand uit de opslag (bv. "Document" bij een stuklijst) gaat net
+    // als een leeg venster in een nieuwe tab (zie hieronder), niet in een los
+    // venster. Is het iets om te downloaden, dan zie will-download.
+    if (details.url && details.url !== 'about:blank' && !isFileUrl(details.url)) {
       // Inlog-popup (bv. MSAL loginPopup): als echt popupvenster toestaan,
       // anders verliest de pagina haar window.opener-koppeling en mislukt
       // het afronden van de login.
@@ -1201,7 +1214,9 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
         attachNavigationHandlers(newView, newTabId, { skipFirstNavigation: false });
         tabs.set(newTabId, newView);
         parentTabs.set(newTabId, tabId);
-        mainWindow.webContents.send('tab-created', { tabId: newTabId, url: 'about:blank' });
+        const groupId = isDetachedTab(tabId) ? activeGroupId : groupOf(tabId);
+        if (groupId) tabGroupOf.set(newTabId, groupId);
+        mainWindow.webContents.send('tab-created', { tabId: newTabId, url: 'about:blank', groupId });
         switchTab(newTabId);
         // Nooit zelf een los venster openen: vanuit een los venster komt de
         // nieuwe tab in het hoofdvenster, en dat halen we naar voren.
@@ -1238,10 +1253,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
     }
 
     if (params.isEditable || params.selectionText) {
-      const editItems = [];
-      if (params.editFlags.canCut) editItems.push({ label: 'Knippen', role: 'cut' });
-      if (params.editFlags.canCopy) editItems.push({ label: 'Kopiëren', role: 'copy' });
-      if (params.editFlags.canPaste) editItems.push({ label: 'Plakken', role: 'paste' });
+      const editItems = editMenuItems(params, view.webContents);
       if (editItems.length > 0) {
         popupTabMenu(Menu.buildFromTemplate(editItems), tabId, params.x, params.y);
         return;
@@ -1466,6 +1478,14 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
           if (color === window.__electronModalColor) return;
           window.__electronModalColor = color;
           console.log('ELECTRON_MODAL:' + color);
+          // De schuifbalk van de pagina valt buiten de laag: mee dimmen.
+          const dim = (base) => {
+            const [r, g, b, a = 1] = color.slice(color.indexOf('(') + 1, -1).split(',').map(Number);
+            return 'rgb(' + [r, g, b].map((c, i) => Math.round(base[i] * (1 - a) + c * a)).join(',') + ')';
+          };
+          const dark = document.documentElement.classList.contains('dark');
+          document.documentElement.style.scrollbarColor = !color ? ''
+            : dark ? dim([90, 90, 90]) + ' ' + dim([30, 30, 30]) : dim([193, 193, 193]) + ' ' + dim([241, 241, 241]);
         };
         new MutationObserver(() => {
           if (!modalCheckQueued) { modalCheckQueued = true; requestAnimationFrame(reportModal); }
@@ -1753,7 +1773,8 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
   });
 }
 
-function createTab(url, makeActive = true, lockTab = false, parentTabId = null) {
+// inGroup: in deze groep (null = Algemeen); weggelaten = zie hieronder.
+function createTab(url, makeActive = true, lockTab = false, parentTabId = null, inGroup = undefined) {
   if (!isInternalUrl(url)) {
     openExternalSafe(url);
     return null;
@@ -1788,11 +1809,15 @@ function createTab(url, makeActive = true, lockTab = false, parentTabId = null) 
   attachNavigationHandlers(view, tabId);
   tabs.set(tabId, view);
   if (parentTabId && tabs.has(parentTabId)) parentTabs.set(tabId, parentTabId);
+  // In de groep van de tab waaruit hij komt, anders in de actieve groep.
+  const groupId = inGroup !== undefined ? inGroup
+    : parentTabId && tabs.has(parentTabId) && !isDetachedTab(parentTabId) ? groupOf(parentTabId) : activeGroupId;
+  if (groupId) tabGroupOf.set(tabId, groupId);
 
   if (lockTab) lockedTabs.add(tabId);
 
   // Laat de tabbar (index.html) weten dat er een nieuwe tab is
-  mainWindow.webContents.send('tab-created', { tabId, url });
+  mainWindow.webContents.send('tab-created', { tabId, url, groupId });
 
   if (lockTab) {
     mainWindow.webContents.send('tab-lock-changed', { tabId, locked: true });
@@ -1824,6 +1849,13 @@ function switchTab(tabId, { recordHistory = true } = {}) {
 
   const isRealSwitch = activeTabId && activeTabId !== tabId;
   activeTabId = tabId;
+  if (!isDetachedTab(tabId)) {
+    lastTabOfGroup.set(groupOf(tabId) || '', tabId);
+    if (groupOf(tabId) !== activeGroupId) {
+      activeGroupId = groupOf(tabId);
+      sendGroupState();
+    }
+  }
   // Gordijn vóór het tonen van de nieuwe tab, zodat die geen moment
   // half-opgebouwd in beeld komt.
   if (isRealSwitch) coverActiveView(target);
@@ -2182,6 +2214,8 @@ function removeTabFromBar(tabId, view) {
   // deze geopend is, pas daarna naar de laatst bekeken tab.
   const fallbackTabId = parentTabs.get(tabId) || previousTabs.get(tabId);
   const wasActive = activeTabId === tabId;
+  const groupId = groupOf(tabId);
+  tabGroupOf.delete(tabId);
 
   try {
     mainWindow.contentView.removeChildView(view);
@@ -2201,25 +2235,30 @@ function removeTabFromBar(tabId, view) {
     }
   }
   mainWindow.webContents.send('tab-closed', tabId);
+  syncGroupUrls(groupId);
+  // Laatste tab van een tijdelijke groep dicht: de groep is weg.
+  const closedGroup = groupId && findGroup(groupId);
+  if (closedGroup && !closedGroup.remember && groupTabIds(groupId).length === 0) removeGroup(groupId);
 
   if (!wasActive) return;
-  if (fallbackTabId && tabs.has(fallbackTabId)) {
+  // Binnen de eigen groep blijven; is die leeg, dan terug naar Algemeen.
+  if (fallbackTabId && tabs.has(fallbackTabId) && groupOf(fallbackTabId) === groupId) {
     switchTab(fallbackTabId);
     return;
   }
-  const remaining = [...tabs.keys()];
+  const remaining = groupTabIds(groupId);
   if (remaining.length > 0) {
     switchTab(remaining[remaining.length - 1]);
   } else {
     activeTabId = null;
-    createTab(START_URL);
+    switchGroup(null);
   }
 }
 
 function closeOtherTabs(tabId) {
   if (!tabs.has(tabId)) return;
 
-  for (const otherTabId of [...tabs.keys()]) {
+  for (const otherTabId of groupTabIds(groupOf(tabId))) {
     if (otherTabId !== tabId && !lockedTabs.has(otherTabId)) {
       closeTab(otherTabId);
     }
@@ -2227,6 +2266,141 @@ function closeOtherTabs(tabId) {
 
   if (tabs.has(tabId)) switchTab(tabId);
 }
+
+// ---------- Tabgroepen (werkruimtes) ----------
+//
+// Elke tab hoort bij een groep (appSettings.tabGroups) of bij "Algemeen"
+// (null). De tabbalk toont alleen de tabs van de actieve groep; de tabs van
+// de andere groepen blijven gewoon open op de achtergrond. De adressen van
+// een groep lopen mee met zijn open tabs. Een groep is tijdelijk: weg zodra
+// de laatste tab dicht gaat of de app herstart. Met "Onthouden" (remember)
+// blijft hij bewaard en komt hij terug in het overzicht (pas geopend als je
+// hem kiest). Verwijderen kan altijd; de open tabs gaan dan naar Algemeen.
+const tabGroupOf = new Map(); // tabId -> groupId (niet in de map = Algemeen)
+let activeGroupId = null;
+const lastTabOfGroup = new Map(); // groupId (of '' voor Algemeen) -> tabId
+
+const groupOf = (tabId) => tabGroupOf.get(tabId) || null;
+const findGroup = (groupId) => appSettings.tabGroups.find(group => group.id === groupId);
+const groupTabIds = (groupId) => [...tabs.keys()].filter(id => groupOf(id) === groupId && !isDetachedTab(id));
+
+function sendGroupState() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send('tab-group-state', {
+    activeGroupId,
+    groups: appSettings.tabGroups.map(group => ({ id: group.id, name: group.name })),
+    tabGroupOf: Object.fromEntries(tabGroupOf)
+  });
+}
+
+function syncGroupUrls(groupId) {
+  const group = groupId && findGroup(groupId);
+  if (!group) return;
+  const all = groupTabIds(groupId).map(id => tabs.get(id).webContents.getURL());
+  if (all.some(url => !url)) return; // een tab is nog niet begonnen met laden
+  const urls = all.filter(isInternalUrl);
+  // Sessie verlopen: de tabs staan even op de inlogpagina. Dan de bewaarde
+  // adressen houden, anders is de groep na het inloggen alleen nog "Auth".
+  if (urls.some(url => (pageKind(url) || '').startsWith('/auth'))) return;
+  if (urls.length === 0 || urls.join('\n') === group.urls.join('\n')) return;
+  group.urls = urls;
+  saveSettings();
+}
+
+// Naar een groep: de laatst bekeken tab ervan, of zijn tabs openen.
+function switchGroup(groupId) {
+  if (groupId && !findGroup(groupId)) return;
+  activeGroupId = groupId;
+  sendGroupState();
+  const open = groupTabIds(groupId);
+  const last = lastTabOfGroup.get(groupId || '');
+  if (open.length > 0) {
+    switchTab(open.includes(last) ? last : open[open.length - 1]);
+    return;
+  }
+  const urls = groupId && findGroup(groupId).urls.length > 0 ? findGroup(groupId).urls : [START_URL];
+  urls.forEach((url, index) => createTab(url, index === 0));
+}
+
+function createGroup() {
+  const group = { id: `group-${Date.now()}`, name: `Groep ${appSettings.tabGroups.length + 1}`, remember: false, urls: [] };
+  appSettings.tabGroups.push(group);
+  saveSettings();
+  mainWindow.webContents.send('tab-groups-changed', appSettings.tabGroups);
+  return group;
+}
+
+// Tab naar een andere groep. Was het de actieve tab, dan blijf je in je
+// groep (op een andere tab), tenzij die nu leeg is: dan ga je mee.
+function moveTabToGroup(tabId, groupId) {
+  const from = groupOf(tabId);
+  if (from === groupId || !tabs.has(tabId)) return;
+  if (groupId) tabGroupOf.set(tabId, groupId);
+  else tabGroupOf.delete(tabId);
+  syncGroupUrls(from);
+  syncGroupUrls(groupId);
+  sendGroupState();
+  if (tabId !== activeTabId) return;
+  const remaining = groupTabIds(from);
+  if (remaining.length > 0) switchTab(remaining[remaining.length - 1]);
+  else switchGroup(groupId);
+}
+
+function removeGroup(groupId) {
+  if (!findGroup(groupId)) return;
+  for (const id of groupTabIds(groupId)) tabGroupOf.delete(id);
+  appSettings.tabGroups = appSettings.tabGroups.filter(group => group.id !== groupId);
+  saveSettings();
+  if (activeGroupId === groupId) activeGroupId = null;
+  sendGroupState();
+  mainWindow.webContents.send('tab-groups-changed', appSettings.tabGroups);
+}
+
+// Vanuit het taboverzicht: een lege groep (verzameling), een tab verplaatsen
+// (kaart op een groep slepen) en "Openen bij opstarten".
+ipcMain.handle('create-tab-group', (event) => {
+  if (event.sender !== mainWindow.webContents) return null;
+  const group = createGroup();
+  sendGroupState();
+  return group.id;
+});
+ipcMain.on('move-tab-to-group', (event, { tabId, groupId }) => {
+  if (event.sender !== mainWindow.webContents || (groupId && !findGroup(groupId))) return;
+  moveTabToGroup(tabId, groupId || null);
+});
+ipcMain.on('set-tab-group-remember', (event, { id, value }) => {
+  const group = event.sender === mainWindow.webContents && findGroup(id);
+  if (!group) return;
+  group.remember = !!value;
+  saveSettings();
+  mainWindow.webContents.send('tab-groups-changed', appSettings.tabGroups);
+});
+
+// Knop met de groepsnaam in de tabbalk.
+ipcMain.on('show-group-menu', (event, { x, y }) => {
+  if (event.sender !== mainWindow.webContents) return;
+  const count = (groupId) => groupTabIds(groupId).length;
+  const item = (groupId, name) => ({
+    label: count(groupId) > 0 ? `${name} (${count(groupId)})` : name,
+    type: 'radio',
+    checked: activeGroupId === groupId,
+    click: () => switchGroup(groupId)
+  });
+  Menu.buildFromTemplate([
+    item(null, 'Algemeen'),
+    ...appSettings.tabGroups.map(group => item(group.id, group.name)),
+    { type: 'separator' },
+    {
+      label: '+ Nieuwe groep',
+      click: () => {
+        const group = createGroup();
+        switchGroup(group.id);
+        mainWindow.webContents.send('open-tab-overview', { focusGroupId: group.id });
+      }
+    },
+    { label: 'Groepen beheren…', click: () => mainWindow.webContents.send('open-tab-overview', {}) }
+  ]).popup({ window: mainWindow, x, y });
+});
 
 // Een tab uit de tabbalk slepen en loslaten buiten de balk maakt er een eigen
 // los Windows-venster van (dat je daarna net als elk ander venster naar een
@@ -2251,6 +2425,25 @@ function isDetachedTab(tabId) {
 function ownerWindowOf(tabId) {
   const detached = detachedWindows.get(tabId);
   return detached ? detached.window : mainWindow;
+}
+
+// Rechtermuisknop in een tekstveld: eerst spellingsuggesties voor een
+// onderstreept woord (de spellingcontrole van Windows), dan knippen/kopiëren/plakken.
+function editMenuItems(params, contents) {
+  const items = [];
+  if (params.misspelledWord) {
+    for (const word of params.dictionarySuggestions.slice(0, 5)) {
+      items.push({ label: word, click: () => contents.replaceMisspelling(word) });
+    }
+    if (items.length === 0) items.push({ label: 'Geen suggesties', enabled: false });
+    items.push({ label: 'Toevoegen aan woordenboek', click: () => contents.session.addWordToSpellCheckerDictionary(params.misspelledWord) });
+  }
+  const edit = [];
+  if (params.editFlags.canCut) edit.push({ label: 'Knippen', role: 'cut' });
+  if (params.editFlags.canCopy) edit.push({ label: 'Kopiëren', role: 'copy' });
+  if (params.editFlags.canPaste) edit.push({ label: 'Plakken', role: 'paste' });
+  if (items.length > 0 && edit.length > 0) items.push({ type: 'separator' });
+  return [...items, ...edit];
 }
 
 // Menu tonen in het venster van de tab. In het hoofdvenster op de
@@ -2315,6 +2508,47 @@ const telemetry = createTelemetry({
     tabs: tabs.size, detached: detachedWindows.size, startTabs: appSettings.startTabs.length,
     groups: appSettings.tabGroups.length, displays: screen.getAllDisplays().length
   })
+});
+
+// ---------- Crashes (Instellingen > Debug) ----------
+//
+// Wat er misging, bewaard op deze pc (laatste 50): een tab of de tabbalk die
+// crasht of vastloopt, een hulpproces van Chromium (GPU, netwerk) dat
+// wegvalt, of een fout in main.js. Zonder adressen: alleen de soort pagina.
+// Het aantal per soort gaat mee met de anonieme gebruiksgegevens.
+const CRASH_LOG_FILE = path.join(app.getPath('userData'), 'crash-log.json');
+const CRASH_LOG_MAX = 50;
+
+function readCrashLog() {
+  try {
+    const list = JSON.parse(fs.readFileSync(CRASH_LOG_FILE, 'utf8'));
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+// what: 'tab', 'tabbalk', 'GPU', ..., reason: crashed/oom/hangt/..., detail: extra tekst.
+function recordCrash(what, reason, detail = '') {
+  telemetry.crash(`${what}:${reason}`);
+  try {
+    const list = [...readCrashLog(), { at: new Date().toISOString(), version: app.getVersion(), what, reason, detail: String(detail).slice(0, 500) }];
+    fs.writeFileSync(CRASH_LOG_FILE, JSON.stringify(list.slice(-CRASH_LOG_MAX), null, 1));
+  } catch {
+    // Opslaan mislukt: dan alleen de telling.
+  }
+}
+
+app.on('child-process-gone', (event, details) => {
+  if (details.reason !== 'clean-exit') recordCrash(details.name || details.type, details.reason, `exitcode ${details.exitCode}`);
+});
+// Monitor: alleen opschrijven, Electron toont de fout daarna zoals altijd.
+process.on('uncaughtExceptionMonitor', (error) => recordCrash('main.js', 'fout', error && error.stack));
+
+ipcMain.handle('get-crash-log', (event) => (event.sender === mainWindow.webContents ? readCrashLog().reverse() : []));
+ipcMain.on('clear-crash-log', (event) => {
+  if (event.sender !== mainWindow.webContents) return;
+  try { fs.unlinkSync(CRASH_LOG_FILE); } catch { /* al leeg */ }
 });
 
 // ---------- Meldingen (belletje van de webapp) ----------
@@ -2384,8 +2618,9 @@ ipcMain.on('set-taskbar-badge', (event, dataUrl) => {
 
 function switchToOpenTab(url, fromTabId) {
   const path = pagePath(url);
+  const group = fromTabId && tabs.has(fromTabId) ? groupOf(fromTabId) : activeGroupId;
   const match = path && [...tabs.entries()].find(([id, view]) =>
-    id !== fromTabId && !isDetachedTab(id) && pagePath(view.webContents.getURL()) === path);
+    id !== fromTabId && !isDetachedTab(id) && groupOf(id) === group && pagePath(view.webContents.getURL()) === path);
   if (!match) return null;
   switchTab(match[0]);
   return match[0];
@@ -2631,33 +2866,21 @@ ipcMain.on('show-tab-context-menu', (event, { tabId, x, y }) => {
   // Alleen app-pagina's bewaren (geen about:blank van een PDF-voorbeeld e.d.).
   const canSave = isInternalUrl(currentUrl);
 
-  const groupSubmenu = appSettings.tabGroups.map(group => ({
+  const groupSubmenu = [{ id: null, name: 'Algemeen' }, ...appSettings.tabGroups].map(group => ({
     label: group.name,
-    type: 'checkbox',
-    checked: group.urls.includes(currentUrl),
-    click: () => {
-      const urlIndex = group.urls.indexOf(currentUrl);
-      if (urlIndex !== -1) group.urls.splice(urlIndex, 1);
-      else group.urls.push(currentUrl);
-      saveSettings();
-      mainWindow.webContents.send('tab-groups-changed', appSettings.tabGroups);
-    }
+    type: 'radio',
+    checked: groupOf(tabId) === group.id,
+    click: () => moveTabToGroup(tabId, group.id)
   }));
-  if (groupSubmenu.length > 0) groupSubmenu.push({ type: 'separator' });
-  groupSubmenu.push({
-    label: '+ Nieuwe tabgroup',
+  groupSubmenu.push({ type: 'separator' }, {
+    label: '+ Nieuwe groep',
     click: () => {
-      const newGroup = {
-        id: `group-${Date.now()}`,
-        name: `Tabgroep ${appSettings.tabGroups.length + 1}`,
-        urls: [currentUrl]
-      };
-      appSettings.tabGroups.push(newGroup);
-      saveSettings();
-      mainWindow.webContents.send('tab-groups-changed', appSettings.tabGroups);
-      // Tabgroepen beheer je in het taboverzicht; open dat met de naam van de
-      // nieuwe groep klaar om direct over te typen.
-      mainWindow.webContents.send('open-tab-overview', { focusGroupId: newGroup.id });
+      // De tab gaat mee naar de nieuwe groep; daarna de naam meteen overtypen
+      // in het taboverzicht.
+      const group = createGroup();
+      moveTabToGroup(tabId, group.id);
+      switchTab(tabId);
+      mainWindow.webContents.send('open-tab-overview', { focusGroupId: group.id });
     }
   });
 
@@ -2693,8 +2916,7 @@ ipcMain.on('show-tab-context-menu', (event, { tabId, x, y }) => {
       }
     },
     {
-      label: 'Toevoegen aan tabgroup',
-      enabled: canSave,
+      label: 'Verplaatsen naar groep',
       submenu: groupSubmenu
     }
   ]);
@@ -2779,7 +3001,6 @@ ipcMain.handle('get-settings', (event) => {
     appTheme: appSettings.appTheme,
     themes: themes.themeCatalog(),
     previewFontCss: themes.previewFontCss(),
-    themesAvailable: themesAvailable(),
     softSupported: themes.supportsSoft(activeTheme()),
     originalTheme: themes.isOriginal(activeTheme()),
     fixedMode: themes.fixedMode(activeTheme()),
@@ -2795,7 +3016,7 @@ ipcMain.handle('get-settings', (event) => {
 // komen.
 // Kleurenthema (themes.js). Zelfde overgang als bij oogcomfort.
 ipcMain.on('set-app-theme', (event, id) => {
-  if (event.sender !== mainWindow.webContents || !themes.isTheme(id) || !themesAvailable()) return;
+  if (event.sender !== mainWindow.webContents || !themes.isTheme(id)) return;
   if (id === appSettings.appTheme) return;
   const previousColor = curtainColor();
   appSettings.appTheme = id;
@@ -2814,7 +3035,6 @@ function sendChromeTheme() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   mainWindow.webContents.send('chrome-theme-changed', {
     appTheme: appSettings.appTheme,
-    themesAvailable: themesAvailable(),
     softSupported: themes.supportsSoft(activeTheme()),
     originalTheme: themes.isOriginal(activeTheme()),
     fixedMode: themes.fixedMode(activeTheme()),
@@ -2875,14 +3095,8 @@ ipcMain.on('set-soft-colors', (event, value) => {
 });
 ipcMain.on('set-beta-updates', (event, value) => {
   if (event.sender !== mainWindow.webContents) return;
-  const previousTheme = activeTheme();
-  const previousColor = curtainColor();
   appSettings.betaUpdates = !!value;
   saveSettings();
-  // Thema's zijn nog bèta (zie themesAvailable): het gekozen thema gaat aan
-  // of uit, en de keuze in de instellingen verschijnt of verdwijnt.
-  if (activeTheme() !== previousTheme) applyThemeChange(previousColor);
-  else sendChromeTheme();
   if (!app.isPackaged) return;
   applyUpdateChannel();
   // Meteen stil opnieuw kijken, zodat het update-bolletje klopt met de
@@ -3310,26 +3524,25 @@ ipcMain.on('rename-tab-group', (event, { id, name }) => {
   if (trimmed) group.name = trimmed;
   saveSettings();
   mainWindow.webContents.send('tab-groups-changed', appSettings.tabGroups);
+  sendGroupState();
 });
 ipcMain.on('remove-tab-group', (event, id) => {
-  if (event.sender !== mainWindow.webContents) return;
-  appSettings.tabGroups = appSettings.tabGroups.filter(g => g.id !== id);
-  saveSettings();
-  mainWindow.webContents.send('tab-groups-changed', appSettings.tabGroups);
+  if (event.sender === mainWindow.webContents) removeGroup(id);
 });
 ipcMain.on('remove-tab-group-url', (event, { groupId, urlIndex }) => {
   if (event.sender !== mainWindow.webContents) return;
   const group = appSettings.tabGroups.find(g => g.id === groupId);
   if (!group || urlIndex < 0 || urlIndex >= group.urls.length) return;
-  group.urls.splice(urlIndex, 1);
+  // Staat die pagina open in de groep, dan gaat de tab dicht (de lijst loopt
+  // mee met de open tabs); anders alleen uit de bewaarde lijst.
+  const openTab = groupTabIds(groupId).find(id => tabs.get(id).webContents.getURL() === group.urls[urlIndex]);
+  if (openTab && groupTabIds(groupId).length > 1) closeTab(openTab);
+  else group.urls.splice(urlIndex, 1);
   saveSettings();
   mainWindow.webContents.send('tab-groups-changed', appSettings.tabGroups);
 });
 ipcMain.on('open-tab-group', (event, groupId) => {
-  if (event.sender !== mainWindow.webContents) return;
-  const group = appSettings.tabGroups.find(g => g.id === groupId);
-  if (!group || group.urls.length === 0) return;
-  group.urls.forEach((url, index) => createTab(url, index === 0));
+  if (event.sender === mainWindow.webContents) switchGroup(groupId);
 });
 ipcMain.on('app-notice-accepted', (event) => {
   if (event.sender === mainWindow.webContents && tabs.size === 0) {
@@ -4022,12 +4235,17 @@ function createWindow() {
   // tabbalk/instellingen zelf (bv. een tabgroep hernoemen). Rechtsklikken op
   // een tab wordt al elders afgehandeld (die stopt propagation), dus botst
   // hier niet mee.
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    if (details.reason !== 'clean-exit') recordCrash('tabbalk', details.reason, `exitcode ${details.exitCode}`);
+  });
+  mainWindow.on('unresponsive', () => recordCrash('tabbalk', 'hangt'));
+  mainWindow.webContents.on('console-message', (event) => {
+    if (event.level === 'error' && event.message.startsWith('Uncaught')) recordCrash('tabbalk', 'fout', `${event.message} (regel ${event.lineNumber})`);
+  });
+
   mainWindow.webContents.on('context-menu', (event, params) => {
     if (!(params.isEditable || params.selectionText)) return;
-    const editItems = [];
-    if (params.editFlags.canCut) editItems.push({ label: 'Knippen', role: 'cut' });
-    if (params.editFlags.canCopy) editItems.push({ label: 'Kopiëren', role: 'copy' });
-    if (params.editFlags.canPaste) editItems.push({ label: 'Plakken', role: 'paste' });
+    const editItems = editMenuItems(params, mainWindow.webContents);
     if (editItems.length === 0) return;
     Menu.buildFromTemplate(editItems).popup({ window: mainWindow, x: params.x, y: params.y });
   });
@@ -4106,6 +4324,24 @@ function createWindow() {
 
 app.whenReady().then(() => {
   setTimeout(removeOldUpdateFolders, 30 * 1000);
+
+  // Downloads (bv. "Document" bij een stuklijst) zonder opslaan-venster van
+  // Windows: meteen in Downloads, daarna openen. Een tab die alleen voor de
+  // download bestond (leeg window.open()-venster) gaat weer dicht.
+  session.defaultSession.on('will-download', (event, item, contents) => {
+    const parsed = path.parse(item.getFilename() || 'download');
+    let target = path.join(app.getPath('downloads'), parsed.base);
+    for (let n = 1; fs.existsSync(target); n++) target = path.join(app.getPath('downloads'), `${parsed.name} (${n})${parsed.ext}`);
+    item.setSavePath(target);
+    item.once('done', (doneEvent, state) => {
+      if (state !== 'completed') return;
+      // Alleen documenten en tekeningen openen, nooit iets wat kan draaien (.exe, .bat, ...).
+      if (OPEN_AFTER_DOWNLOAD.includes(parsed.ext.toLowerCase())) shell.openPath(target);
+      else shell.showItemInFolder(target);
+    });
+    const entry = [...tabs.entries()].find(([, view]) => view.webContents === contents);
+    if (entry) closeIfStillBlank(entry[1], entry[0]);
+  });
 
   // Electron staat standaard ELKE toestemmingsvraag toe (camera, microfoon,
   // locatie, meldingen, ...), ook voor externe pagina's zoals de

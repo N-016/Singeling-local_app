@@ -39,6 +39,16 @@ function isAuthUrl(url) {
   }
 }
 
+// Een bestand uit de opslag van Supabase (bv. "Document" bij een stuklijst).
+// Zelfde domein als inloggen, maar geen inlogvenster: dit hoort in een tab.
+function isFileUrl(url) {
+  try {
+    return isAuthUrl(url) && new URL(url).pathname.startsWith('/storage/');
+  } catch {
+    return false;
+  }
+}
+
 function parseVersion(version) {
   const match = String(version || '').match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?/);
   return match ? { parts: match.slice(1, 4).map(Number), pre: match[4] || null } : null;
@@ -98,4 +108,4 @@ function pageKind(url) {
   }
 }
 
-module.exports = { START_URL, APP_HOSTNAME, isInternalUrl, isAuthUrl, compareVersions, criticalUpdateFrom, pageKind };
+module.exports = { START_URL, APP_HOSTNAME, isInternalUrl, isAuthUrl, isFileUrl, compareVersions, criticalUpdateFrom, pageKind };

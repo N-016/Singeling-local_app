@@ -27,11 +27,13 @@ const emptySession = () => ({
   startedAt: Date.now(),
   visits: {}, // pagina-soort -> aantal keer geopend
   seconds: {}, // pagina-soort -> seconden dat de app daar op stond (venster actief)
-  cpu: { n: 0, sum: 0, max: 0, memSum: 0, memMax: 0, byKind: {} },
+  // memSum/memMax: geheugen van de app; sysSum/sysMax: wat de hele pc in gebruik heeft (MB).
+  cpu: { n: 0, sum: 0, max: 0, memSum: 0, memMax: 0, sysSum: 0, sysMax: 0, byKind: {} },
   // Seconden dat de app open stond en daarvan op de voorgrond (een van de
   // app-vensters heeft de focus): het aandeel tijd dat je er echt mee werkt.
   time: { open: 0, focus: 0 },
-  crashes: 0
+  crashes: 0,
+  crashKinds: {} // 'tab:oom' -> aantal
 });
 
 function createTelemetry({ dir, appVersion, config, isEnabled, getMetrics, getActive, getSnapshot, fetchImpl = fetch }) {
@@ -92,8 +94,10 @@ function createTelemetry({ dir, appVersion, config, isEnabled, getMetrics, getAc
     lastKindByTab.delete(tabId);
   }
 
-  function crash() {
-    if (active()) session.crashes += 1;
+  function crash(kind = 'tab:crashed') {
+    if (!active()) return;
+    session.crashes += 1;
+    if (session.crashKinds[kind] || Object.keys(session.crashKinds).length < 20) session.crashKinds[kind] = (session.crashKinds[kind] || 0) + 1;
   }
 
   // CPU is "percentage sinds de vorige meting" (100 = één hele kern), dus
@@ -112,6 +116,9 @@ function createTelemetry({ dir, appVersion, config, isEnabled, getMetrics, getAc
       c.max = Math.max(c.max, totalCpu);
       c.memSum += memMb;
       c.memMax = Math.max(c.memMax, memMb);
+      const sysMb = (os.totalmem() - os.freemem()) / 1024 ** 2;
+      c.sysSum += sysMb;
+      c.sysMax = Math.max(c.sysMax, sysMb);
       if (kind && (c.byKind[kind] || Object.keys(c.byKind).length < MAX_KINDS)) {
         const entry = c.byKind[kind] || (c.byKind[kind] = { n: 0, sum: 0, max: 0 });
         entry.n += 1;
@@ -149,8 +156,9 @@ function createTelemetry({ dir, appVersion, config, isEnabled, getMetrics, getAc
       visits: s.visits,
       seconds: s.seconds,
       time: s.time,
-      cpu: { n: s.cpu.n, sum: round(s.cpu.sum), max: round(s.cpu.max), memSum: Math.round(s.cpu.memSum), memMax: Math.round(s.cpu.memMax), byKind },
-      crashes: s.crashes
+      cpu: { n: s.cpu.n, sum: round(s.cpu.sum), max: round(s.cpu.max), memSum: Math.round(s.cpu.memSum), memMax: Math.round(s.cpu.memMax), sysSum: Math.round(s.cpu.sysSum), sysMax: Math.round(s.cpu.sysMax), byKind },
+      crashes: s.crashes,
+      crashKinds: s.crashKinds
     };
   }
 
