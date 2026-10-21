@@ -578,6 +578,607 @@ const HAL = {
   radius: '4px'
 };
 
+// Heuvel (groep Totaalthema's): voor de grap, zoveel mogelijk de pc van rond 2002.
+// Niet alleen kleuren maar ook materialen: glanzende blauwe knoppen, gewone
+// knoppen met de beige bolling en oranje gloed bij hover, vensters (pop-ups)
+// met een blauwe titelbalk en rode sluitknop, tabbladen met het oranje
+// lijntje, het blauwe takenpaneel als zijbalk, blauwe schuifbalken, gele
+// tooltips, gestippelde focusrand en een taakbalk met groene startknop.
+// Achtergrond zelf getekend (geen foto); Tahoma en Trebuchet MS staan op elke
+// Windows-pc. Alleen licht: zo'n donkere stand had die pc niet. Accent blauw,
+// niet het groen van de startknop: dat lijkt op "klaar".
+const XP_BLUE = 'linear-gradient(180deg, #4f8ff0 0%, #2d6be0 8%, #245edb 45%, #1d4fc4 85%, #1941a5 100%)';
+const XP_BUTTON = 'linear-gradient(180deg, #ffffff 0%, #f6f5f0 40%, #ece9d8 85%, #d6d0c5 100%)';
+const XP_TITLE = 'linear-gradient(180deg, #0997ff 0%, #0053ee 8%, #0050ee 40%, #06f 88%, #0055dd 100%)';
+const XP_CLOSE = 'linear-gradient(180deg, #e8a28a 0%, #d8603a 30%, #c8421a 70%, #b8360f 100%)';
+const XP_GREEN = 'linear-gradient(180deg, #5cb85c 0%, #3c9a3c 12%, #2f8a2f 60%, #237523 100%)';
+
+const HEUVEL = {
+  name: 'Heuvel',
+  description: 'De pc van rond 2002: glanzende blauwe knoppen, vensters met titelbalk, het blauwe takenpaneel en een groene startknop.',
+  totaal: true, // groep Totaalthema's: gaat verder dan kleuren (pageCss/chromeCss)
+  mode: 'light',
+  palettes: {
+    light: {
+      canvas: '#ece9d8', surface: '#ffffff', raised: '#f4f3ee', sunk: '#e3e0cf',
+      bar: '#ece9d8', tab: '#ffffff', sidebar: '#d6dff7', secondary: '#e3e0cf',
+      border: '#aca899', borderStrong: '#7f9db9',
+      fg1: '#1b1b1b', fg2: '#3a3a3a', fg3: '#5c5c5c', fg4: '#8a8a8a',
+      accent: '#245edb', accentStrong: '#1941a5', onAccent: '#ffffff'
+    }
+  },
+  wallpaper: {
+    light: 'assets/themes/heuvel/heuvel-light.svg'
+  },
+  font: { family: 'Tahoma', fallback: '"Segoe UI", sans-serif', faces: [] },
+  displayFont: { family: 'Trebuchet MS', fallback: 'Tahoma, sans-serif', faces: [] },
+  radius: '3px',
+  // Extra CSS voor de Singeling-pagina's (sel = het themaselector op <html>).
+  // Papier (het echte document) blijft buiten schot.
+  pageCss: (sel) => {
+    const not = `:not(${PAPER} *)`;
+    return `
+  ${sel} ::selection { background: #316ac5; color: #ffffff; }
+  ${sel} :focus-visible { outline: 1px dotted #000000 !important; outline-offset: 2px; box-shadow: none !important; }
+
+  /* Hoofdknoppen: glanzend Luna-blauw. */
+  ${sel} :is(button, a).bg-primary${not} {
+    background: ${XP_BLUE} !important;
+    border: 1px solid #0a246a !important;
+    border-radius: 4px !important;
+    color: #ffffff !important;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  }
+  ${sel} :is(button, a).bg-primary${not}:hover { filter: brightness(1.08); }
+  ${sel} :is(button, a).bg-primary${not}:active { filter: brightness(0.92); box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.35); }
+
+  /* Gewone knoppen (outline/secondary): de beige bolling, oranje gloed bij hover. */
+  ${sel} button:is(.border-input, .bg-secondary, .bg-background.border)${not}:not([role="checkbox"], [role="combobox"], [role="tab"]) {
+    background: ${XP_BUTTON} !important;
+    border: 1px solid #003c74 !important;
+    border-radius: 4px !important;
+    color: #000000 !important;
+  }
+  ${sel} button:is(.border-input, .bg-secondary, .bg-background.border)${not}:not([role="checkbox"], [role="combobox"], [role="tab"]):hover {
+    box-shadow: inset 0 0 0 2px #f8b636, inset 0 -1px 0 2px #e5a01a;
+  }
+  ${sel} button:is(.border-input, .bg-secondary, .bg-background.border)${not}:not([role="checkbox"], [role="combobox"], [role="tab"]):active {
+    background: linear-gradient(180deg, #d6d0c5, #ece9d8 60%, #f6f5f0) !important;
+  }
+
+  /* Invoervelden: de blauwgrijze rand en net afgeronde hoeken, zoals XP. */
+  ${sel} :is(input:not([type="checkbox"], [type="radio"]), textarea, select, [role="combobox"])${not} {
+    border-color: #7f9db9 !important;
+    border-radius: 3px !important;
+    background-color: #ffffff !important;
+  }
+
+  /* Keuzelijsten zoals de adresbalk: plat wit veld, het blauwe pijlknopje
+     strak tegen de rechterrand over de volle hoogte. */
+  ${sel} button[role="combobox"]${not} {
+    position: relative;
+    padding-right: 24px !important;
+    box-shadow: none !important;
+  }
+  ${sel} button[role="combobox"]${not} > svg:last-child {
+    position: absolute;
+    top: 1px; right: 1px;
+    width: 17px !important;
+    height: calc(100% - 2px) !important;
+    padding: 1px 0;
+    box-sizing: border-box;
+    background: linear-gradient(180deg, #e1eafe 0%, #c6d7fc 45%, #b0c6f8 55%, #a3bcf5 100%);
+    border: 1px solid #b9c9f0;
+    border-radius: 2px;
+    color: #4d6185;
+    stroke-width: 3;
+    opacity: 1 !important;
+  }
+  ${sel} button[role="combobox"]${not}:hover > svg:last-child { background: linear-gradient(180deg, #f0f5ff 0%, #dbe6fd 45%, #c6d7fc 55%, #b8cdf9 100%); }
+  ${sel} button[role="combobox"][data-state="open"]${not} > svg:last-child { background: linear-gradient(180deg, #a3bcf5, #c6d7fc); }
+  /* De opengeklapte lijst: wit, dunne zwarte rand, gekozen regel XP-blauw. */
+  ${sel} [role="listbox"]${not} {
+    background: #ffffff !important;
+    border: 1px solid #000000 !important;
+    border-radius: 0 !important;
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3) !important;
+  }
+  ${sel} [role="option"]${not} { border-radius: 0 !important; }
+  ${sel} [role="option"][data-highlighted]${not} { background: #316ac5 !important; color: #ffffff !important; }
+
+  /* Zoekvak bovenin (.search met een kaal input): wit veld met XP-rand. */
+  ${sel} .sg-app .search {
+    background: #ffffff !important;
+    border: 1px solid #7f9db9 !important;
+    border-radius: 3px !important;
+    box-shadow: none !important;
+  }
+  ${sel} .sg-app .search input { background: transparent !important; border: 0 !important; }
+
+  /* Vinkjes: wit vakje met donkerblauwe rand en een groen vinkje. */
+  ${sel} button[role="checkbox"]${not} {
+    background: linear-gradient(135deg, #dcdcd7, #ffffff) !important;
+    border: 1px solid #1c5180 !important;
+    border-radius: 2px !important;
+    color: #21a121 !important;
+  }
+
+  /* Pop-ups worden vensters: blauwe rand, titelbalk, rode sluitknop. */
+  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} {
+    border: 3px solid #0054e3 !important;
+    border-top-width: 0 !important;
+    border-radius: 8px 8px 0 0 !important;
+    padding-top: calc(28px + 1.25rem) !important;
+    background: #ece9d8 !important;
+    box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.35) !important;
+  }
+  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not}::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 28px;
+    border-radius: 7px 7px 0 0;
+    background: ${XP_TITLE};
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    pointer-events: none;
+  }
+  /* De titel van het venster wit in de titelbalk, zoals toen. */
+  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} > h2,
+  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} > div:first-child > h2 {
+    position: absolute;
+    top: 0; left: 10px; right: 40px;
+    height: 28px;
+    display: flex; align-items: center;
+    margin: 0;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    text-shadow: 1px 1px 0 #0a1f6b;
+    z-index: 1;
+  }
+  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} > button.absolute {
+    top: 3px !important;
+    right: 4px !important;
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    background: ${XP_CLOSE} !important;
+    border: 1px solid #ffffff !important;
+    border-radius: 3px !important;
+    color: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  /* Tabbladen: bol, en het actieve tabblad met het oranje lijntje bovenop. */
+  ${sel} [role="tablist"]${not} { background: transparent !important; border-bottom: 1px solid #919b9c; border-radius: 0 !important; padding-bottom: 0 !important; }
+  ${sel} [role="tab"]${not} {
+    background: linear-gradient(180deg, #ffffff, #ecebe5 85%, #d8d2bd) !important;
+    border: 1px solid #919b9c !important;
+    border-bottom: 0 !important;
+    border-radius: 3px 3px 0 0 !important;
+    color: #000000 !important;
+    margin-right: 1px;
+  }
+  ${sel} [role="tab"][data-state="active"]${not} {
+    background: #fcfcfe !important;
+    box-shadow: inset 0 2px 0 #ffc73c, inset 0 3px 0 #e68b2c !important;
+  }
+  /* Tabbladen van de webapp zelf (knoppen met een streep eronder, bv. Bord /
+     Cijfers bij QRM Connect): dezelfde XP-tabs. */
+  ${sel} nav.border-b > button.border-b-2${not} {
+    background: linear-gradient(180deg, #ffffff, #ecebe5 85%, #d8d2bd);
+    border: 1px solid #919b9c !important;
+    border-bottom: 0 !important;
+    border-radius: 3px 3px 0 0;
+    color: #000000 !important;
+    margin-bottom: -1px;
+  }
+  ${sel} nav.border-b > button.border-b-2.border-primary${not} {
+    background: #fcfcfe;
+    box-shadow: inset 0 2px 0 #ffc73c, inset 0 3px 0 #e68b2c;
+    position: relative;
+  }
+  ${sel} nav.border-b:has(> button.border-b-2)${not} { border-bottom-color: #919b9c !important; }
+
+  /* Zijbalk: het blauwe takenpaneel, groepen als witte kopjes. */
+  ${sel} .sg-app .side {
+    background: linear-gradient(180deg, #7ba2e7 0%, #6375d6 100%) !important;
+    border-right: 1px solid #3d5ec6 !important;
+    color: #ffffff;
+  }
+  ${sel} .sg-app .navg .it {
+    margin: 6px 8px 0;
+    width: calc(100% - 16px) !important;
+    background: linear-gradient(90deg, #ffffff, #c6d3f7) !important;
+    border-radius: 4px 4px 0 0;
+    color: #215dc6 !important;
+    font-weight: 700;
+  }
+  ${sel} .sg-app .navg .it.active { background: linear-gradient(90deg, #ffffff, #a9bdf3) !important; }
+  ${sel} .sg-app .navg .sub {
+    margin: 0 8px;
+    background: #d6dff7;
+    border-left: 0 !important;
+  }
+  ${sel} .sg-app .navg .sub a { color: #215dc6 !important; }
+  ${sel} .sg-app .navg .sub a:hover { text-decoration: underline; }
+
+  /* Tooltips: geel briefje met zwarte rand. */
+  ${sel} :is([data-state="delayed-open"], [data-state="instant-open"])[data-side]${not} {
+    background: #ffffe1 !important;
+    color: #000000 !important;
+    border: 1px solid #000000 !important;
+    border-radius: 0 !important;
+  }
+
+  /* Schuifbalken: lichtblauwe duim met ribbels, zoals toen. */
+  ${sel} ::-webkit-scrollbar { width: 17px; height: 17px; }
+  ${sel} ::-webkit-scrollbar-track { background: #f4f3ee; }
+  ${sel} ::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #c8d6fb, #b9cbf8 50%, #a9bff5) padding-box;
+    border: 1px solid #ffffff;
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 1px #9eb6f4;
+  }
+  ${sel} ::-webkit-scrollbar-thumb:hover { background: linear-gradient(90deg, #d8e3fc, #c8d6fb 50%, #b9cbf8) padding-box; }
+  ${sel} ::-webkit-scrollbar-corner { background: #ece9d8; }`;
+  },
+  // Tabbalk als taakbalk: blauw met glans, tabs als taakbalkknoppen, de +
+  // als groene startknop en vensterknoppen in XP-stijl.
+  // Mini-voorbeeld op het themakaartje: laat zien wat dit thema extra doet
+  // (taakbalk met startknop, takenpaneel, venster met titelbalk).
+  previewCss: `
+  .theme-preview[data-theme="heuvel"] .tp-bar { position: relative; padding-left: 26px; background: linear-gradient(180deg, #4f8ff0, #245edb 45%, #1941a5); border-bottom: 0; }
+  .theme-preview[data-theme="heuvel"] .tp-bar::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 22px; background: linear-gradient(180deg, #5cb85c, #2f8a2f); border-radius: 0 7px 7px 0; }
+  .theme-preview[data-theme="heuvel"] .tp-tab { margin: 1px 0 2px; background: linear-gradient(180deg, #5b97f2, #2f6ad8); border: 1px solid rgba(0, 0, 0, 0.25); border-radius: 2px; opacity: 1; }
+  .theme-preview[data-theme="heuvel"] .tp-tab.tp-active { background: #1a48b8; box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.5); }
+  .theme-preview[data-theme="heuvel"] .tp-side { width: 22px; background: linear-gradient(180deg, #7ba2e7, #6375d6); }
+  .theme-preview[data-theme="heuvel"] .tp-side span { height: 6px; background: linear-gradient(90deg, #ffffff, #c6d3f7); border-radius: 2px 2px 0 0; opacity: 1; }
+  .theme-preview[data-theme="heuvel"] .tp-side span.tp-on { background: linear-gradient(90deg, #ffffff, #a9bdf3); }
+  .theme-preview[data-theme="heuvel"] .tp-card { padding-top: 3px; background: #ece9d8; border: 2px solid #0054e3; border-top-width: 6px; border-radius: 4px 4px 0 0; }
+  .theme-preview[data-theme="heuvel"] .tp-card::after { content: ''; position: absolute; top: -5px; right: 1px; width: 4px; height: 4px; background: #d8603a; border-radius: 1px; }
+  .theme-preview[data-theme="heuvel"] .tp-btn { height: 8px; background: linear-gradient(180deg, #4f8ff0, #245edb 45%, #1941a5); border: 1px solid #0a246a; border-radius: 3px; }`,
+  chromeCss: `
+  html.chrome-theme #tab-bar {
+    background: ${XP_BLUE} !important;
+    --text: #ffffff;
+    --text-muted: #e3ecff;
+    --tab-bg: transparent;
+    --bar-border: rgba(0, 0, 0, 0.25);
+    --hover: rgba(255, 255, 255, 0.15);
+    --hover-strong: rgba(255, 255, 255, 0.25);
+    /* Knoppen in de balk (terug, link, hulp, instellingen) gebruiken het
+       accent; dat is hier hetzelfde blauw als de balk, dus wit. */
+    --accent: #ffffff;
+    --accent-hover: #fff2b3;
+    --text-faint: rgba(255, 255, 255, 0.45);
+    --border: rgba(255, 255, 255, 0.45);
+  }
+  html.chrome-theme .tab {
+    margin: 4px 1px;
+    border: 1px solid rgba(0, 0, 0, 0.25) !important;
+    border-radius: 3px;
+    background: linear-gradient(180deg, #5b97f2, #3c7be6 50%, #2f6ad8) !important;
+    color: #ffffff !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  html.chrome-theme .tab::before { display: none; }
+  html.chrome-theme .tab:hover { filter: brightness(1.1); }
+  html.chrome-theme .tab.active {
+    background: linear-gradient(180deg, #1a48b8, #1e52c4 50%, #2459cc) !important;
+    box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.45);
+  }
+  html.chrome-theme #new-tab-btn {
+    background: ${XP_GREEN} !important;
+    color: #ffffff !important;
+    border-radius: 0 12px 12px 0 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 1px 0 2px rgba(0, 0, 0, 0.35);
+  }
+  html.chrome-theme .window-control {
+    margin: 0 1px;
+    width: 30px !important;
+    height: 26px !important;
+    align-self: center;
+    border: 1px solid #ffffff !important;
+    border-radius: 3px !important;
+    background: linear-gradient(180deg, #5b97f2, #2f6ad8) !important;
+    color: #ffffff !important;
+  }
+  html.chrome-theme #window-close { background: ${XP_CLOSE} !important; }
+  html.chrome-theme .window-control::after { display: none; }
+  html.chrome-theme .window-control:hover { filter: brightness(1.12); }
+`
+};
+
+// Bedienpaneel (groep Totaalthema's): de bediening van onze lasersnijders.
+// Lichte lavendelgrijze ondergrond, een donkere statusbalk bovenin met een
+// blauwe onderrand (het kader om het scherm), grijze tabbladen met verloop
+// en een oranje rand om het actieve, de menugroepen als grote tegels (de
+// gekozen geel), tabelkoppen als donkergrijze balken, gele invoervelden bij
+// focus en getallen als zwarte vakjes met gele cijfers. Geen merknaam of
+// logo; Arial zoals op het paneel (staat op elke Windows-pc). Alleen licht.
+const PANEL_BLUE = '#3a3fb0';
+// Effen kleuren: het paneel heeft geen glans of verloop.
+const PANEL_BAR = '#a9abdc';
+const PANEL_TILE = '#b6b9e4';
+const PANEL_TAB = '#cfd1ee';
+const PANEL_YELLOW = '#ffe500';
+
+const BEDIENPANEEL = {
+  name: 'Bedienpaneel',
+  description: 'Zoals de bediening van de lasersnijder: grijze tabbladen met oranje rand, grote tegels, gele velden en een donkere statusbalk.',
+  totaal: true,
+  mode: 'light',
+  palettes: {
+    light: {
+      canvas: '#b9bbe3', surface: '#f4f4fa', raised: '#e8e9f6', sunk: '#aeb1de',
+      bar: '#b9bbe3', tab: '#f4f4fa', sidebar: '#8f92ca', secondary: '#e1e2f3',
+      border: '#9a9fd0', borderStrong: '#5a5fa8',
+      fg1: '#1c1f4a', fg2: '#2c3072', fg3: '#4a4f8f', fg4: '#8286b8',
+      accent: '#3a3fb0', accentStrong: '#2a2e8f', onAccent: '#ffffff'
+    }
+  },
+  font: { family: 'Arial', fallback: '"Segoe UI", sans-serif', faces: [] },
+  radius: '2px',
+  pageCss: (sel) => {
+    const not = `:not(${PAPER} *)`;
+    return `
+  ${sel} ::selection { background: #ffe500; color: #000000; }
+  ${sel} :focus-visible { outline: 2px solid #f5a623 !important; outline-offset: 1px; box-shadow: none !important; }
+
+  /* Statusbalk bovenin: lavendel met donkere tekst en de blauwe onderrand
+     van het schermkader. Rondom het scherm het blauwviolette kader. */
+  ${sel} body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    border: 5px solid ${PANEL_BLUE};
+    pointer-events: none;
+    z-index: 2147483646;
+  }
+  ${sel} .sg-app .topbar {
+    background: #b3b5e1 !important; /* lavendel zoals de tabbladrij; de tabbalk erboven is donker */
+    border-bottom: 3px solid ${PANEL_BLUE} !important;
+    color: #1c1f4a;
+  }
+  ${sel} .sg-app .topbar .crumb, ${sel} .sg-app .topbar .crumb * { color: #1c1f4a !important; }
+  ${sel} .sg-app .topbar > :not(.search) button:has(svg):not([class*="bg-"]) { color: #22256f !important; }
+  ${sel} .sg-app .topbar .search { background: #ffffff !important; border: 1px solid #8f94c8 !important; border-radius: 2px !important; }
+
+  /* Menu: de grote tegels rechts op het paneel; de open groep geel. */
+  ${sel} .sg-app .side {
+    background: #8f92ca !important; /* donkerder lavendel tussen de tegels */
+    border-right: 3px solid ${PANEL_BLUE} !important;
+  }
+  ${sel} .sg-app .navg .it {
+    margin: 5px 6px 0;
+    width: calc(100% - 12px) !important;
+    min-height: 54px; /* touchscreen-tegels zoals op het paneel */
+    background: ${PANEL_TILE} !important;
+    border: 1px solid #8f94c8 !important;
+    border-radius: 2px;
+    color: #33379a !important;
+    font-weight: 700;
+  }
+  ${sel} .sg-app .navg .it:hover { filter: brightness(1.04); }
+  /* Alleen de groep met de pagina waar je bent is geel (zoals de gekozen
+     tegel); een groep die alleen openstaat niet. */
+  ${sel} .sg-app .navg div:has(> .sub a.active) > .it, ${sel} .sg-app .navg .it.active {
+    background: ${PANEL_YELLOW} !important;
+    border-color: #b89b00 !important;
+    color: #1c1f4a !important;
+  }
+  ${sel} .sg-app .navg .sub { margin: 0 6px; background: #eceefa; border: 1px solid #9a9fd0; border-top: 0; }
+  ${sel} .sg-app .navg .sub a { color: #33379a !important; }
+  ${sel} .sg-app .navg .sub a.active { background: #ffe500 !important; color: #1c1f4a !important; }
+
+  /* Tabbladen: grijs verloop, het actieve licht met een oranje rand. */
+  ${sel} :is([role="tab"], nav.border-b > button.border-b-2)${not} {
+    background: ${PANEL_TAB} !important;
+    border: 1px solid #8f94c8 !important;
+    border-bottom: 0 !important;
+    border-radius: 2px 2px 0 0 !important;
+    color: #33379a !important;
+    font-weight: 600;
+    margin-right: 2px;
+    min-height: 40px;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  ${sel} :is([role="tab"][data-state="active"], nav.border-b > button.border-b-2.border-primary)${not} {
+    background: #f5f6fd !important;
+    border: 2px solid #f5a623 !important;
+    border-bottom: 0 !important;
+    color: #1c1f4a !important;
+  }
+  ${sel} [role="tablist"]${not} { background: transparent !important; border-bottom: 2px solid #f5a623; border-radius: 0 !important; padding-bottom: 0 !important; }
+  ${sel} nav.border-b:has(> button.border-b-2)${not} { border-bottom: 2px solid #f5a623 !important; }
+
+  /* Knoppen: groot genoeg voor een vinger, zoals op het touchscreen. */
+  ${sel} :is(button, a):is(.bg-primary, .border-input, .bg-secondary, .bg-background.border)${not}:not([role="checkbox"], [role="combobox"], [role="tab"], [role="switch"]) {
+    min-height: 40px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  /* Hoofdknop paneelblauw, overige als lichte tegel. */
+  ${sel} :is(button, a).bg-primary${not} {
+    background: #3a3fb0 !important;
+    border: 1px solid #22256f !important;
+    border-radius: 2px !important;
+    color: #ffffff !important;
+  }
+  ${sel} button:is(.border-input, .bg-secondary, .bg-background.border)${not}:not([role="checkbox"], [role="combobox"], [role="tab"]) {
+    background: ${PANEL_TILE} !important;
+    border: 1px solid #8f94c8 !important;
+    border-radius: 2px !important;
+    color: #33379a !important;
+  }
+  ${sel} button:is(.border-input, .bg-secondary, .bg-background.border)${not}:not([role="checkbox"], [role="combobox"], [role="tab"]):active {
+    background: ${PANEL_YELLOW} !important;
+  }
+
+  /* Velden: wit met grijsblauwe rand; het veld waar je in typt wordt geel. */
+  ${sel} :is(input:not([type="checkbox"], [type="radio"]), textarea, select)${not} {
+    background-color: #ffffff !important;
+    border-color: #8f94c8 !important;
+    border-radius: 0 !important;
+  }
+  ${sel} :is(input:not([type="checkbox"], [type="radio"]), textarea, select)${not}:focus { background-color: #fff3a6 !important; }
+
+  /* Keuzelijsten: geel veld met een blauwgrijs knopje en gele pijl. */
+  ${sel} button[role="combobox"]${not} {
+    position: relative;
+    padding-right: 30px !important;
+    background: #fdec8c !important;
+    border: 1px solid #b89b00 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  ${sel} button[role="combobox"]${not} > svg:last-child {
+    position: absolute;
+    top: 1px; right: 1px;
+    width: 24px !important;
+    height: calc(100% - 2px) !important;
+    padding: 2px 3px;
+    box-sizing: border-box;
+    background: ${PANEL_BAR};
+    border-radius: 0 10px 10px 0;
+    color: #ffd400;
+    stroke-width: 3;
+    opacity: 1 !important;
+  }
+  ${sel} [role="listbox"]${not} { background: #eef0fa !important; border: 1px solid #5a5fa8 !important; border-radius: 0 !important; }
+  ${sel} [role="option"][data-highlighted]${not} { background: #ffe500 !important; color: #000000 !important; border-radius: 0 !important; }
+
+  /* Tabelkoppen: donkergrijze balk met witte tekst; rijen om en om. */
+  ${sel} table${not} thead tr { background: #5c6090 !important; }
+  ${sel} table${not} thead th { color: #ffffff !important; border-color: #474a7d !important; }
+  ${sel} table${not} tbody tr:nth-child(even) { background-color: rgba(58, 63, 176, 0.07); }
+
+  /* Hoekig zoals het paneel: ook kaarten met hun eigen ronde hoeken. */
+  ${sel} :is(.rounded-lg, .rounded-xl, .rounded-2xl)${not} { border-radius: 2px !important; }
+
+  /* Grote getallen (kaartjes bovenaan, bv. QRM Connect) als display: zwart
+     vakje met gele cijfers. Statuskleuren (rood/groen/oranje) blijven, want
+     die betekenen iets; op zwart zijn ze goed leesbaar. */
+  ${sel} div:is(.text-2xl, .text-3xl).font-bold${not} {
+    display: inline-block;
+    min-width: 2.2em;
+    padding: 0 8px;
+    background: #111111;
+    color: #ffd400 !important;
+    border: 1px solid #000000;
+    box-shadow: inset 0 0 0 1px #333333;
+    font-family: Consolas, "Courier New", monospace !important;
+    text-align: right;
+  }
+  ${sel} div:is(.text-2xl, .text-3xl).font-bold.text-destructive${not} { color: #ff5a4a !important; }
+  ${sel} div:is(.text-2xl, .text-3xl).font-bold.text-success${not} { color: #4ade80 !important; }
+  ${sel} div:is(.text-2xl, .text-3xl).font-bold.text-warning${not} { color: #ffb020 !important; }
+
+  /* Vensters: kader in paneelblauw, titel in een donkere balk. */
+  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} {
+    border: 3px solid ${PANEL_BLUE} !important;
+    border-radius: 2px !important;
+    padding-top: calc(30px + 1.25rem) !important;
+    background: #eef0fa !important;
+  }
+  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not}::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 30px;
+    background: ${PANEL_BAR};
+    pointer-events: none;
+  }
+  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} > h2,
+  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} > div:first-child > h2 {
+    position: absolute;
+    top: 0; left: 12px; right: 44px;
+    height: 30px;
+    display: flex; align-items: center;
+    margin: 0;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    z-index: 1;
+  }
+  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} > button.absolute {
+    top: 3px !important; right: 4px !important;
+    width: 24px; height: 24px;
+    display: grid; place-items: center;
+    background: #d6382a !important;
+    border: 1px solid #ffffff !important;
+    border-radius: 2px !important;
+    color: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  /* Schuifbalken: smal en grijsblauw zoals op het paneel. */
+  ${sel} ::-webkit-scrollbar { width: 14px; height: 14px; }
+  ${sel} ::-webkit-scrollbar-track { background: #d9dbf1; border-left: 1px solid #bfc3e6; }
+  ${sel} ::-webkit-scrollbar-thumb { background: #b6b9e4; border: 1px solid #8f94c8; }
+  ${sel} ::-webkit-scrollbar-thumb:hover { background: #c6c8eb; }`;
+  },
+  // Tabbalk als statusbalk van het paneel: donker grijsviolet met witte
+  // tekst (zoals de bovenste balk op de machine), tabs als lichte tabbladen
+  // (de actieve met oranje rand), blauwe onderrand.
+  // Mini-voorbeeld op het themakaartje: kader, donkere balk, tegels (de
+  // gekozen geel), oranje tabbladrand en een display met gele cijfers.
+  previewCss: `
+  .theme-preview[data-theme="bedienpaneel"] { border: 2px solid #3a3fb0; border-radius: 2px; }
+  .theme-preview[data-theme="bedienpaneel"] .tp-bar { background: #5c5f93; border-bottom: 2px solid #3a3fb0; }
+  .theme-preview[data-theme="bedienpaneel"] .tp-tab { background: #cfd1ee; border-radius: 0; opacity: 1; }
+  .theme-preview[data-theme="bedienpaneel"] .tp-tab.tp-active { background: #f4f4fa; box-shadow: inset 0 0 0 1px #f5a623; }
+  .theme-preview[data-theme="bedienpaneel"] .tp-side { width: 22px; gap: 3px; padding: 4px 3px; background: #8f92ca; }
+  .theme-preview[data-theme="bedienpaneel"] .tp-side span { height: 9px; background: #b6b9e4; border-radius: 0; opacity: 1; }
+  .theme-preview[data-theme="bedienpaneel"] .tp-side span.tp-on { background: #ffe500; }
+  .theme-preview[data-theme="bedienpaneel"] .tp-card { border-radius: 0; border-top: 2px solid #f5a623; }
+  .theme-preview[data-theme="bedienpaneel"] .tp-btn { position: relative; width: 28px; height: 10px; background: #111111; border: 1px solid #000000; border-radius: 0; }
+  .theme-preview[data-theme="bedienpaneel"] .tp-btn::after { content: ''; position: absolute; inset: 2px 3px; background: repeating-linear-gradient(90deg, #ffd400 0 3px, transparent 3px 5px); }`,
+  chromeCss: `
+  html.chrome-theme #tab-bar {
+    background: #5c5f93 !important;
+    border-bottom: 3px solid ${PANEL_BLUE} !important;
+    --text: #ffffff;
+    --text-muted: #e4e5f6;
+    --tab-bg: transparent;
+    --bar-border: rgba(0, 0, 0, 0.3);
+    --hover: rgba(255, 255, 255, 0.14);
+    --hover-strong: rgba(255, 255, 255, 0.24);
+    --accent: #ffffff;
+    --accent-hover: #ffe500;
+    --text-faint: rgba(255, 255, 255, 0.4);
+    --border: rgba(255, 255, 255, 0.4);
+  }
+  html.chrome-theme .tab {
+    margin: 4px 1px 0;
+    border: 1px solid #8f94c8 !important;
+    border-bottom: 0 !important;
+    border-radius: 2px 2px 0 0;
+    background: ${PANEL_TAB} !important;
+    color: #33379a !important;
+    font-weight: 600;
+  }
+  html.chrome-theme .tab::before { display: none; }
+  html.chrome-theme .tab.active {
+    background: #f5f6fd !important;
+    border: 2px solid #f5a623 !important;
+    border-bottom: 0 !important;
+    color: #1c1f4a !important;
+  }
+  html.chrome-theme #new-tab-btn {
+    background: ${PANEL_TILE} !important;
+    border: 1px solid #8f94c8 !important;
+    color: #33379a !important;
+  }
+  html.chrome-theme .window-control::after { display: none; }
+  html.chrome-theme #window-close:hover { background: #c62a1c !important; }
+`
+};
+
 const THEMES = {
   // De app precies zoals de webapp hem maakt: geen licht/donker, geen
   // oogcomfort, geen aangepaste kleuren of zijbalk (main.js darkActive,
@@ -601,6 +1202,8 @@ const THEMES = {
   metaal: METAAL,
   rijstpapier: RIJSTPAPIER,
   terminal: TERMINAL,
+  heuvel: HEUVEL,
+  bedienpaneel: BEDIENPANEEL,
   noorderlicht: NOORDERLICHT,
   werkplaats: WERKPLAATS,
   delfts: DELFTS,
@@ -712,12 +1315,15 @@ function themeCatalog() {
       // dynamisch = er beweegt iets in de achtergrond; thema = eigen
       // lettertype/vormen; kleurenset = alleen kleuren; contrast = hoog
       // contrast (een eigen groep, geen sfeer).
-      kind: theme.original ? 'standaard'
+      kind: theme.totaal ? 'totaal'
+        : theme.original ? 'standaard'
         : theme.highContrast ? 'contrast'
         : (theme.motion || theme.passer || theme.ambient ? 'dynamisch' : (hasOwnFonts(theme) || theme.radius ? 'thema' : 'kleurenset')),
       font: theme.font ? fontStack(theme) : null,
       displayFont: theme.font || theme.displayFont ? displayStack(theme) : null,
       radius: theme.radius || null,
+      // Eén vaste stand ('light'/'dark') of null; voor "Nu gekozen".
+      mode: theme.mode || null,
       // Heeft zowel een lichte als een donkere stand (zon/maan-icoon).
       // Origineel heeft geen van beide: de app zoals de webapp hem maakt.
       bothModes: !theme.mode && !theme.original,
@@ -728,8 +1334,9 @@ function themeCatalog() {
 
 // @font-face van alle thema's, voor de voorbeelden in de instellingen. Een
 // lettertype wordt pas geladen als een voorbeeld het echt gebruikt.
+// Ook de eigen mini-voorbeelden van totaalthema's (theme.previewCss).
 function previewFontCss() {
-  return Object.values(THEMES).map(theme => fontFaceCss(theme, file => file)).join('');
+  return Object.values(THEMES).map(theme => fontFaceCss(theme, file => file) + (theme.previewCss || '')).join('');
 }
 
 // Oogcomfort werkt bij het standaardthema en de afgeleide thema's; een vast
@@ -927,7 +1534,10 @@ function wallpaperUrl(file) {
 //   displayFont - alleen voor koppen, bv. een pixel- of schreefletter die
 //                 voor lopende tekst en drukke tabellen niet goed leest
 //   monoFont    - getallen en codes (in de app: .font-mono, .tabular-nums)
-const familyOf = (font) => `"SG ${font.family}"`;
+// Meegeleverde lettertypen krijgen "SG " ervoor (geen botsing met een
+// geïnstalleerde versie); een systeemlettertype zonder bestanden (faces: [],
+// bv. Tahoma) houdt zijn eigen naam, anders vindt de browser hem niet.
+const familyOf = (font) => (font.faces.length ? `"SG ${font.family}"` : `"${font.family}"`);
 const stackOf = (font) => `${familyOf(font)}, ${font.fallback}`;
 const fontStack = (theme) => (theme.font ? stackOf(theme.font) : APP_FONT);
 const displayStack = (theme) => (theme.displayFont ? stackOf(theme.displayFont) : fontStack(theme));
@@ -1312,6 +1922,7 @@ function pageVariantCss(id, theme, variant) {
   }
   ${sel} .sg-app .navg .sub { border-left-color: ${p.borderStrong.hex}; }
   ${highContrastCss(sel, theme, p)}
+  ${theme.pageCss ? theme.pageCss(sel, p) : ''}
 `;
 }
 
@@ -1456,6 +2067,8 @@ function chromeShapeCss(theme) {
   }
   if (theme.radius) css += `\n  html.chrome-theme { --radius: ${theme.radius}; }\n`;
   if (theme.highContrast) css += `\n  html.chrome-theme :focus-visible { outline: 3px solid var(--accent) !important; outline-offset: 2px; }\n`;
+  // Eigen materialen/effecten van een thema in de chrome (bv. Heuvel).
+  if (theme.chromeCss) css += theme.chromeCss;
   return css;
 }
 

@@ -1075,6 +1075,79 @@
       margin-bottom: 22px;
     }
 
+    /* "Nu gekozen": groot voorbeeld met naam, uitleg en standen. */
+    .theme-summary {
+      display: grid;
+      grid-template-columns: minmax(180px, 280px) 1fr;
+      gap: 20px;
+      align-items: center;
+      margin: 4px 0 18px;
+      padding: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) + 4px);
+    }
+
+    .theme-summary-preview .theme-preview {
+      --card-w: 260px;
+      width: 100%;
+    }
+
+    .theme-summary-text {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .theme-summary-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .theme-summary-name {
+      font-size: 18px;
+    }
+
+    .theme-summary-desc {
+      color: var(--text);
+    }
+
+    .theme-summary-modes {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Voorbeelden bekijken in: licht / donker. */
+    .theme-preview-mode {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Instelassistent: voorbeelden altijd in licht (daar is geen schakelaar). */
+    .setup-themes .theme-preview,
+    .settings-section.preview-light .theme-preview {
+      --p-canvas: var(--pl-canvas); --p-surface: var(--pl-surface); --p-sidebar: var(--pl-sidebar);
+      --p-bar: var(--pl-bar); --p-border: var(--pl-border); --p-text: var(--pl-text);
+      --p-muted: var(--pl-muted); --p-accent: var(--pl-accent); --p-on-accent: var(--pl-onAccent);
+      --p-wallpaper: var(--pl-wallpaper);
+    }
+
+    .settings-section.preview-dark .theme-preview {
+      --p-canvas: var(--pd-canvas); --p-surface: var(--pd-surface); --p-sidebar: var(--pd-sidebar);
+      --p-bar: var(--pd-bar); --p-border: var(--pd-border); --p-text: var(--pd-text);
+      --p-muted: var(--pd-muted); --p-accent: var(--pd-accent); --p-on-accent: var(--pd-onAccent);
+      --p-wallpaper: var(--pd-wallpaper);
+    }
+
     /* Te smal voor zes naast de titel: titel erboven, kaartjes lopen door. */
     @container (max-width: 860px) {
       .settings-section[data-section="themas"] .theme-group {
@@ -1404,7 +1477,10 @@
     }
 
     /* Instelassistent in Singeling licht: dan ook de lichte voorbeelden. */
-    :is(html.theme-light, #setup-assistant.setup-singeling) .theme-preview {
+    /* Twee losse selectors (geen :is met het id erin): anders weegt de regel
+       als een id en wint hij van de licht/donker-schakelaar bij Thema's. */
+    html.theme-light .theme-preview,
+    #setup-assistant.setup-singeling .theme-preview {
       --p-canvas: var(--pl-canvas);
       --p-surface: var(--pl-surface);
       --p-sidebar: var(--pl-sidebar);
@@ -2570,13 +2646,12 @@
       margin: 0;
     }
 
-    /* In de instelassistent: elke groep een eigen vlak, zodat het losse
-       groepen zijn en niet één groot raster. */
-    .setup-themes .theme-group {
-      padding: 14px 16px;
-      background: color-mix(in srgb, var(--surface) 60%, transparent);
-      border: 1px solid var(--border);
-      border-radius: 14px;
+    /* In de instelassistent net als bij Instellingen > Thema's: rustige
+       rijen met de uitleg links, en bovenaan wat er nu gekozen is. */
+    .setup-themes .theme-summary {
+      width: 100%;
+      box-sizing: border-box;
+      margin: 0 0 6px;
     }
 
     :is(.setup-themes, [data-section="themas"]) .theme-group-title {
@@ -3738,31 +3813,50 @@
 
     <div class="settings-section hidden" data-section="themas">
       <h3>Thema's <span class="beta-badge">bèta</span></h3>
-      <p class="settings-intro">Geef de app een eigen uiterlijk. Werkt samen met licht/donker: de voorbeelden laten zien hoe het er nu uitziet. Zolang dit een bèta is zie je dit tabblad alleen met "Bèta-versies ontvangen" aan (Updates).</p>
+      <p class="settings-intro">Geef de app een eigen uiterlijk. Zolang dit een bèta is zie je dit tabblad alleen met "Bèta-versies ontvangen" aan (Updates).</p>
+      <!-- Nu gekozen: groot voorbeeld, wat het thema doet en of het licht en
+           donker heeft (zie renderThemeSummary). -->
+      <div class="theme-summary">
+        <div class="theme-summary-preview" aria-hidden="true"></div>
+        <div class="theme-summary-text">
+          <span class="theme-summary-label">Nu gekozen</span>
+          <strong class="theme-summary-name"></strong>
+          <span class="theme-summary-desc"></span>
+          <span class="theme-summary-modes"></span>
+        </div>
+      </div>
+      <!-- Voorbeelden staan in licht; met Donker zie je de donkere stand, zonder om te schakelen. -->
+      <div class="theme-preview-mode">
+        <span>Voorbeelden bekijken in</span>
+        <div class="choice-group" role="radiogroup" aria-label="Voorbeelden bekijken in">
+        <button type="button" role="radio" data-preview-mode="light" aria-checked="true">Licht</button>
+        <button type="button" role="radio" data-preview-mode="dark" aria-checked="false">Donker</button>
+        </div>
+      </div>
       <div class="theme-group">
-        <h4 class="theme-group-title">Dynamische thema's</h4>
-        <p class="settings-hint">Net als een thema, maar in de achtergrond beweegt er rustig iets. Staan animaties in Windows uit, dan staat alles stil.</p>
+        <h4 class="theme-group-title">Totaalthema's</h4>
+        <p class="settings-hint">Ook knoppen, vensters, tabbladen en de tabbalk krijgen een eigen uiterlijk. Nog in ontwikkeling.</p>
+        <div class="theme-grid" data-theme-kind="totaal" role="radiogroup" aria-label="Totaalthema's"></div>
+      </div>
+      <div class="theme-group">
+        <h4 class="theme-group-title">Dynamisch</h4>
+        <p class="settings-hint">In de achtergrond beweegt rustig iets.</p>
         <div class="theme-grid" data-theme-kind="dynamisch" role="radiogroup" aria-label="Dynamische thema's"></div>
       </div>
       <div class="theme-group">
         <h4 class="theme-group-title">Thema's</h4>
-        <p class="settings-hint">Een rustige, andere sfeer: eigen kleuren, lettertype, vormen en een achtergrond.</p>
+        <p class="settings-hint">Eigen kleuren, lettertype en achtergrond; alles staat stil.</p>
         <div class="theme-grid" data-theme-kind="thema" role="radiogroup" aria-label="Thema's"></div>
       </div>
       <div class="theme-group">
         <h4 class="theme-group-title">Kleurensets</h4>
-        <p class="settings-hint">Alleen andere kleuren. Het lettertype en de vormen blijven zoals je gewend bent.</p>
+        <p class="settings-hint">Alleen andere kleuren. Singeling is de standaard.</p>
         <div class="theme-grid" data-theme-kind="kleurenset" role="radiogroup" aria-label="Kleurensets"></div>
       </div>
       <div class="theme-group">
-        <h4 class="theme-group-title">Hoog contrast</h4>
-        <p class="settings-hint">Voor schermen en tablets op de werkvloer: zwart op wit (of wit op zwart), dikke randen en duidelijke statuskleuren. Goed leesbaar in fel licht en vanaf een afstand.</p>
-        <div class="theme-grid" data-theme-kind="contrast" role="radiogroup" aria-label="Hoog contrast"></div>
-      </div>
-      <div class="theme-group">
-        <h4 class="theme-group-title">Zonder aanpassingen</h4>
-        <p class="settings-hint">De app precies zoals hij gemaakt is, zonder aanpassingen van deze app.</p>
-        <div class="theme-grid" data-theme-kind="standaard" role="radiogroup" aria-label="Zonder aanpassingen"></div>
+        <h4 class="theme-group-title">Overig</h4>
+        <p class="settings-hint">Hal: hoog contrast voor de werkvloer. Origineel: de app zonder aanpassingen.</p>
+        <div class="theme-grid" data-theme-kind="contrast standaard" role="radiogroup" aria-label="Overig"></div>
       </div>
     </div>
 
@@ -3915,30 +4009,39 @@
         <h1 id="setup-title-thema">Kies een thema</h1>
         <p class="setup-lead">Klik op een thema en je ziet het meteen. Je kunt altijd wisselen wanneer je wilt.</p>
         <div class="setup-themes">
+          <div class="theme-summary">
+            <div class="theme-summary-preview" aria-hidden="true"></div>
+            <div class="theme-summary-text">
+              <span class="theme-summary-label">Nu gekozen</span>
+              <strong class="theme-summary-name"></strong>
+              <span class="theme-summary-desc"></span>
+              <span class="theme-summary-modes"></span>
+            </div>
+          </div>
           <div class="theme-group">
-            <h4 class="theme-group-title">Dynamische thema's</h4>
-            <p class="settings-hint">In de achtergrond beweegt er rustig iets.</p>
+            <h4 class="theme-group-title">Totaalthema's</h4>
+            <p class="settings-hint">Ook knoppen, vensters, tabbladen en de tabbalk krijgen een eigen uiterlijk. Nog in ontwikkeling.</p>
+            <div class="theme-grid" data-theme-kind="totaal" role="radiogroup" aria-label="Totaalthema's"></div>
+          </div>
+          <div class="theme-group">
+            <h4 class="theme-group-title">Dynamisch</h4>
+            <p class="settings-hint">In de achtergrond beweegt rustig iets.</p>
             <div class="theme-grid" data-theme-kind="dynamisch" role="radiogroup" aria-label="Dynamische thema's"></div>
           </div>
           <div class="theme-group">
             <h4 class="theme-group-title">Thema's</h4>
-            <p class="settings-hint">Een rustige, andere sfeer met een eigen achtergrond.</p>
+            <p class="settings-hint">Eigen kleuren, lettertype en achtergrond; alles staat stil.</p>
             <div class="theme-grid" data-theme-kind="thema" role="radiogroup" aria-label="Thema's"></div>
           </div>
           <div class="theme-group">
             <h4 class="theme-group-title">Kleurensets</h4>
-            <p class="settings-hint">Alleen andere kleuren, verder alles zoals je gewend bent.</p>
+            <p class="settings-hint">Alleen andere kleuren. Singeling is de standaard.</p>
             <div class="theme-grid" data-theme-kind="kleurenset" role="radiogroup" aria-label="Kleurensets"></div>
           </div>
           <div class="theme-group">
-            <h4 class="theme-group-title">Hoog contrast</h4>
-            <p class="settings-hint">Goed leesbaar in fel licht en vanaf een afstand.</p>
-            <div class="theme-grid" data-theme-kind="contrast" role="radiogroup" aria-label="Hoog contrast"></div>
-          </div>
-          <div class="theme-group">
-            <h4 class="theme-group-title">Zonder aanpassingen</h4>
-            <p class="settings-hint">De app precies zoals hij gemaakt is.</p>
-            <div class="theme-grid" data-theme-kind="standaard" role="radiogroup" aria-label="Zonder aanpassingen"></div>
+            <h4 class="theme-group-title">Overig</h4>
+            <p class="settings-hint">Hal: hoog contrast voor de werkvloer. Origineel: de app zonder aanpassingen.</p>
+            <div class="theme-grid" data-theme-kind="contrast standaard" role="radiogroup" aria-label="Overig"></div>
           </div>
         </div>
       </div>
@@ -3971,6 +4074,16 @@
         <p class="setup-lead">Ben je niet ingeklokt op een order, dan meldt de pagina dat bovenaan. Kies hoe opvallend.</p>
         <div id="setup-clock-options" class="setup-options" role="radiogroup" aria-label="Melding Niet geklokt op een order"></div>
         <p class="setup-note">"Afwezig" en het blok "Geklokt op" blijven altijd zichtbaar.</p>
+      </div>
+
+      <div class="setup-page" data-page="meldingen">
+        <div class="setup-icon" aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>
+        </div>
+        <h1 id="setup-title-meldingen">Meldingen</h1>
+        <p class="setup-lead">Komt er iets bij het belletje bij, dan laat de app dat weten. Zit je in de app, dan zie je een berichtje in de app zelf.</p>
+        <div id="setup-notify-options" class="setup-options" role="radiogroup" aria-label="Windows-meldingen"></div>
+        <p class="setup-note">Het aantal meldingen staat altijd als rondje op het taakbalkicoon.</p>
       </div>
 
       <div class="setup-page" data-page="uitleg-tabs">
@@ -4221,7 +4334,7 @@
     // Wie hem doorlopen heeft (setupVersion in de instellingen), krijgt hem
     // niet nog eens. Verhoog SETUP_VERSION als er een vraag bij komt die
     // iedereen moet zien. Opnieuw doorlopen kan via Instellingen > Algemeen.
-    const SETUP_VERSION = 1;
+    const SETUP_VERSION = 2; // 2: vraag over meldingen erbij (1.3.0)
     const SETUP_LEAVE_MS = 350;
     const setupAssistant = document.getElementById('setup-assistant');
     const setupBack = document.getElementById('setup-back');
@@ -4243,6 +4356,7 @@
       // Oogcomfort werkt alleen in licht: na een keuze voor donker overslaan.
       { id: 'leescomfort', when: () => setupRun.questions && softSupported && document.documentElement.classList.contains('theme-light') },
       { id: 'melding', when: () => setupRun.questions && !(setupRun.whatsNew && preferencesChosen) },
+      { id: 'meldingen', when: () => setupRun.questions },
       { id: 'uitleg-tabs', when: () => setupRun.tour },
       { id: 'uitleg-balk', when: () => setupRun.tour },
       { id: 'klaar' }
@@ -4426,6 +4540,22 @@
       ], notClockedMode, setNotClockedMode);
     }
 
+    // Windows-meldingen aan/uit (zelfde instelling als Instellingen > Algemeen).
+    let windowsNotifications = true;
+    startupSettings.then(settings => {
+      if (settings) windowsNotifications = settings.windowsNotifications !== false;
+    });
+    function renderSetupNotify() {
+      buildSetupOptions(document.getElementById('setup-notify-options'), [
+        { value: 'aan', label: 'Aan', desc: 'Ook een melding in Windows als de app op de achtergrond staat', mock: mockWindow(MOCK_COLORS.current) },
+        { value: 'uit', label: 'Uit', desc: 'Alleen in de app en op het taakbalkicoon', mock: mockWindow(MOCK_COLORS.current) }
+      ], windowsNotifications ? 'aan' : 'uit', value => {
+        windowsNotifications = value === 'aan';
+        windowsNotificationsCheckbox.checked = windowsNotifications;
+        window.electronAPI.setWindowsNotifications(windowsNotifications);
+      });
+    }
+
     function renderSetupPage(id) {
       if (id === 'intro') {
         const title = document.getElementById('setup-title-intro');
@@ -4452,6 +4582,8 @@
         renderSetupSoft();
       } else if (id === 'melding') {
         renderSetupClock();
+      } else if (id === 'meldingen') {
+        renderSetupNotify();
       } else if (id === 'klaar') {
         document.getElementById('setup-done-lead').textContent = setupRun.tour
           ? 'Je bent er klaar voor. De uitleg en de instellingen vind je altijd terug via de moersleutel rechtsboven.'
@@ -4593,9 +4725,18 @@
       tabs: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M9 4v5"/></svg>',
       zoom: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/><path d="M8 11h6"/><path d="M11 8v6"/></svg>',
       update: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>',
+      bell: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>',
       contrast: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>'
     };
     const WHATS_NEW = [
+      {
+        id: '2026-10-meldingen-tabs',
+        since: '1.3.0',
+        features: [
+          { icon: 'bell', title: 'Meldingen', text: 'Het aantal van het belletje staat op het taakbalkicoon, en bij een nieuwe melding krijg je een berichtje. In of buiten de app.' },
+          { icon: 'tabs', title: 'Slimmer met tabs', text: 'Staat een pagina al open, dan spring je naar die tab. Terug brengt je naar de lijst waar je vandaan kwam.' }
+        ]
+      },
       {
         id: '2026-10-themas',
         since: '1.3.0',
@@ -5819,6 +5960,9 @@
     function renderDarkModeButton(enabled) {
       const light = fixedMode ? fixedMode === 'light' : (!enabled || originalTheme);
       document.documentElement.classList.toggle('theme-light', light);
+      // Voorbeelden bij Thema's in dezelfde stand als de app nu (met Licht/Donker
+      // daar nog om te zetten).
+      setThemePreviewMode(light ? 'light' : 'dark');
       document.getElementById('theme-schedule-row').classList.toggle('unavailable', originalTheme || !!fixedMode);
       darkModeBtn.classList.toggle('active', enabled);
       darkModeBtn.setAttribute('aria-pressed', String(enabled));
@@ -5917,6 +6061,7 @@
 
       const preview = document.createElement('div');
       preview.className = 'theme-preview';
+      preview.dataset.theme = theme.id; // voor de eigen mini-voorbeelden (theme.previewCss)
       preview.setAttribute('aria-hidden', 'true');
       for (const [mode, prefix] of [['light', '--pl-'], ['dark', '--pd-']]) {
         const colors = theme.preview[mode];
@@ -5986,6 +6131,44 @@
         const unchosen = !setupThemePicked && card.closest('.setup-themes');
         card.setAttribute('aria-checked', String(!unchosen && card.dataset.value === appTheme));
       }
+      renderThemeSummary();
+    }
+
+    // Thema's (instellingen en instelassistent): "Nu gekozen" bovenaan, met een groot voorbeeld
+    // (hetzelfde als op het kaartje), wat het thema doet en welke standen.
+    let themeSummaryFor = null;
+    function renderThemeSummary() {
+      const theme = appThemes.find(item => item.id === appTheme);
+      if (!theme || themeSummaryFor === theme) return;
+      themeSummaryFor = theme;
+      const modes = theme.kind === 'standaard'
+        ? 'Zonder licht/donker of oogcomfort.'
+        : theme.bothModes ? 'Licht en donker: wisselt mee met je instelling bij Weergave.'
+        : `Alleen ${theme.mode === 'dark' ? 'donker' : 'licht'}: je licht/donker-instelling geldt weer bij een ander thema.`;
+      // In Instellingen > Thema's en op de themapagina van de instelassistent.
+      for (const summary of document.querySelectorAll('.theme-summary')) {
+        summary.querySelector('.theme-summary-preview').replaceChildren(buildThemeCard(theme).querySelector('.theme-preview'));
+        summary.querySelector('.theme-summary-name').textContent = theme.name;
+        summary.querySelector('.theme-summary-desc').textContent = theme.description;
+        summary.querySelector('.theme-summary-modes').textContent = modes;
+      }
+    }
+
+    // Voorbeelden in licht of donker: standaard de stand waarin de app nu
+    // staat (zie renderDarkModeButton), met Licht/Donker om te zetten. Class
+    // op de sectie; de kaartjes hebben beide kleuren al (zie .theme-preview).
+    // Thema's met maar één stand tonen die stand altijd (hun --pd = --pl).
+    function setThemePreviewMode(mode) {
+      const section = document.querySelector('.settings-section[data-section="themas"]');
+      section.classList.toggle('preview-light', mode !== 'dark');
+      section.classList.toggle('preview-dark', mode === 'dark');
+      for (const button of document.querySelectorAll('[data-preview-mode]')) {
+        button.setAttribute('aria-checked', String(button.dataset.previewMode === mode));
+      }
+    }
+    setThemePreviewMode(document.documentElement.classList.contains('theme-light') ? 'light' : 'dark');
+    for (const button of document.querySelectorAll('[data-preview-mode]')) {
+      button.addEventListener('click', () => setThemePreviewMode(button.dataset.previewMode));
     }
 
     let themeCardsBuiltFor = null;
@@ -6005,7 +6188,9 @@
         themeCardsBuiltFor = appThemes;
         for (const grid of document.querySelectorAll('.theme-grid')) {
           grid.innerHTML = '';
-          for (const theme of appThemes.filter(item => item.kind === grid.dataset.themeKind)) {
+          // data-theme-kind kan meerdere soorten bevatten (bv. 'contrast standaard').
+          const kinds = grid.dataset.themeKind.split(' ');
+          for (const theme of appThemes.filter(item => kinds.includes(item.kind))) {
             grid.appendChild(buildThemeCard(theme));
           }
         }

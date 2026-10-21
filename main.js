@@ -2869,6 +2869,10 @@ function setDarkModeValue(value) {
 // van thema wisselt): zet het thema op de automatische stand, tenzij de
 // knop in de tabbalk tijdelijk iets anders heeft gekozen.
 function applyThemeSchedule() {
+  // Tijdens de instelassistent (en de rondleiding) wisselt de app niet
+  // vanzelf: je kiest daar zelf, en na afloop geldt de automatische stand
+  // alsnog (onboarding-ended).
+  if (onboardingActive) return;
   const now = new Date();
   const scheduled = scheduledTheme(now);
   if (!scheduled) {
@@ -3100,11 +3104,16 @@ ipcMain.on('onboarding-started', (event) => {
   if (event.sender !== mainWindow.webContents) return;
   onboardingActive = true;
   applyActiveTabBounds();
+  // Staat de app vanzelf op donker (automatisch: zon, tijden of Windows),
+  // dan begint de assistent in licht. Een eigen keuze voor donker
+  // (handmatig of via de knop) blijft staan.
+  if (scheduledTheme() && !themeOverride && appSettings.darkMode) setDarkModeValue(false);
 });
 ipcMain.on('onboarding-ended', (event) => {
   if (event.sender !== mainWindow.webContents) return;
   onboardingActive = false;
   applyActiveTabBounds();
+  applyThemeSchedule(); // nu alsnog de automatische stand
 });
 // Taboverzicht: eerst het voorbeeld van de actieve tab vernieuwen (die is
 // nu nog in beeld), dan alle voorbeelden teruggeven.

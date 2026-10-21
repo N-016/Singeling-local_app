@@ -21,6 +21,14 @@ const PAGE_TWEAKS_CSS = `
     display: none !important;
   }
 
+  /* Een keuzelijst of pop-up blokkeert het scrollen (body[data-scroll-locked]):
+     de schuifbalk verdwijnt en de webapp schuift de inhoud 17px op met een
+     marge. De achtergrond van een thema vult het hele scherm en schoof dan
+     mee. Met een achtergrond: schuifbalk altijd tonen, marge weg, en body
+     niet zelf laten afknippen (anders plakt de zijbalk niet meer). */
+  html.sg-wallpaper { overflow-y: scroll; }
+  html.sg-wallpaper body[data-scroll-locked] { margin-right: 0 !important; overflow: visible !important; }
+
   /* Instelling "Niet geklokt op een order": "aan" (de standaard) laat de
      oranje balk van de webapp gewoon staan. */
 

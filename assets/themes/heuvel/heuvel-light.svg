@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1200" preserveAspectRatio="xMidYMax slice">
+  <!-- Heuvel (licht): blauwe lucht met stapelwolken boven een groene heuvel, losjes naar de bureaubladen van rond 2002. Zelf getekend voor de Singeling App. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fbdf2"/>
+      <stop offset="0.55" stop-color="#b9d8f8"/>
+      <stop offset="0.75" stop-color="#dcecfb"/>
+    </linearGradient>
+    <linearGradient id="far" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8cc46a"/>
+      <stop offset="1" stop-color="#5f9f45"/>
+    </linearGradient>
+    <linearGradient id="hill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7cc14a"/>
+      <stop offset="0.45" stop-color="#4f9b2c"/>
+      <stop offset="1" stop-color="#2f7419"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="0.42" cy="0.12" r="0.6">
+      <stop offset="0" stop-color="#d6f5a8" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#d6f5a8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="cloud" x="-20%" y="-50%" width="140%" height="200%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+  <rect width="1920" height="1200" fill="url(#sky)"/>
+  <!-- Wolken alleen in de onderste helft van de lucht: de bovenkant blijft rustig. -->
+  <g fill="#ffffff" filter="url(#cloud)" opacity="0.9">
+    <g transform="translate(250 600)">
+      <ellipse cx="0" cy="0" rx="150" ry="46"/><ellipse cx="-70" cy="-30" rx="80" ry="50"/><ellipse cx="50" cy="-42" rx="95" ry="62"/><ellipse cx="130" cy="-12" rx="70" ry="40"/>
+    </g>
+    <g transform="translate(1180 520)">
+      <ellipse cx="0" cy="0" rx="190" ry="50"/><ellipse cx="-90" cy="-34" rx="95" ry="58"/><ellipse cx="40" cy="-55" rx="120" ry="75"/><ellipse cx="160" cy="-18" rx="85" ry="46"/>
+    </g>
+    <g transform="translate(1700 650)" opacity="0.8">
+      <ellipse cx="0" cy="0" rx="120" ry="34"/><ellipse cx="-40" cy="-26" rx="70" ry="40"/><ellipse cx="45" cy="-30" rx="75" ry="44"/>
+    </g>
+    <g transform="translate(720 690)" opacity="0.7">
+      <ellipse cx="0" cy="0" rx="110" ry="28"/><ellipse cx="20" cy="-22" rx="70" ry="36"/>
+    </g>
+  </g>
+  <!-- Verre heuvelrug en de grote heuvel ervoor. -->
+  <path d="M0 860 C 260 800, 520 815, 760 840 S 1260 790, 1500 805 S 1820 830, 1920 820 L1920 1200 L0 1200 Z" fill="url(#far)"/>
+  <path d="M0 905 C 300 820, 700 770, 1050 800 S 1650 900, 1920 880 L1920 1200 L0 1200 Z" fill="url(#hill)"/>
+  <path d="M0 905 C 300 820, 700 770, 1050 800 S 1650 900, 1920 880 L1920 1200 L0 1200 Z" fill="url(#shine)"/>
+  <!-- Zachte grasstreken op de helling. -->
+  <g stroke="#9fd56b" stroke-width="3" stroke-linecap="round" opacity="0.35" fill="none">
+    <path d="M180 960 C 420 900, 700 870, 980 880"/>
+    <path d="M520 1020 C 800 960, 1100 950, 1400 980"/>
+    <path d="M1100 900 C 1350 920, 1600 960, 1880 950"/>
+  </g>
+</svg>
