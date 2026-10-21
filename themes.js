@@ -578,6 +578,56 @@ const HAL = {
   radius: '4px'
 };
 
+// Pop-up als venster (totaalthema's): kader, titelbalk met de titel erin
+// en een sluitknop rechtsboven. sel/not zoals in pageCss; de rest per thema.
+function windowCss(sel, not, o) {
+  const win = `${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not}`;
+  return `
+  ${win} {
+    border: ${o.frame} !important;
+    ${o.frameTop ? `border-top-width: ${o.frameTop} !important;` : ''}
+    border-radius: ${o.radius} !important;
+    padding-top: calc(${o.barHeight}px + 1.25rem) !important;
+    background: ${o.background} !important;
+    ${o.shadow ? `box-shadow: ${o.shadow} !important;` : ''}
+  }
+  ${win}::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: ${o.barHeight}px;
+    border-radius: ${o.barRadius || '0'};
+    background: ${o.bar};
+    box-shadow: ${o.barShadow || 'none'};
+    pointer-events: none;
+  }
+  ${win} > h2,
+  ${win} > div:first-child > h2 {
+    position: absolute;
+    top: 0; left: 10px; right: ${o.closeSize + 18}px;
+    height: ${o.barHeight}px;
+    display: flex; align-items: center;
+    margin: 0;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    text-shadow: ${o.titleShadow || 'none'};
+    z-index: 1;
+  }
+  ${win} > button.absolute {
+    top: ${(o.barHeight - o.closeSize) / 2}px !important;
+    right: 4px !important;
+    width: ${o.closeSize}px; height: ${o.closeSize}px;
+    display: grid; place-items: center;
+    background: ${o.close} !important;
+    border: 1px solid #ffffff !important;
+    border-radius: ${o.closeRadius} !important;
+    color: #ffffff !important;
+    opacity: 1 !important;
+  }`;
+}
+
 // Heuvel (groep Totaalthema's): voor de grap, zoveel mogelijk de pc van rond 2002.
 // Niet alleen kleuren maar ook materialen: glanzende blauwe knoppen, gewone
 // knoppen met de beige bolling en oranje gloed bij hover, vensters (pop-ups)
@@ -704,51 +754,14 @@ const HEUVEL = {
     color: #21a121 !important;
   }
 
-  /* Pop-ups worden vensters: blauwe rand, titelbalk, rode sluitknop. */
-  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} {
-    border: 3px solid #0054e3 !important;
-    border-top-width: 0 !important;
-    border-radius: 8px 8px 0 0 !important;
-    padding-top: calc(28px + 1.25rem) !important;
-    background: #ece9d8 !important;
-    box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.35) !important;
-  }
-  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not}::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 28px;
-    border-radius: 7px 7px 0 0;
-    background: ${XP_TITLE};
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    pointer-events: none;
-  }
-  /* De titel van het venster wit in de titelbalk, zoals toen. */
-  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} > h2,
-  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} > div:first-child > h2 {
-    position: absolute;
-    top: 0; left: 10px; right: 40px;
-    height: 28px;
-    display: flex; align-items: center;
-    margin: 0;
-    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-    color: #ffffff !important;
-    font-size: 13px !important;
-    font-weight: 700 !important;
-    text-shadow: 1px 1px 0 #0a1f6b;
-    z-index: 1;
-  }
-  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} > button.absolute {
-    top: 3px !important;
-    right: 4px !important;
-    width: 22px; height: 22px;
-    display: grid; place-items: center;
-    background: ${XP_CLOSE} !important;
-    border: 1px solid #ffffff !important;
-    border-radius: 3px !important;
-    color: #ffffff !important;
-    opacity: 1 !important;
-  }
+  /* Pop-ups worden vensters: blauwe rand, titelbalk met de titel erin, rode
+     sluitknop (windowCss). */
+  ${windowCss(sel, not, {
+    frame: '3px solid #0054e3', frameTop: '0', radius: '8px 8px 0 0', background: '#ece9d8',
+    shadow: '4px 4px 12px rgba(0, 0, 0, 0.35)', barHeight: 28, barRadius: '7px 7px 0 0',
+    bar: XP_TITLE, barShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.4)',
+    titleShadow: '1px 1px 0 #0a1f6b', close: XP_CLOSE, closeSize: 22, closeRadius: '3px'
+  })}
 
   /* Tabbladen: bol, en het actieve tabblad met het oranje lijntje bovenop. */
   ${sel} [role="tablist"]${not} { background: transparent !important; border-bottom: 1px solid #919b9c; border-radius: 0 !important; padding-bottom: 0 !important; }
@@ -1060,9 +1073,10 @@ const BEDIENPANEEL = {
   ${sel} :is(.rounded-lg, .rounded-xl, .rounded-2xl)${not} { border-radius: 2px !important; }
 
   /* Grote getallen (kaartjes bovenaan, bv. QRM Connect) als display: zwart
-     vakje met gele cijfers. Statuskleuren (rood/groen/oranje) blijven, want
-     die betekenen iets; op zwart zijn ze goed leesbaar. */
-  ${sel} div:is(.text-2xl, .text-3xl).font-bold${not} {
+     vakje met gele cijfers. Alleen met een kleurclass, zoals die getallen
+     hebben; grote koppen zonder kleur blijven gewoon. Statuskleuren
+     (rood/groen/oranje) blijven, want die betekenen iets. */
+  ${sel} div:is(.text-2xl, .text-3xl).font-bold:is(.text-info, .text-violet, .text-primary, .text-success, .text-warning, .text-destructive)${not} {
     display: inline-block;
     min-width: 2.2em;
     padding: 0 8px;
@@ -1077,44 +1091,11 @@ const BEDIENPANEEL = {
   ${sel} div:is(.text-2xl, .text-3xl).font-bold.text-success${not} { color: #4ade80 !important; }
   ${sel} div:is(.text-2xl, .text-3xl).font-bold.text-warning${not} { color: #ffb020 !important; }
 
-  /* Vensters: kader in paneelblauw, titel in een donkere balk. */
-  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} {
-    border: 3px solid ${PANEL_BLUE} !important;
-    border-radius: 2px !important;
-    padding-top: calc(30px + 1.25rem) !important;
-    background: #eef0fa !important;
-  }
-  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not}::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 30px;
-    background: ${PANEL_BAR};
-    pointer-events: none;
-  }
-  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} > h2,
-  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} > div:first-child > h2 {
-    position: absolute;
-    top: 0; left: 12px; right: 44px;
-    height: 30px;
-    display: flex; align-items: center;
-    margin: 0;
-    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-    color: #ffffff !important;
-    font-size: 13px !important;
-    font-weight: 700 !important;
-    z-index: 1;
-  }
-  ${sel} :is([role="dialog"], [role="alertdialog"]).fixed${not} > button.absolute {
-    top: 3px !important; right: 4px !important;
-    width: 24px; height: 24px;
-    display: grid; place-items: center;
-    background: #d6382a !important;
-    border: 1px solid #ffffff !important;
-    border-radius: 2px !important;
-    color: #ffffff !important;
-    opacity: 1 !important;
-  }
+  /* Vensters: kader in paneelblauw, titel wit in een donkere balk (windowCss). */
+  ${windowCss(sel, not, {
+    frame: `3px solid ${PANEL_BLUE}`, radius: '2px', background: '#eef0fa',
+    barHeight: 30, bar: '#5c5f93', close: '#d6382a', closeSize: 24, closeRadius: '2px'
+  })}
 
   /* Schuifbalken: smal en grijsblauw zoals op het paneel. */
   ${sel} ::-webkit-scrollbar { width: 14px; height: 14px; }

@@ -1134,14 +1134,14 @@
 
     /* Instelassistent: voorbeelden altijd in licht (daar is geen schakelaar). */
     .setup-themes .theme-preview,
-    .settings-section.preview-light .theme-preview {
+    .settings-section.preview-light .theme-grid .theme-preview {
       --p-canvas: var(--pl-canvas); --p-surface: var(--pl-surface); --p-sidebar: var(--pl-sidebar);
       --p-bar: var(--pl-bar); --p-border: var(--pl-border); --p-text: var(--pl-text);
       --p-muted: var(--pl-muted); --p-accent: var(--pl-accent); --p-on-accent: var(--pl-onAccent);
       --p-wallpaper: var(--pl-wallpaper);
     }
 
-    .settings-section.preview-dark .theme-preview {
+    .settings-section.preview-dark .theme-grid .theme-preview {
       --p-canvas: var(--pd-canvas); --p-surface: var(--pd-surface); --p-sidebar: var(--pd-sidebar);
       --p-bar: var(--pd-bar); --p-border: var(--pd-border); --p-text: var(--pd-text);
       --p-muted: var(--pd-muted); --p-accent: var(--pd-accent); --p-on-accent: var(--pd-onAccent);
@@ -5787,6 +5787,7 @@
     });
 
     windowsNotificationsCheckbox.addEventListener('change', () => {
+      windowsNotifications = windowsNotificationsCheckbox.checked; // ook voor de instelassistent
       window.electronAPI.setWindowsNotifications(windowsNotificationsCheckbox.checked);
     });
 
@@ -5957,12 +5958,15 @@
     let softColors = true; // standaard aan (zie main.js); getSettings zet de echte stand
     let softSupported = true; // false bij een thema met een eigen palet (themes.js)
 
+    let appWasLight = null; // vorige stand van de app, zie renderDarkModeButton
     function renderDarkModeButton(enabled) {
       const light = fixedMode ? fixedMode === 'light' : (!enabled || originalTheme);
       document.documentElement.classList.toggle('theme-light', light);
       // Voorbeelden bij Thema's in dezelfde stand als de app nu (met Licht/Donker
-      // daar nog om te zetten).
-      setThemePreviewMode(light ? 'light' : 'dark');
+      // daar nog om te zetten). Alleen als de stand echt wisselt: deze functie
+      // loopt ook bij elke themakeuze, en dan moet je eigen keuze blijven.
+      if (light !== appWasLight) setThemePreviewMode(light ? 'light' : 'dark');
+      appWasLight = light;
       document.getElementById('theme-schedule-row').classList.toggle('unavailable', originalTheme || !!fixedMode);
       darkModeBtn.classList.toggle('active', enabled);
       darkModeBtn.setAttribute('aria-pressed', String(enabled));
