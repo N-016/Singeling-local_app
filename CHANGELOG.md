@@ -16,7 +16,11 @@ Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuw
 - **Nieuw in deze versie**: na een update zie je in een paar schermen wat er nieuw is.
 - **Bug of idee melden**: klik op het kevertje en kies "Bug melden" of "Idee insturen". De pagina waar je was en een schermafbeelding gaan mee (die kun je uitvinken). Lukt versturen even niet, dan gaat het later vanzelf.
 - **Meldingen van het belletje**: het aantal staat als rondje op het taakbalkicoon. Komt er een nieuwe melding bij, dan krijg je een berichtje in de app, of een melding in Windows als de app niet op de voorgrond staat. Die Windows-melding kun je uitzetten in Instellingen > Algemeen.
-- **Anonieme gebruiksgegevens**: de app deelt anoniem processor- en geheugengebruik, crashes, je appversie en welke onderdelen je gebruikt, zodat we kunnen zien wat beter moet. Geen namen en geen inhoud van pagina's. Uit te zetten in Instellingen > Algemeen.
+- **Anonieme gebruiksgegevens**: de app deelt anoniem processor- en geheugengebruik, crashes, je appversie en welke onderdelen je gebruikt, en hoe vol het geheugen van je pc zit, zodat we kunnen zien wat beter moet. Geen namen en geen inhoud van pagina's. Uit te zetten in Instellingen > Algemeen.
+- **Tabgroepen**: houd werk bij elkaar, bijvoorbeeld per order. Het taboverzicht (Ctrl+Spatie) heeft links je groepen en rechts de tabs van de gekozen groep. Maak een groep met "+ Nieuwe groep" en sleep tabs erheen, of rechtsklik op een tab en kies "Verplaatsen naar groep". De tabbalk toont dan alleen de tabs van jouw groep; de andere tabs blijven open en raak je niet kwijt. Met "Onthouden voor de volgende keer" bewaar je een groep; anders verdwijnt hij als je zijn laatste tab sluit of de app opnieuw start.
+- **Ctrl+Spatie** opent en sluit het taboverzicht, ook als je in een pagina zit.
+- **Spellingshulp**: klik met de rechtermuisknop op een onderstreept woord in een tekstveld voor suggesties, of voeg het toe aan het woordenboek.
+- **Crashes bekijken** (Instellingen > Debug): als een tab of de app crasht of vastloopt, staat dat daar, zodat het te onderzoeken is.
 - **Al open? Dan spring je erheen**: open je een pagina die al in een tab staat, dan ga je naar die tab in plaats van een dubbele te openen.
 - **Scrollen in de tabbalk**: met het scrollwiel of touchpad schuif je door je tabs. De + voor een nieuw tabblad staat nu direct achter je tabs.
 
@@ -26,7 +30,11 @@ Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuw
 - Een paar thema's hebben maar één stand: Terminal en Blauwdruk zijn alleen donker, Delfts blauw, Heuvel en Bedienpaneel alleen licht. De licht/donker-knop verdwijnt dan even; je eigen keuze blijft bewaard.
 - Leescomfort heet nu Oogcomfort en werkt alleen in de lichte weergave.
 - Opent een pagina een pop-up, dan wordt de tabbalk mee donker.
-- De rondleiding is korter: twee pagina's over werken met tabs en de knoppen bovenin.
+- De rondleiding heeft aparte pagina's over tabgroepen en over bugs en ideeën melden, naast werken met tabs en de knoppen bovenin.
+- Thema's zijn geen bèta meer: iedereen ziet ze. De instelassistent start na de update voor iedereen, ook als je van een bèta komt.
+- "Starttabs" in de instellingen heet nu "Tabs" en bevat ook "Alle links in een nieuw tabblad" en "Tabbalk uitschakelen", met je onthouden tabgroepen.
+- Namen van tabs worden eerder afgekapt (met de hele naam als je er de muis op houdt), zodat er meer tabs in de balk passen.
+- Het thema Bedienpaneel heeft de gele lijn langs het scherm en vensters met een oranje titelbalk, zoals de machine.
 
 ### Opgelost
 - Terug na het sluiten van de tab waar je vandaan kwam, deed niets.
@@ -38,6 +46,9 @@ Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuw
 - Een externe site kon soms in de app openen in plaats van in je browser.
 - Stond er in de beschrijving van een update toevallig "geen kritieke update", dan kon die onterecht als verplicht gelden.
 - In de Scheduler was de stippellijn van de capaciteit in donker niet te zien.
+- Een document openen vanuit een stuklijst opende een nieuw venster en een Windows-opslaan-scherm. Nu opent het in een tab, of downloadt het zonder vragen naar je map Downloads.
+- Na een update verscheen soms een lap tekst met de changelog in plaats van wat er nieuw is.
+- De schuifbalk van de pagina bleef licht als er een pop-up open stond.
 - Op pagina's met een thema-achtergrond waren sommige kaarten doorzichtig (bv. de ingeklokte medewerkers op de Shopfloor), en de achtergrond schoof op als er een keuzelijst openklapte.
 
 ## [1.3.0-beta.2] - 2026-10-19
