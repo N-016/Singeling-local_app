@@ -132,7 +132,7 @@
       display: flex;
       align-items: center;
       gap: 2px;
-      height: 38px; /* = TABBAR_HEIGHT in main.js */
+      height: var(--bar-h);
       /* Rechts ruimte voor de Windows-knoppen als die door Windows getekend
          worden (titleBarOverlay in main.js); Chromium geeft hun plek door via
          env(titlebar-area-*). Met eigen knoppen (CUSTOM_WINDOW_CONTROLS)
@@ -157,8 +157,59 @@
       display: none !important;
     }
 
-    html.tabbar-off #tabbar-zoom {
+    #tab-bar > #tabbar-zoom {
       margin-left: auto;
+    }
+
+    /* Hoogte van de balk = TABBAR_HEIGHT (+ TAB_ROW_HEIGHT) in main.js. */
+    :root {
+      --bar-h: 73px;
+    }
+
+    html:is(.tabbar-off, .tabs-inline) {
+      --bar-h: 38px;
+    }
+
+    /* De tabs staan op een eigen rij onder de knoppen, over de volle breedte.
+       Alleen met CSS (order + wrap), zodat "tabbalk uit" de tabs gewoon in
+       de bovenste rij houdt. */
+    html:not(.tabbar-off, .tabs-inline) #tab-bar {
+      flex-wrap: wrap;
+      align-content: flex-start;
+      row-gap: 4px;
+      padding-top: 4px;
+    }
+
+    html:not(.tabbar-off, .tabs-inline) :is(#tab-scroll, #tab-scroll-buttons) {
+      order: 1;
+    }
+
+    html:not(.tabbar-off, .tabs-inline) #tab-scroll {
+      /* Breed genoeg om nooit in de bovenste rij te passen; de scrollknoppen
+         (< 120px) staan er rechts naast. Links ruimte voor het taboverzicht. */
+      flex: 1 0 calc(100% - 120px);
+      height: 34px;
+      margin-left: 32px;
+    }
+
+    /* De scheidingslijnen links van de tabs en de vensterknoppen horen bij één
+       balk; in de bovenste rij zouden het losse streepjes zijn. */
+    html:not(.tabbar-off, .tabs-inline) :is(#tabs, #window-controls) {
+      border-left: 0;
+    }
+
+    /* Taboverzicht vooraan in de tabrij, recht onder de terugknop. Absoluut,
+       want als flex-item zou hij in de bovenste rij blijven staan. */
+    html:not(.tabbar-off, .tabs-inline) #tab-overview-btn {
+      position: absolute;
+      left: 6px;
+      top: 40px;
+    }
+
+    /* Onder de Windows-knoppen is de rij vrij: de ruimte die #tab-bar daar
+       rechts voor openlaat terugnemen. */
+    html:not(.tabbar-off, .tabs-inline) #tab-scroll-buttons {
+      margin-right: calc(env(titlebar-area-x, 0px) + env(titlebar-area-width, 100vw) - 100vw);
     }
 
     /* Waarschuwing bij het weer inschakelen van de tabbalk. Zelfde opmaak
@@ -326,6 +377,141 @@
     #group-btn.in-group {
       color: var(--accent);
       background: color-mix(in srgb, var(--accent) 13%, transparent);
+    }
+
+    /* Groepen naast elkaar in de bovenste rij (alleen met tabs op een eigen
+       rij): Tabgroep 1 (de standaardgroep), je eigen groepen en + om er een te maken. De mapknop
+       blijft als icoon voor het menu (o.a. "Groepen beheren"). */
+    /* Als tabjes (maptabs): onderaan de bovenste rij, tot tegen de tabrij
+       (-4px = de ruimte tussen de rijen). De gekozen groep heeft dezelfde
+       kleur als een actieve tab en sluit zo aan op de tabs eronder. */
+    #group-chips {
+      display: none;
+      align-self: stretch;
+      gap: 2px;
+      min-width: 0;
+      margin: 0 0 -4px 4px;
+      -webkit-app-region: no-drag;
+    }
+
+    html:not(.tabbar-off, .tabs-inline, .groups-menu) #group-chips {
+      display: flex;
+    }
+
+    html:not(.tabbar-off, .tabs-inline, .groups-menu) #group-btn-name {
+      display: none;
+    }
+
+    html:not(.tabbar-off, .tabs-inline, .groups-menu) #group-btn.in-group {
+      color: var(--text-muted);
+      background: transparent;
+    }
+
+    .group-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 170px;
+      margin-top: 3px;
+      padding: 0 14px;
+      border: 1px solid transparent;
+      border-bottom: 0;
+      border-radius: var(--radius) var(--radius) 0 0;
+      background: transparent;
+      color: var(--text-muted);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background-color 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+    }
+
+    .group-chip span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .group-chip svg {
+      flex: 0 0 auto;
+    }
+
+    .group-chip:hover {
+      color: var(--text);
+      background: var(--hover);
+    }
+
+    .group-chip.active {
+      color: var(--text);
+      background: color-mix(in srgb, var(--accent) 13%, var(--tab-bg));
+      border-color: var(--bar-border);
+      box-shadow: inset 0 2px 0 var(--accent);
+    }
+
+    .group-chip.active svg {
+      color: var(--accent);
+    }
+
+    .group-chip.group-new {
+      padding: 0 10px;
+      font-weight: 500;
+    }
+
+    .group-chip-confirm {
+      display: inline-flex;
+      align-items: center;
+      align-self: center;
+      gap: 6px;
+      margin: 0 0 4px;
+      padding: 2px 4px 2px 10px;
+      border: 1px solid var(--bar-border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .group-chip-confirm button {
+      padding: 3px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .group-chip-confirm button.danger {
+      border-color: #c62828;
+      background: #c62828;
+      color: #ffffff;
+    }
+
+    .group-chip-confirm button:hover {
+      filter: brightness(1.08);
+    }
+
+    .group-chip-rename {
+      align-self: center;
+      width: 130px;
+      margin-top: 3px;
+      padding: 4px 8px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      background: var(--field-bg);
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      outline: none;
+    }
+
+    /* Scrollpijltjes pas als de tabs niet meer passen (html.tabs-overflow). */
+    html:not(.tabs-overflow) #tab-scroll-buttons {
+      display: none;
     }
 
     .tab.group-hidden {
@@ -816,7 +1002,7 @@
        balk open is (zie update-banner-opened/closed). */
     .update-banner {
       position: fixed;
-      top: 38px;
+      top: var(--bar-h);
       left: 0;
       right: 0;
       height: 40px;
@@ -883,7 +1069,7 @@
        beginstand speelt. De tabbalk blijft zichtbaar en bruikbaar. */
     .settings-panel {
       position: fixed;
-      top: 38px;
+      top: var(--bar-h);
       left: 0;
       right: 0;
       bottom: 0;
@@ -1384,11 +1570,16 @@
       color: var(--accent);
     }
 
-    #soft-colors-row.unavailable {
+    #soft-colors-row.unavailable,
+    #groups-in-bar-row.unavailable {
       cursor: not-allowed;
     }
 
-    #soft-colors-row.unavailable .switch,
+    #groups-in-bar-row.unavailable > * {
+      opacity: 0.45;
+    }
+
+    #soft-colors-row.unavailable #soft-colors-cards,
     #soft-colors-row.unavailable .toggle-text > :not(#soft-colors-theme-hint, #soft-colors-dark-hint) {
       opacity: 0.45;
     }
@@ -1767,48 +1958,115 @@
       border-color: var(--accent);
     }
 
-    /* Knoppenrij waarvan er één gekozen is (zelfde stijl als de tabs: oranje
-       streepje onder de gekozen stand). Gebruikt in de instellingen en in het
-       keuzescherm na de rondleiding. */
+    /* Knoppenrij waarvan er één gekozen is, als schuifknop (zoals op een
+       iPhone): een licht blokje schuift naar de gekozen stand. Alles even
+       breed (grid 1fr), zodat de plek van het blokje uit het nummer van de
+       gekozen knop volgt (--index van --count, via :has; max. 4 knoppen). */
     .choice-group {
-      display: inline-flex;
+      --count: 2;
+      --index: 0;
+      position: relative;
+      display: inline-grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
       align-self: flex-start;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
+      padding: 2px;
+      border-radius: calc(var(--radius) + 3px);
+      background: color-mix(in srgb, var(--text) 9%, transparent);
+    }
+
+    .choice-group:has(> button:nth-child(3)) { --count: 3; }
+    .choice-group:has(> button:nth-child(4)) { --count: 4; }
+    .choice-group:has(> button:nth-child(2)[aria-checked="true"]) { --index: 1; }
+    .choice-group:has(> button:nth-child(3)[aria-checked="true"]) { --index: 2; }
+    .choice-group:has(> button:nth-child(4)[aria-checked="true"]) { --index: 3; }
+
+    .choice-group::before {
+      content: '';
+      position: absolute;
+      top: 2px;
+      bottom: 2px;
+      left: calc(2px + (100% - 4px) / var(--count) * var(--index));
+      width: calc((100% - 4px) / var(--count));
+      border-radius: calc(var(--radius) + 1px);
+      background: var(--surface);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+      transition: left 0.28s cubic-bezier(0.3, 0.7, 0.2, 1);
+    }
+
+    html:not(.theme-light) .choice-group::before {
+      background: color-mix(in srgb, var(--surface) 82%, #ffffff);
+    }
+
+    .choice-group[hidden] {
+      display: none;
+    }
+
+    .choice-group:not(:has(> button[aria-checked="true"]))::before {
+      opacity: 0;
     }
 
     .choice-group button {
-      position: relative;
-      padding: 6px 14px;
+      position: relative; /* boven het schuivende blokje */
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 5px 14px;
       border: 0;
-      border-right: 1px solid var(--border);
+      border-radius: calc(var(--radius) + 1px);
       background: transparent;
       color: var(--text-muted);
       font: inherit;
       font-size: 12.5px;
+      white-space: nowrap;
       cursor: pointer;
-      transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
-    }
-
-    .choice-group button:last-child {
-      border-right: 0;
+      transition: color 0.2s var(--ease);
     }
 
     .choice-group button:hover {
       color: var(--text);
-      background: var(--hover);
     }
 
     .choice-group button[aria-checked="true"] {
       color: var(--text);
-      background: color-mix(in srgb, var(--accent) 14%, transparent);
-      box-shadow: inset 0 -2px 0 var(--accent);
+      font-weight: 600;
+    }
+
+    .choice-group button svg {
+      flex: 0 0 auto;
+    }
+
+    .choice-group button[aria-checked="true"] svg {
+      color: var(--accent);
     }
 
     .choice-group button:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: -2px;
+    }
+
+    /* Keuzekaartjes met een voorbeeld (zelfde als de instelassistent), kleiner
+       en links uitgelijnd in de instellingen. */
+    .setup-options.settings-cards {
+      justify-content: flex-start;
+      gap: 12px;
+      margin-top: 0;
+    }
+
+    .settings-cards .setup-option {
+      width: 148px;
+      gap: 7px;
+      padding: 8px 8px 10px;
+      border-radius: 10px;
+    }
+
+    .settings-cards .setup-option-name {
+      font-size: 13px;
+    }
+
+    .settings-cards .setup-option-desc {
+      font-size: 11.5px;
     }
 
     .toggle-text {
@@ -3104,7 +3362,7 @@
        verbergt main.js zolang dit open is (tab-overview-opened). */
     #tab-overview {
       position: fixed;
-      top: 38px;
+      top: var(--bar-h);
       left: 0;
       right: 0;
       bottom: 0;
@@ -3809,8 +4067,10 @@
       </div>
       <button id="group-btn" class="navigation-button" type="button" title="Tabgroep kiezen" aria-label="Tabgroep kiezen" aria-haspopup="menu">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
-        <span id="group-btn-name">Algemeen</span>
+        <span id="group-btn-name">Tabgroep 1</span>
       </button>
+      <!-- Met eigen groepen en tabs op een eigen rij: alle groepen naast elkaar (renderGroupChips). -->
+      <div id="group-chips"></div>
       <div id="tab-scroll">
         <div id="tabs"></div>
         <!-- Direct achter de tabs; sticky, dus bij veel tabs blijft hij rechts in beeld. -->
@@ -3978,7 +4238,8 @@
           <span id="theme-schedule-original-hint" class="settings-hint">Het thema Origineel toont de app zoals hij is, zonder licht/donker. Kies bij Thema's een ander thema om licht/donker weer te gebruiken.</span>
           <span id="theme-schedule-fixed-hint" class="settings-hint">Het gekozen thema heeft maar één stand (alleen licht of alleen donker). Je keuze hieronder blijft bewaard en geldt weer bij een ander thema.</span>
         </span>
-        <div class="choice-group" role="radiogroup" aria-label="Licht/donker wisselen" data-choice="theme-mode"></div>
+        <div id="theme-mode-cards" class="setup-options settings-cards" role="radiogroup" aria-label="Licht/donker"></div>
+        <div id="theme-auto-choice" class="choice-group" role="radiogroup" aria-label="Automatisch wisselen volgens"></div>
         <div id="theme-times-fields" class="theme-schedule-fields hidden">
           <label>Donker vanaf <input type="time" id="theme-time-dark" required></label>
           <label>Licht vanaf <input type="time" id="theme-time-light" required></label>
@@ -3993,21 +4254,21 @@
           <span id="theme-sun-info" class="settings-hint"></span>
         </div>
       </div>
-      <label id="soft-colors-row" class="general-toggle">
+      <div id="soft-colors-row" class="general-choice">
         <span class="toggle-text">
-          Oogcomfort: zachtere kleuren
-          <span class="settings-hint">Alleen voor de lichte weergave. Minder fel contrast, prettiger voor je ogen: de app wordt rustig zachtgrijs in plaats van fel wit, met net wat diepere kleuren.</span>
+          Oogcomfort
+          <span class="settings-hint">Alleen voor de lichte weergave. Zachter: minder fel contrast, rustig zachtgrijs in plaats van fel wit, met net wat diepere kleuren.</span>
           <span id="soft-colors-dark-hint" class="settings-hint">Werkt alleen in de lichte modus. Zet licht aan om oogcomfort aan of uit te zetten.</span>
           <span id="soft-colors-theme-hint" class="settings-hint">Het gekozen thema heeft zijn eigen kleuren, daarom werkt oogcomfort hier niet. Kies bij Thema's een kleurenset (bv. Singeling) om het weer te gebruiken.</span>
         </span>
-        <input type="checkbox" class="switch" id="soft-colors-checkbox">
-      </label>
+        <div id="soft-colors-cards" class="setup-options settings-cards" role="radiogroup" aria-label="Oogcomfort"></div>
+      </div>
       <div id="show-not-clocked-row" class="general-choice">
         <span class="toggle-text">
           Melding "Niet geklokt op een order"
-          <span class="settings-hint">Aan = de oranje balk bovenaan de pagina. Subtiel = een rustige regel. Uit = niet tonen. "Afwezig" en het blok "Geklokt op" blijven altijd zichtbaar.</span>
+          <span class="settings-hint">"Afwezig" en het blok "Geklokt op" blijven altijd zichtbaar.</span>
         </span>
-        <div class="choice-group" role="radiogroup" aria-label="Melding Niet geklokt op een order" data-choice="not-clocked"></div>
+        <div id="settings-clock-options" class="setup-options settings-cards" role="radiogroup" aria-label="Melding Niet geklokt op een order"></div>
       </div>
     </div>
 
@@ -4147,7 +4408,7 @@
       </label>
       <p class="settings-intro">De app herstart en doet alsof hij net bijgewerkt of geïnstalleerd is: je krijgt precies de schermen en stappen die een gebruiker dan krijgt. Tabs, thema en je andere instellingen blijven staan.</p>
       <div class="general-actions">
-        <button id="debug-sim-update" type="button">Scherm na update (vanaf 1.2.4)</button>
+        <button id="debug-sim-update" type="button">Scherm na update (vanaf 1.3.0)</button>
         <button id="debug-sim-install" type="button">Scherm nieuwe installatie</button>
       </div>
       </div>
@@ -4163,12 +4424,19 @@
         </span>
         <input type="checkbox" class="switch" id="open-all-links-new-tab-checkbox">
       </label>
-      <label class="general-toggle">
+      <div class="general-choice">
         <span class="toggle-text">
-          Tabbalk uitschakelen
-          <span class="settings-hint">Eén scherm zonder tabbladen: links openen in hetzelfde scherm en de balk bovenin toont alleen nog zoom, licht/donker, het kevertje en dit instellingen-icoon. Opent een knop een preview (bv. een specificatie of PDF), dan verschijnt die even als tabblad zodat je hem weer kunt sluiten. Bij het aanzetten worden de andere open tabbladen gesloten.</span>
+          Tabbalk
+          <span class="settings-hint">Zonder tabs: één scherm, links openen in hetzelfde scherm en de balk toont alleen nog zoom, licht/donker, het kevertje en dit instellingen-icoon. Opent een knop een preview (bv. een specificatie of PDF), dan verschijnt die even als tabblad zodat je hem weer kunt sluiten. De andere open tabbladen worden dan gesloten.</span>
         </span>
-        <input type="checkbox" class="switch" id="tab-bar-disabled-checkbox">
+        <div id="tab-layout-cards" class="setup-options settings-cards" role="radiogroup" aria-label="Tabbalk"></div>
+      </div>
+      <label id="groups-in-bar-row" class="general-toggle">
+        <span class="toggle-text">
+          Tabgroepen naast elkaar in de balk
+          <span class="settings-hint">Je tabgroepen staan als maptabs naast elkaar boven de tabs (Tabgroep 1, Tabgroep 2, ...): één klik en je zit in die groep. Met + maak je een nieuwe groep; tabs sleep je erheen in het taboverzicht. Uit: één mapknop met een keuzemenu. Alleen bij de tabbalk "Eigen rij".</span>
+        </span>
+        <input type="checkbox" class="switch" id="groups-in-bar-checkbox">
       </label>
       <h4 class="settings-subtitle">Onthouden tabgroepen</h4>
       <p class="settings-hint">Groepen waarbij je "Onthouden voor de volgende keer" hebt aangezet. Openen doe je in het taboverzicht.</p>
@@ -4389,6 +4657,16 @@
         <p class="setup-note">Het aantal meldingen staat altijd als rondje op het taakbalkicoon.</p>
       </div>
 
+      <div class="setup-page" data-page="tabbalk">
+        <div class="setup-icon" aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 8h20"/><path d="M2 13h20"/><path d="M8 8v5"/><path d="M14 8v5"/></svg>
+        </div>
+        <h1 id="setup-title-tabbalk">Hoe wil je de tabbalk?</h1>
+        <p class="setup-lead">Nieuw: de tabs kunnen op een eigen rij, onder de knoppen. Dan passen er veel meer naast elkaar en staan je tabgroepen als mapjes erboven.</p>
+        <div id="setup-tabbar-options" class="setup-options" role="radiogroup" aria-label="Tabbalk"></div>
+        <p class="setup-note">Later aan te passen bij Instellingen &gt; Tabs.</p>
+      </div>
+
       <div class="setup-page" data-page="uitleg-tabs">
         <div class="setup-icon" aria-hidden="true">
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M9 4v5"/></svg>
@@ -4424,7 +4702,7 @@
         <ul class="setup-features">
           <li class="setup-feature">
             <span class="setup-feature-icon" aria-hidden="true" data-icon-from="#tab-overview-btn"></span>
-            <div><h2>Een groep maken</h2><p>Open het taboverzicht (Ctrl+Spatie) en klik links op "+ Nieuwe groep". Geef hem een naam, bijvoorbeeld het ordernummer. Of rechtsklik op een tab en kies "Verplaatsen naar groep".</p></div>
+            <div><h2>Een groep maken</h2><p>Klik bovenin naast je tabgroepen op +, of klik in het taboverzicht (Ctrl+Spatie) op "+ Nieuwe groep". Rechtsklik op een groep om hem een naam te geven, bijvoorbeeld het ordernummer.</p></div>
           </li>
           <li class="setup-feature">
             <span class="setup-feature-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l-3 3 3 3"/><path d="M9 5l3-3 3 3"/><path d="M15 19l-3 3-3-3"/><path d="M19 9l3 3-3 3"/><path d="M2 12h20"/><path d="M12 2v20"/></svg></span>
@@ -4432,7 +4710,7 @@
           </li>
           <li class="setup-feature">
             <span class="setup-feature-icon" aria-hidden="true" data-icon-from="#group-btn"></span>
-            <div><h2>Wisselen tussen groepen</h2><p>Klik links in de tabbalk op de groepsnaam (eerst staat daar "Algemeen") en kies een andere groep.</p></div>
+            <div><h2>Wisselen tussen groepen</h2><p>Je groepen staan als mapjes bovenin: Tabgroep 1 (je gewone tabs), Tabgroep 2, ... Klik op een mapje om te wisselen. Met de tabbalk op één balk kies je de groep via het mapje links.</p></div>
           </li>
           <li class="setup-feature">
             <span class="setup-feature-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>
@@ -4609,6 +4887,14 @@
     document.getElementById('scroll-right').addEventListener('click', () => {
       tabScroll.scrollBy({ left: 240, behavior: 'smooth' });
     });
+    // Pijltjes alleen als de tabs (met de +) niet meer passen. Met pijltjes
+    // is de strook smaller, dus ze verdwijnen pas weer als er echt ruimte is.
+    // Let op beide: de tabs (erbij/eraf, andere groep) en de strook (venstergrootte).
+    const tabOverflowObserver = new ResizeObserver(() => {
+      document.documentElement.classList.toggle('tabs-overflow', tabScroll.scrollWidth > tabScroll.clientWidth + 1);
+    });
+    tabOverflowObserver.observe(document.getElementById('tabs'));
+    tabOverflowObserver.observe(tabScroll);
     // Scrollwiel (gewoon of horizontaal/touchpad) schuift de tabs opzij;
     // #tab-scroll heeft overflow: hidden, dus dat doet de browser niet zelf.
     tabScroll.addEventListener('wheel', (event) => {
@@ -4629,7 +4915,7 @@
       window.electronAPI.copyToClipboard(url);
       playFired(shareLinkBtn);
 
-      // Blijf binnen de 38px hoge tabbalk: de tabinhoud eronder is een aparte
+      // Blijf binnen de tabbalk: de tabinhoud eronder is een aparte
       // native laag die altijd over de pagina heen tekent, dus een tooltip
       // ONDER de knop zou onzichtbaar zijn. Plaats 'm daarom ernaast.
       const btnRect = shareLinkBtn.getBoundingClientRect();
@@ -4706,12 +4992,17 @@
     const SETUP_PAGES = [
       { id: 'intro', when: () => !setupRun.whatsNew },
       { id: 'nieuw', when: () => !!setupRun.whatsNew },
-      { id: 'thema', when: () => setupRun.questions },
+      // Ook na de tabrij-update: je huidige thema staat dan al gekozen
+      // (setupThemePicked), dus "Ga door" kan meteen.
+      { id: 'thema', when: () => setupRun.questions || tabrijUpdate() },
       { id: 'weergave', when: () => setupRun.questions && !originalTheme && !fixedMode },
       // Oogcomfort werkt alleen in licht: na een keuze voor donker overslaan.
       { id: 'leescomfort', when: () => setupRun.questions && softSupported && document.documentElement.classList.contains('theme-light') },
       { id: 'melding', when: () => setupRun.questions && !(setupRun.whatsNew && preferencesChosen) },
       { id: 'meldingen', when: () => setupRun.questions },
+      // Bij de vragen, of na de update die de tabrij bracht. Niet als de
+      // tabbalk bewust uit staat (bv. een werkplek in de productie).
+      { id: 'tabbalk', when: () => !tabBarDisabled && (setupRun.questions || tabrijUpdate()) },
       { id: 'uitleg-tabs', when: () => setupRun.tour },
       { id: 'uitleg-groepen', when: () => setupRun.tour },
       { id: 'uitleg-balk', when: () => setupRun.tour },
@@ -4719,6 +5010,8 @@
       { id: 'klaar' }
     ];
     let setupRun = null; // { questions, tour, whatsNew, changelog } zolang de assistent open is
+    // De update met de tabrij (WHATS_NEW_TABRIJ) laat ook thema en tabbalk kiezen.
+    const tabrijUpdate = () => !!setupRun.whatsNew?.some(block => block.id === WHATS_NEW_TABRIJ);
     let setupPageId = null;
     let setupTimer = null;
     let setupDoneVersion = SETUP_VERSION; // pas na getSettings bekend
@@ -4802,14 +5095,47 @@
       const second = split
         ? `<g clip-path="url(#${id}-half)">${mockParts(split, notice)}</g>`
         : '';
+      return mockFrame(id, mockParts(colors, notice) + second);
+    }
+
+    // Venster met afgeronde hoeken en een rand om de tekening heen.
+    function mockFrame(id, inner) {
       return `<svg class="setup-mock" viewBox="0 0 160 100" aria-hidden="true">
         <defs>
           <clipPath id="${id}"><rect width="160" height="100" rx="8"/></clipPath>
           <clipPath id="${id}-half"><polygon points="104,0 160,0 160,100 56,100"/></clipPath>
         </defs>
-        <g clip-path="url(#${id})">${mockParts(colors, notice)}${second}</g>
+        <g clip-path="url(#${id})">${inner}</g>
         <rect x="0.5" y="0.5" width="159" height="99" rx="7.5" fill="none" style="stroke: var(--border-strong)"/>
       </svg>`;
+    }
+
+    // De tabbalk in drie indelingen (Instellingen > Tabs): rij, balk of geen.
+    function mockTabBar(layout) {
+      const c = MOCK_COLORS.current;
+      const fill = value => `style="fill: ${value}"`;
+      const barH = layout === 'rij' ? 27 : 15;
+      const dot = x => `<circle cx="${x}" cy="7.5" r="2.2" ${fill(c.line)}/>`;
+      // Met randje: anders valt een wit tabje weg tegen een witte balk.
+      const tab = (x, y, active, width = 30) => `<rect x="${x}" y="${y}" width="${width}" height="10" rx="2" ${fill(c.panel)} stroke="${c.border}" stroke-width="0.7"${active ? '' : ' opacity="0.6"'}/>`
+        + (active ? `<rect x="${x}" y="${y}" width="1.6" height="10" ${fill('var(--accent)')}/>` : '');
+      // Een map met naam, zoals de groepsknop in de echte balk.
+      const folder = (x, name, active) => `<path d="M${x} 5.5h2.6l1 1.2H${x + 7}v4.3H${x}z" fill="none" stroke-width="0.9" style="stroke: ${active ? 'var(--accent)' : 'var(--text-muted)'}"/>
+        <text x="${x + 9}" y="10.4" font-size="6" font-weight="600" style="fill: ${active ? 'var(--accent)' : 'var(--text-muted)'}">${name}</text>`;
+      let bar = `<rect width="160" height="${barH}" ${fill(c.bar)}/>
+        <rect y="${barH}" width="160" height="0.8" ${fill(c.border)}/>
+        ${dot(138)}${dot(146)}${dot(154)}`;
+      if (layout !== 'geen') bar += dot(9) + dot(18) + dot(27);
+      if (layout === 'rij') bar += folder(35, 'Tabgroep 1', true) + folder(84, 'Tabgroep 2') + tab(6, 15, true) + tab(38, 15) + tab(70, 15);
+      if (layout === 'balk') bar += folder(35, 'Tabgroep 1', true) + tab(84, 3, true, 24) + tab(110, 3, false, 24);
+      const top = barH + 8;
+      return mockFrame(`setup-mock-${++setupMockCount}`, `<rect width="160" height="100" ${fill(c.bg)}/>
+        ${bar}
+        <rect x="10" y="${top}" width="140" height="28" rx="4" ${fill(c.panel)} stroke="${c.border}" stroke-width="0.8"/>
+        <rect x="17" y="${top + 8}" width="70" height="3" rx="1.5" ${fill(c.line)}/>
+        <rect x="17" y="${top + 16}" width="46" height="3" rx="1.5" ${fill(c.line)}/>
+        <rect x="10" y="${top + 34}" width="140" height="24" rx="4" ${fill(c.panel)} stroke="${c.border}" stroke-width="0.8"/>
+        <rect x="17" y="${top + 42}" width="84" height="3" rx="1.5" ${fill(c.line)}/>`);
     }
 
     // Vult een rij grote keuzes; onSelect(value) bij een andere keuze.
@@ -4861,37 +5187,52 @@
       return 'Overdag licht, na zonsondergang donker. Met de knop in de tabbalk wissel je even tussendoor.';
     }
 
-    function renderSetupWeergave() {
-      const note = document.getElementById('setup-weergave-note');
-      // Systeem en vaste tijden zijn ook automatisch; die laten we staan.
-      const current = themeMode === 'handmatig' ? (darkModeBtn.classList.contains('active') ? 'dark' : 'light') : 'auto';
-      buildSetupOptions(document.getElementById('setup-weergave-options'), [
+    // Licht/donker als drie kaartjes; gebruikt door de instelassistent en
+    // Instellingen > Weergave. Systeem en vaste tijden zijn ook automatisch.
+    function weergaveOptions() {
+      return [
         { value: 'auto', label: 'Automatisch', mock: mockWindow(MOCK_COLORS.light, { split: MOCK_COLORS.dark }) },
         { value: 'light', label: 'Licht', mock: mockWindow(MOCK_COLORS.light) },
         { value: 'dark', label: 'Donker', mock: mockWindow(MOCK_COLORS.dark) }
-      ], current, value => {
-        themeMode = value === 'auto' ? 'zon' : 'handmatig';
-        saveThemeSchedule();
-        renderThemeSchedule();
-        if (value !== 'auto') setThemeSmooth(value === 'dark');
+      ];
+    }
+
+    function currentWeergave() {
+      return themeMode === 'handmatig' ? (darkModeBtn.classList.contains('active') ? 'dark' : 'light') : 'auto';
+    }
+
+    function chooseWeergave(value) {
+      // Naar automatisch vanuit handmatig: zon op/onder (de standaard).
+      themeMode = value === 'auto' ? (themeMode === 'handmatig' ? 'zon' : themeMode) : 'handmatig';
+      saveThemeSchedule();
+      renderThemeSchedule();
+      if (value !== 'auto') setThemeSmooth(value === 'dark');
+    }
+
+    function renderSetupWeergave() {
+      const note = document.getElementById('setup-weergave-note');
+      const current = currentWeergave();
+      buildSetupOptions(document.getElementById('setup-weergave-options'), weergaveOptions(), current, value => {
+        chooseWeergave(value);
         note.textContent = weergaveNote(value);
       });
       note.textContent = weergaveNote(current);
     }
 
-    function renderSetupSoft() {
-      buildSetupOptions(document.getElementById('setup-soft-options'), [
-        { value: 'gewoon', label: 'Gewoon', desc: 'Helder wit', mock: mockWindow(MOCK_COLORS.light) },
-        { value: 'zachter', label: 'Zachter', desc: 'Rustiger voor je ogen', mock: mockWindow(MOCK_COLORS.softLight) }
-      ], softColors ? 'zachter' : 'gewoon', value => setSoftColors(value === 'zachter'));
-    }
-
-    function renderSetupClock() {
-      buildSetupOptions(document.getElementById('setup-clock-options'), [
+    function notClockedOptions() {
+      return [
         { value: 'aan', label: 'Aan', desc: 'Een oranje balk bovenaan', mock: mockWindow(MOCK_COLORS.current, { notice: 'aan' }) },
         { value: 'subtiel', label: 'Subtiel', desc: 'Een rustige regel', mock: mockWindow(MOCK_COLORS.current, { notice: 'subtiel' }) },
         { value: 'uit', label: 'Uit', desc: 'Niet tonen', mock: mockWindow(MOCK_COLORS.current, { notice: 'uit' }) }
-      ], notClockedMode, setNotClockedMode);
+      ];
+    }
+
+    function renderSetupSoft() {
+      buildSetupOptions(document.getElementById('setup-soft-options'), softOptions(), softColors ? 'zachter' : 'gewoon', value => setSoftColors(value === 'zachter'));
+    }
+
+    function renderSetupClock() {
+      buildSetupOptions(document.getElementById('setup-clock-options'), notClockedOptions(), notClockedMode, setNotClockedMode);
     }
 
     // Windows-meldingen aan/uit (zelfde instelling als Instellingen > Algemeen).
@@ -4907,6 +5248,18 @@
         windowsNotifications = value === 'aan';
         windowsNotificationsCheckbox.checked = windowsNotifications;
         window.electronAPI.setWindowsNotifications(windowsNotifications);
+      });
+    }
+
+    // Eigen rij of één balk (zelfde keuze als Instellingen > Tabs; "Zonder
+    // tabs" staat er niet bij, dat is iets voor een vaste werkplek).
+    function renderSetupTabbar() {
+      buildSetupOptions(document.getElementById('setup-tabbar-options'), [
+        { value: 'rij', label: 'Eigen rij', desc: 'Tabs onder de knoppen, met je tabgroepen erboven', mock: mockTabBar('rij') },
+        { value: 'balk', label: 'Eén balk', desc: 'Zoals het was: knoppen en tabs samen', mock: mockTabBar('balk') }
+      ], tabsOwnRow ? 'rij' : 'balk', value => {
+        renderTabsOwnRow(value === 'rij');
+        window.electronAPI.setTabsOwnRow(value === 'rij');
       });
     }
 
@@ -4936,6 +5289,8 @@
         renderSetupClock();
       } else if (id === 'meldingen') {
         renderSetupNotify();
+      } else if (id === 'tabbalk') {
+        renderSetupTabbar();
       } else if (id === 'klaar') {
         document.getElementById('setup-done-lead').textContent = setupRun.tour
           ? 'Je bent er klaar voor. De uitleg en de instellingen vind je altijd terug via de moersleutel rechtsboven.'
@@ -5081,7 +5436,18 @@
       contrast: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>'
     };
     let reportsAvailable = false; // melden kan alleen met een rapport-adres (telemetry.config.json)
+    const WHATS_NEW_TABRIJ = '2026-10-tabrij'; // brengt ook de keuzepagina "Tabbalk" (SETUP_PAGES)
     const WHATS_NEW = [
+      {
+        id: WHATS_NEW_TABRIJ,
+        since: '1.3.1',
+        features: [
+          { icon: 'tabs', title: 'Tabs op een eigen rij', text: 'De tabs staan onder de knoppen, over de volle breedte: er passen er veel meer naast elkaar. Liever alles op één balk? Dat kies je zo meteen, of later bij Instellingen > Tabs.' },
+          { iconFrom: '#group-btn', title: 'Tabgroepen als mapjes', text: 'Je tabgroepen staan als mapjes naast elkaar boven de tabs: één klik en je zit in een andere groep. Met + maak je een nieuwe; rechtsklik om te hernoemen of te verwijderen.' },
+          { icon: 'tabs', title: 'Korte tabnamen', text: 'Een verkooporder heet in de tab nu "SO 30044", een inkooporder "PO", een factuur "SI" of "PI". Zo herken je ze sneller en passen er meer naast elkaar.' },
+          { iconFrom: '#settings-btn', title: 'Kiezen met een voorbeeld', text: 'In Instellingen zie je bij licht/donker, oogcomfort, de melding "Niet geklokt" en de tabbalk meteen hoe elke keuze eruitziet.' }
+        ]
+      },
       {
         id: '2026-10-melden',
         since: '1.3.0',
@@ -5375,14 +5741,14 @@
     const TRASH_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
     const TAB_DRAG_TYPE = 'application/x-singeling-tab';
     let savedGroups = []; // appSettings.tabGroups: { id, name, urls, remember }
-    let overviewGroupId = null; // de groep rechts in beeld (null = Algemeen)
+    let overviewGroupId = null; // de groep rechts in beeld (null = Tabgroep 1, de standaardgroep)
     let overviewThumbnails = {};
 
     const liveTabsOf = (groupId) => [...tabsContainer.children]
       .filter(tab => !tab.classList.contains('closing') && (groupState.tabGroupOf[tab.dataset.tabId] || null) === groupId);
 
     function renderOverviewSidebar() {
-      overviewGroupList.replaceChildren(...[{ id: null, name: 'Algemeen' }, ...savedGroups].map(group => {
+      overviewGroupList.replaceChildren(...[{ id: null, name: defaultGroupName }, ...savedGroups].map(group => {
         const open = liveTabsOf(group.id).length;
         const item = document.createElement('button');
         item.type = 'button';
@@ -5425,7 +5791,7 @@
       if (!group) {
         const title = document.createElement('h3');
         title.className = 'overview-group-title';
-        title.textContent = 'Algemeen';
+        title.textContent = defaultGroupName;
         const hint = document.createElement('span');
         hint.className = 'overview-hint';
         hint.textContent = 'Welke tabs hier bij het opstarten opengaan, stel je in bij Instellingen > Starttabs.';
@@ -5470,7 +5836,7 @@
       }
 
       // Twee keer klikken, tegen per ongeluk verwijderen. Open tabs blijven
-      // (ze gaan naar Algemeen); alleen de groep verdwijnt.
+      // (ze gaan naar Tabgroep 1); alleen de groep verdwijnt.
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
       deleteBtn.className = 'overview-group-delete';
@@ -5482,7 +5848,7 @@
           return;
         }
         deleteBtn.classList.add('confirm');
-        deleteBtn.title = 'Nog een keer klikken om de groep te verwijderen. Open tabs gaan naar Algemeen.';
+        deleteBtn.title = `Nog een keer klikken om de groep te verwijderen. Open tabs gaan naar ${defaultGroupName}.`;
         setTimeout(() => {
           deleteBtn.classList.remove('confirm');
           deleteBtn.title = 'Groep verwijderen';
@@ -5701,6 +6067,16 @@
       });
     }
 
+    const TAB_SHORT_NAMES = {
+      'sales-orders': 'SO',
+      'purchase-orders': 'PO',
+      'work-orders': 'WO',
+      'sales-invoices': 'SI',
+      'purchase-invoices': 'PI',
+      'quotations': 'QT',
+      'purchase-quotation-requests': 'RFQ',
+    };
+
     function formatTabTitle(url) {
       try {
         const parsed = new URL(url);
@@ -5722,6 +6098,13 @@
         // Specifieke regel voor pakbonnen: /pakbonnen/411043 -> "pakbon 411043"
         if (segments[0] === 'pakbonnen' && segments[1]) {
           return `pakbon ${segments[1]}`;
+        }
+
+        // Documenten met een nummer kort, zodat er meer tabs naast elkaar passen:
+        // /sales-orders/30044 -> "SO 30044"
+        const shortName = TAB_SHORT_NAMES[segments[0]];
+        if (shortName && segments[1]) {
+          return `${shortName} ${segments[1]}`;
         }
 
         // Algemene fallback voor andere pagina's (bijv. /klanten/123 -> "Klanten 123")
@@ -5782,7 +6165,7 @@
         // overschieten tijdens het herordenen) -> tab wordt een eigen los
         // venster, dat je daarna net als elk ander Windows-venster naar een
         // tweede scherm kunt slepen.
-        const TEAR_OFF_THRESHOLD = 70;
+        const TEAR_OFF_THRESHOLD = document.getElementById('tab-bar').offsetHeight + 32;
         if (event.clientY > TEAR_OFF_THRESHOLD) {
           window.electronAPI.detachTab(tabId, { screenX: event.screenX, screenY: event.screenY });
           return;
@@ -5834,6 +6217,9 @@
 
     // Tabgroepen (werkruimtes, main.js): de balk toont alleen de tabs van de
     // actieve groep; de rest blijft open op de achtergrond.
+    // Naam van de standaardgroep (tabs zonder eigen groep); te hernoemen,
+    // main.js bewaart hem (defaultGroupName).
+    let defaultGroupName = 'Tabgroep 1'; // tot main.js de bewaarde naam stuurt
     let groupState = { activeGroupId: null, groups: [], tabGroupOf: {} };
     const groupBtn = document.getElementById('group-btn');
     function applyGroupVisibility(tab) {
@@ -5841,13 +6227,148 @@
     }
     window.electronAPI.on('tab-group-state', (state) => {
       groupState = state;
+      if (state.defaultGroupName) defaultGroupName = state.defaultGroupName;
       const active = state.groups.find(group => group.id === state.activeGroupId);
-      document.getElementById('group-btn-name').textContent = active ? active.name : 'Algemeen';
+      document.getElementById('group-btn-name').textContent = active ? active.name : defaultGroupName;
       groupBtn.classList.toggle('in-group', !!active);
+      renderGroupChips();
       tabElements.forEach(applyGroupVisibility);
       updateLockedTabPositions();
       if (tabOverviewOpen) renderOverview();
     });
+    function renderGroupChips() {
+      const container = document.getElementById('group-chips');
+      const groups = [{ id: null, name: defaultGroupName }, ...groupState.groups];
+      // Zelfde groepen: alleen de markering verschuiven, zodat de overgang
+      // (kleur, rand) zichtbaar loopt in plaats van alles opnieuw te tekenen.
+      const key = JSON.stringify(groups.map(group => [group.id, group.name]));
+      if (container.dataset.key === key) {
+        groups.forEach((group, i) => container.children[i].classList.toggle('active', group.id === groupState.activeGroupId));
+        return;
+      }
+      container.dataset.key = key;
+      const chips = groups.map(group => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'group-chip';
+        chip.classList.toggle('active', group.id === groupState.activeGroupId);
+        chip.title = `Naar de groep ${group.name}`;
+        const name = document.createElement('span');
+        name.textContent = group.name; // eigen naam: als tekst, niet als HTML
+        chip.append(groupBtn.querySelector('svg').cloneNode(true), name);
+        chip.dataset.groupId = group.id || '';
+        chip.addEventListener('click', () => window.electronAPI.openTabGroup(group.id));
+        // Rechtsklik: hernoemen, verwijderen, instellingen (menu in main.js).
+        chip.addEventListener('contextmenu', (event) => {
+          event.preventDefault();
+          window.electronAPI.showGroupChipMenu(group.id, event.clientX, event.clientY);
+        });
+        return chip;
+      });
+      // Achteraan: nieuwe groep (zelfde als "+ Nieuwe groep" in het mapmenu).
+      // Zonder eigen groepen met tekst erbij, zodat je ziet dat het kan.
+      const newChip = document.createElement('button');
+      newChip.type = 'button';
+      newChip.className = 'group-chip group-new';
+      newChip.title = 'Nieuwe groep';
+      newChip.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
+      if (groupState.groups.length === 0) newChip.append('Nieuwe groep');
+      newChip.addEventListener('click', async () => {
+        const groupId = await window.electronAPI.createTabGroup();
+        window.electronAPI.openTabGroup(groupId);
+        await openTabOverview(groupId);
+      });
+      container.replaceChildren(...chips, newChip);
+    }
+
+    renderGroupChips(); // Groep 1 en + al tonen vóór de eerste groepsstand uit main.js
+
+    // main.js stuurt de groepsstand pas bij een wijziging; bij het starten
+    // staan opgeslagen groepen al in de instellingen.
+    let groupStateReceived = false;
+    window.electronAPI.on('tab-group-state', () => { groupStateReceived = true; });
+    startupSettings.then(settings => {
+      if (!settings || groupStateReceived) return;
+      if (settings.defaultGroupName) defaultGroupName = settings.defaultGroupName;
+      groupState = { ...groupState, groups: settings.tabGroups.map(group => ({ id: group.id, name: group.name })) };
+      if (!groupState.activeGroupId) document.getElementById('group-btn-name').textContent = defaultGroupName;
+      renderGroupChips();
+    });
+
+    // "Hernoemen" uit het rechtsklikmenu: het tabje wordt even een invoerveld.
+    // Enter of wegklikken bewaart, Escape laat de oude naam staan.
+    window.electronAPI.on('rename-group-chip', (groupId) => {
+      const container = document.getElementById('group-chips');
+      const chip = [...container.children].find(el => el.dataset.groupId === (groupId || ''));
+      const group = groupId === null ? { id: null, name: defaultGroupName } : groupState.groups.find(g => g.id === groupId);
+      if (!chip || !group) return;
+      const input = document.createElement('input');
+      input.className = 'group-chip-rename';
+      input.value = group.name;
+      input.maxLength = 40;
+      input.setAttribute('aria-label', 'Nieuwe naam voor de groep');
+      let done = false;
+      const finish = (save) => {
+        if (done) return;
+        done = true;
+        if (save && input.value.trim() && input.value.trim() !== group.name) {
+          window.electronAPI.renameTabGroup(groupId, input.value);
+        }
+        container.dataset.key = ''; // opnieuw tekenen (met de nieuwe naam zodra main.js die stuurt)
+        renderGroupChips();
+      };
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') finish(true);
+        if (event.key === 'Escape') finish(false);
+      });
+      input.addEventListener('blur', () => finish(true));
+      chip.replaceWith(input);
+      input.focus();
+      input.select();
+    });
+
+    // "Verwijderen…" uit het rechtsklikmenu: bevestigen in de balk zelf (een
+    // melding onder de balk zou achter de pagina vallen). De open tabs van de
+    // groep gaan mee dicht. Annuleren, Escape of 8 seconden niets: blijft staan.
+    window.electronAPI.on('confirm-remove-group-chip', ({ groupId, tabCount }) => {
+      const container = document.getElementById('group-chips');
+      const chip = [...container.children].find(el => el.dataset.groupId === groupId);
+      const group = groupState.groups.find(g => g.id === groupId);
+      if (!chip || !group) return;
+      const box = document.createElement('div');
+      box.className = 'group-chip-confirm';
+      box.setAttribute('role', 'alertdialog');
+      const question = document.createElement('span');
+      question.textContent = tabCount > 0
+        ? `${group.name} en ${tabCount === 1 ? '1 tab' : `${tabCount} tabs`} sluiten?`
+        : `${group.name} verwijderen?`;
+      const yes = document.createElement('button');
+      yes.type = 'button';
+      yes.className = 'danger';
+      yes.textContent = 'Verwijderen';
+      const no = document.createElement('button');
+      no.type = 'button';
+      no.textContent = 'Annuleren';
+      box.append(question, yes, no);
+      let timer = null;
+      const cancel = () => {
+        clearTimeout(timer);
+        container.dataset.key = '';
+        renderGroupChips();
+      };
+      yes.addEventListener('click', () => {
+        clearTimeout(timer);
+        window.electronAPI.removeTabGroupWithTabs(groupId);
+      });
+      no.addEventListener('click', cancel);
+      box.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') cancel();
+      });
+      timer = setTimeout(cancel, 8000);
+      chip.replaceWith(box);
+      no.focus(); // veilige knop voorop, zoals bij "Tabbalk weer inschakelen"
+    });
+
     groupBtn.addEventListener('click', () => {
       const rect = groupBtn.getBoundingClientRect();
       window.electronAPI.showGroupMenu(Math.round(rect.left), Math.round(rect.bottom));
@@ -6170,13 +6691,16 @@
         betaUpdatesCheckbox.checked = !!settings.betaUpdates;
         openAllLinksNewTabCheckbox.checked = !!settings.openAllLinksInNewTab;
         renderTabBarDisabled(settings.tabBarDisabled);
+        renderTabsOwnRow(settings.tabsOwnRow !== false);
+        renderGroupsInBar(settings.groupsInBar !== false);
         blockCtrlBCheckbox.checked = !!settings.blockCtrlB;
         windowsNotificationsCheckbox.checked = settings.windowsNotifications !== false;
         document.getElementById('telemetry-row').hidden = !settings.telemetryAvailable;
         telemetryCheckbox.checked = settings.telemetry !== false;
         renderNotClockedChoice(settings.notClockedMode);
         renderThemeSchedule(settings);
-        softColorsCheckbox.checked = !!settings.softColors;
+        softColors = !!settings.softColors;
+        renderSoftCards();
         renderSoftSupport(settings.softSupported);
         renderAppThemeChoice(settings);
         applyUpdateStatusUI(!!settings.updateVersion, settings.updateVersion);
@@ -6225,6 +6749,9 @@
 
     document.addEventListener('click', (event) => {
       if (!settingsOpen) return;
+      // Een keuzekaartje wordt bij de klik opnieuw getekend; het aangeklikte
+      // element hangt dan niet meer in de pagina, maar de klik was wél binnen.
+      if (!event.target.isConnected) return;
       if (settingsPanel.contains(event.target) || event.target === settingsBtn) return;
       // Zoom- en licht/donker-knop in de tabbalk mogen het scherm open laten
       // (handig om het effect direct in de instellingen te zien).
@@ -6242,7 +6769,7 @@
     // Debug (npm start of bètaversie, zie main.js DEBUG_AVAILABLE). "Na
     // update": alsof je op DEBUG_FROM_VERSION zat, dus met de "nieuw"-blokken
     // van toen al gezien.
-    const DEBUG_FROM_VERSION = '1.2.4';
+    const DEBUG_FROM_VERSION = '1.3.0';
     const debugPortCheckbox = document.getElementById('debug-port-checkbox');
     startupSettings.then(settings => {
       document.getElementById('settings-nav-debug').classList.toggle('hidden', !(settings && (settings.debugAvailable || settings.debugUnlocked)));
@@ -6261,6 +6788,7 @@
       window.electronAPI.debugSimulateStart({
         mode: 'update',
         fromVersion: DEBUG_FROM_VERSION,
+        setupVersion: 3, // de instelassistent zoals in 1.3.0
         seenTours: WHATS_NEW.filter(block => versionAtMost(block.since, DEBUG_FROM_VERSION)).map(block => block.id)
       });
     });
@@ -6280,40 +6808,73 @@
       window.electronAPI.setOpenAllLinksInNewTab(openAllLinksNewTabCheckbox.checked);
     });
 
-    // Tabbalk uit: de balk toont alleen het instellingen-icoon (html.tabbar-off).
-    // De tabs verschijnen alleen als er meer dan één is (html.several-tabs).
-    const tabBarDisabledCheckbox = document.getElementById('tab-bar-disabled-checkbox');
+    // Indeling van de tabbalk (Instellingen > Tabs), drie kaartjes:
+    // - rij: tabs op een eigen rij onder de knoppen (standaard);
+    // - balk: knoppen en tabs samen op één balk (html.tabs-inline);
+    // - geen: tabbalk uit, de balk toont alleen het instellingen-icoon
+    //   (html.tabbar-off). De tabs verschijnen dan alleen als er meer dan
+    //   één is (html.several-tabs).
+    let tabBarDisabled = false;
+    let tabsOwnRow = true;
+    let pendingTabLayout = null; // rij/balk, tot de waarschuwing hieronder bevestigd is
 
     function renderTabBarDisabled(disabled) {
-      tabBarDisabledCheckbox.checked = !!disabled;
-      document.documentElement.classList.toggle('tabbar-off', !!disabled);
+      tabBarDisabled = !!disabled;
+      document.documentElement.classList.toggle('tabbar-off', tabBarDisabled);
+      renderTabLayoutCards();
+    }
+
+    function renderTabsOwnRow(ownRow) {
+      tabsOwnRow = ownRow;
+      document.documentElement.classList.toggle('tabs-inline', !ownRow);
+      renderTabLayoutCards();
+    }
+
+    function renderTabLayoutCards() {
+      // "Groepen naast elkaar" kan alleen met tabs op een eigen rij.
+      const groupsRow = document.getElementById('groups-in-bar-row');
+      groupsRow.classList.toggle('unavailable', tabBarDisabled || !tabsOwnRow);
+      document.getElementById('groups-in-bar-checkbox').disabled = tabBarDisabled || !tabsOwnRow;
+      buildSetupOptions(document.getElementById('tab-layout-cards'), [
+        { value: 'rij', label: 'Eigen rij', desc: 'Tabs onder de knoppen, over de volle breedte', mock: mockTabBar('rij') },
+        { value: 'balk', label: 'Eén balk', desc: 'Knoppen en tabs samen; de pagina krijgt iets meer ruimte', mock: mockTabBar('balk') },
+        { value: 'geen', label: 'Zonder tabs', desc: 'Eén scherm, links openen in hetzelfde scherm', mock: mockTabBar('geen') }
+      ], tabBarDisabled ? 'geen' : tabsOwnRow ? 'rij' : 'balk', chooseTabLayout);
+    }
+
+    function chooseTabLayout(value) {
+      if (value === 'geen') {
+        renderTabBarDisabled(true);
+        window.electronAPI.setTabBarDisabled(true);
+        return;
+      }
+      if (tabBarDisabled) {
+        // Weer inschakelen: eerst waarschuwen (op sommige pc's staat hij
+        // bewust uit). Tot de bevestiging blijft "Zonder tabs" gekozen.
+        pendingTabLayout = value;
+        renderTabLayoutCards();
+        tabBarConfirm.classList.remove('hidden');
+        document.getElementById('tabbar-confirm-cancel').focus();
+        return;
+      }
+      renderTabsOwnRow(value === 'rij');
+      window.electronAPI.setTabsOwnRow(value === 'rij');
     }
 
     const tabBarConfirm = document.getElementById('tabbar-confirm');
 
     function closeTabBarConfirm() {
       tabBarConfirm.classList.add('hidden');
-      tabBarDisabledCheckbox.focus();
+      document.querySelector('#tab-layout-cards [aria-checked="true"]')?.focus();
     }
-
-    tabBarDisabledCheckbox.addEventListener('change', () => {
-      if (tabBarDisabledCheckbox.checked) {
-        renderTabBarDisabled(true);
-        window.electronAPI.setTabBarDisabled(true);
-        return;
-      }
-      // Weer inschakelen: eerst waarschuwen (op sommige pc's staat hij
-      // bewust uit). Tot de bevestiging blijft de schakelaar zoals hij was.
-      tabBarDisabledCheckbox.checked = true;
-      tabBarConfirm.classList.remove('hidden');
-      document.getElementById('tabbar-confirm-cancel').focus();
-    });
 
     document.getElementById('tabbar-confirm-cancel').addEventListener('click', closeTabBarConfirm);
     document.getElementById('tabbar-confirm-ok').addEventListener('click', () => {
       closeTabBarConfirm();
       renderTabBarDisabled(false);
       window.electronAPI.setTabBarDisabled(false);
+      renderTabsOwnRow(pendingTabLayout === 'rij');
+      window.electronAPI.setTabsOwnRow(pendingTabLayout === 'rij');
     });
     tabBarConfirm.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
@@ -6327,8 +6888,31 @@
       document.documentElement.classList.toggle('several-tabs', tabCountTarget.children.length > 1);
     }).observe(tabCountTarget, { childList: true });
 
+    // Groepen als mappen naast elkaar (html.groups-menu = uit: alleen de mapknop).
+    const groupsInBarCheckbox = document.getElementById('groups-in-bar-checkbox');
+
+    function renderGroupsInBar(inBar) {
+      groupsInBarCheckbox.checked = inBar;
+      document.documentElement.classList.toggle('groups-menu', !inBar);
+    }
+
+    groupsInBarCheckbox.addEventListener('change', () => {
+      renderGroupsInBar(groupsInBarCheckbox.checked);
+      window.electronAPI.setGroupsInBar(groupsInBarCheckbox.checked);
+    });
+
+    // Vanuit het menu van de mapknop: naar deze schakelaar (Instellingen > Tabs).
+    window.electronAPI.on('open-settings-section', async (section) => {
+      if (!settingsOpen) await openSettingsPanel();
+      setSettingsSection(section);
+      groupsInBarCheckbox.focus();
+    });
+
     startupSettings.then(settings => {
-      if (settings) renderTabBarDisabled(settings.tabBarDisabled);
+      if (!settings) return;
+      renderTabBarDisabled(settings.tabBarDisabled);
+      renderTabsOwnRow(settings.tabsOwnRow !== false);
+      renderGroupsInBar(settings.groupsInBar !== false);
     });
 
     blockCtrlBCheckbox.addEventListener('change', () => {
@@ -6449,11 +7033,6 @@
     });
 
     // ---------- Keuzeknoppen (instellingen + keuzescherm na de rondleiding) ----------
-    const NOT_CLOCKED_CHOICES = [
-      { value: 'aan', label: 'Aan' },
-      { value: 'subtiel', label: 'Subtiel' },
-      { value: 'uit', label: 'Uit' }
-    ];
     let notClockedMode = 'aan';
 
     // Vult een .choice-group met knoppen; onSelect(value) bij een klik.
@@ -6464,7 +7043,8 @@
         button.type = 'button';
         button.setAttribute('role', 'radio');
         button.dataset.value = choice.value;
-        button.textContent = choice.label;
+        button.innerHTML = choice.icon || ''; // vaste SVG uit deze code
+        button.append(choice.label);
         button.setAttribute('aria-checked', String(choice.value === current));
         button.addEventListener('click', (event) => {
           event.stopPropagation();
@@ -6481,12 +7061,9 @@
       renderNotClockedChoice(mode);
     }
 
-    // Alle plekken met deze keuze bijwerken (instellingen én keuzescherm).
     function renderNotClockedChoice(mode) {
       if (mode) notClockedMode = mode;
-      document.querySelectorAll('.choice-group[data-choice="not-clocked"]').forEach(group => {
-        buildChoiceGroup(group, NOT_CLOCKED_CHOICES, notClockedMode, setNotClockedMode);
-      });
+      buildSetupOptions(document.getElementById('settings-clock-options'), notClockedOptions(), notClockedMode, setNotClockedMode);
     }
 
     startupSettings.then(settings => {
@@ -6494,11 +7071,12 @@
     });
 
     // ---- Licht/donker wisselen (zie "Licht/donker automatisch" in main.js) ----
-    const THEME_MODE_CHOICES = [
-      { value: 'handmatig', label: 'Handmatig' },
-      { value: 'systeem', label: 'Systeem' },
-      { value: 'tijden', label: 'Vaste tijden' },
-      { value: 'zon', label: 'Zon op/onder' }
+    // Waarop "Automatisch" wisselt (handmatig = de kaartjes Licht en Donker).
+    const choiceIcon = paths => `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+    const AUTO_THEME_MODE_CHOICES = [
+      { value: 'zon', label: 'Zon op/onder', icon: choiceIcon('<path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/>') },
+      { value: 'tijden', label: 'Vaste tijden', icon: choiceIcon('<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>') },
+      { value: 'systeem', label: 'Zoals Windows', icon: choiceIcon('<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>') }
     ];
     const THEME_MODE_HINTS = {
       handmatig: 'Je wisselt zelf met de knop in de tabbalk.',
@@ -6552,17 +7130,23 @@
         selectNearestSunOffset(themeSunOffsetLight, offset.light);
         selectNearestSunOffset(themeSunOffsetDark, offset.dark);
       }
-      document.querySelectorAll('.choice-group[data-choice="theme-mode"]').forEach(group => {
-        buildChoiceGroup(group, THEME_MODE_CHOICES, themeMode, value => {
-          themeMode = value;
-          saveThemeSchedule();
-          renderThemeSchedule();
-        });
+      renderThemeModeCards();
+      const autoChoice = document.getElementById('theme-auto-choice');
+      autoChoice.hidden = themeMode === 'handmatig';
+      buildChoiceGroup(autoChoice, AUTO_THEME_MODE_CHOICES, themeMode, value => {
+        themeMode = value;
+        saveThemeSchedule();
+        renderThemeSchedule();
       });
       themeScheduleHint.textContent = THEME_MODE_HINTS[themeMode];
       themeTimesFields.classList.toggle('hidden', themeMode !== 'tijden');
       themeSunFields.classList.toggle('hidden', themeMode !== 'zon');
       refreshThemeSunInfo();
+    }
+
+    // Ook na de knop in de tabbalk (renderDarkModeButton): Licht/Donker volgt mee.
+    function renderThemeModeCards() {
+      buildSetupOptions(document.getElementById('theme-mode-cards'), weergaveOptions(), currentWeergave(), chooseWeergave);
     }
 
     function saveThemeSchedule() {
@@ -6606,7 +7190,6 @@
     // zachtgrijs, donker blijft gelijk). main.js zet dezelfde stand op de
     // pagina's (soft-mode.js). Hier al, omdat renderDarkModeButton de
     // schakelaar bijwerkt.
-    const softColorsCheckbox = document.getElementById('soft-colors-checkbox');
     let softColors = true; // standaard aan (zie main.js); getSettings zet de echte stand
     let softSupported = true; // false bij een thema met een eigen palet (themes.js)
 
@@ -6624,6 +7207,7 @@
       darkModeBtn.setAttribute('aria-pressed', String(enabled));
       darkModeBtn.title = enabled ? 'Donkere modus uitzetten' : 'Donkere modus aanzetten';
       renderSoftRow();
+      if (themeMode === 'handmatig') renderThemeModeCards();
     }
 
     // Schakelaar vast (grijs, met uitleg) bij een thema met een eigen palet of
@@ -6634,7 +7218,18 @@
       row.classList.toggle('no-theme', !softSupported);
       row.classList.toggle('in-dark', softSupported && inDark);
       row.classList.toggle('unavailable', !softSupported || inDark);
-      softColorsCheckbox.disabled = !softSupported || inDark;
+      document.getElementById('soft-colors-cards').inert = !softSupported || inDark;
+    }
+
+    function softOptions() {
+      return [
+        { value: 'gewoon', label: 'Gewoon', desc: 'Helder wit', mock: mockWindow(MOCK_COLORS.light) },
+        { value: 'zachter', label: 'Zachter', desc: 'Rustiger voor je ogen', mock: mockWindow(MOCK_COLORS.softLight) }
+      ];
+    }
+
+    function renderSoftCards() {
+      buildSetupOptions(document.getElementById('soft-colors-cards'), softOptions(), softColors ? 'zachter' : 'gewoon', value => setSoftColors(value === 'zachter'));
     }
 
     const THEME_SWITCH_MS = 600;
@@ -6653,7 +7248,7 @@
 
     function setSoftColors(enabled, { save = true } = {}) {
       softColors = !!enabled;
-      softColorsCheckbox.checked = softColors;
+      renderSoftCards();
       if (save) {
         clearTimeout(themeSwitchTimer);
         document.documentElement.classList.add('theme-switching');
@@ -6685,8 +7280,6 @@
       renderSoftRow();
       document.documentElement.classList.toggle('theme-soft', softColors && softSupported);
     }
-
-    softColorsCheckbox.addEventListener('change', () => setSoftColors(softColorsCheckbox.checked));
 
     // Kleurenthema (themes.js). main.js stuurt de CSS voor de chrome
     // (onder html.chrome-theme) en zet de pagina's zelf om.

@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const incomingChannels = ['open-link-field', 'dark-mode-changed', 'update-notice-show', 'update-notice-state', 'update-notice-hide', 'tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'tab-group-state', 'toggle-tab-overview', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed', 'help-popover-changed', 'chrome-theme-changed', 'tab-modal', 'notification-count', 'open-melding', 'rapport-badge'];
+const incomingChannels = ['open-link-field', 'dark-mode-changed', 'update-notice-show', 'update-notice-state', 'update-notice-hide', 'tab-created', 'tab-switched', 'update-tab-url', 'tab-closed', 'tab-lock-changed', 'navigation-state-changed', 'zoom-changed', 'start-tabs-changed', 'tab-groups-changed', 'tab-group-state', 'toggle-tab-overview', 'open-tab-overview', 'whats-new', 'update-badge-changed', 'window-shown', 'window-maximized-changed', 'help-popover-changed', 'chrome-theme-changed', 'tab-modal', 'notification-count', 'open-melding', 'rapport-badge', 'open-settings-section', 'rename-group-chip', 'confirm-remove-group-chip'];
 
 contextBridge.exposeInMainWorld('electronAPI', {
   switchTab: (tabId) => ipcRenderer.send('switch-tab', tabId),
@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSettings: () => ipcRenderer.invoke('get-settings'),
   setOpenAllLinksInNewTab: (value) => ipcRenderer.send('set-open-all-links-in-new-tab', value),
   setTabBarDisabled: (value) => ipcRenderer.send('set-tab-bar-disabled', value),
+  setTabsOwnRow: (value) => ipcRenderer.send('set-tabs-own-row', value),
+  setGroupsInBar: (value) => ipcRenderer.send('set-groups-in-bar', value),
   setShowOnboarding: (value) => ipcRenderer.send('set-show-onboarding', value),
   setBlockCtrlB: (value) => ipcRenderer.send('set-block-ctrl-b', value),
   setWindowsNotifications: (value) => ipcRenderer.send('set-windows-notifications', value),
@@ -65,6 +67,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeTabGroupUrl: (groupId, urlIndex) => ipcRenderer.send('remove-tab-group-url', { groupId, urlIndex }),
   openTabGroup: (id) => ipcRenderer.send('open-tab-group', id),
   showGroupMenu: (x, y) => ipcRenderer.send('show-group-menu', { x, y }),
+  showGroupChipMenu: (groupId, x, y) => ipcRenderer.send('show-group-chip-menu', { groupId, x, y }),
+  removeTabGroupWithTabs: (groupId) => ipcRenderer.send('remove-tab-group-with-tabs', groupId),
   createTabGroup: () => ipcRenderer.invoke('create-tab-group'),
   moveTabToGroup: (tabId, groupId) => ipcRenderer.send('move-tab-to-group', { tabId, groupId }),
   setTabGroupRemember: (id, value) => ipcRenderer.send('set-tab-group-remember', { id, value }),
