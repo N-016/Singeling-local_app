@@ -53,6 +53,38 @@ const PAGE_TWEAKS_CSS = `
     display: none;
   }
 
+  /* Knop "Openen in nieuw tabblad" in de kop van de viewer (PREVIEW_TAB_SCRIPT):
+     naast de bestandsnaam, links van het sluitkruisje. */
+  [data-dialog-drag-handle]:has(> .sg-preview-newtab) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-right: 3.5rem;
+  }
+
+  .sg-preview-newtab {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    margin-top: 0 !important;
+    padding: 0 12px;
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) - 2px);
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .sg-preview-newtab:hover {
+    background: hsl(var(--accent));
+  }
+
   /* Navigatie (zijbalk links). De webapp maakt die altijd bijna zwart
      (--sg-ink); hier volgt hij de donkere modus: heel donkergrijs in donker,
      lichtgrijs met donkere tekst in licht. Kleuren = de tabbalk (index.html).
@@ -169,4 +201,45 @@ const SOLID_TINTS_SCRIPT = `(() => {
     .observe(document.head, { childList: true });
 })();`;
 
-module.exports = { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT };
+// Knop "Openen in nieuw tabblad" in de viewer van "Bekijken" (documenten).
+// Die viewer is een venster binnen de pagina en kan dus niet naar een tweede
+// scherm; als tab wel (losslepen). Elke documentregel heeft naast "Bekijken"
+// al de knop "Openen in nieuw tabblad"; deze knop in de viewer klikt die van
+// hetzelfde document en sluit de viewer. Bij STEP opent die knop geen tab
+// (download), dus daar komt hij niet. Verandert de webapp de knoppen of de
+// viewer, dan verschijnt de knop gewoon niet.
+const PREVIEW_TAB_SCRIPT = `(() => {
+  if (window.__sgPreviewTab) return;
+  window.__sgPreviewTab = true;
+  let opener = null;
+  document.addEventListener('click', (event) => {
+    const view = event.target.closest && event.target.closest('button[title="Bekijken"]');
+    if (view) opener = view.parentElement.querySelector('button[title="Openen in nieuw tabblad"]');
+  }, true);
+  const addButton = (dialog) => {
+    const head = dialog.querySelector('[data-dialog-drag-handle]');
+    const title = head && head.querySelector('h2');
+    if (!title || head.querySelector('.sg-preview-newtab') || !opener || !opener.isConnected) return;
+    if (/\\.(stp|step)$/i.test(title.textContent.trim())) return;
+    const source = opener;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'sg-preview-newtab';
+    button.title = 'Openen in nieuw tabblad. Die tab kun je onder de balk uit slepen, bv. naar een tweede scherm.';
+    button.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
+    button.append('Openen in nieuw tabblad');
+    // De kop is ook de sleepgreep van de viewer: niet gaan slepen bij een klik.
+    button.addEventListener('pointerdown', (event) => event.stopPropagation());
+    button.addEventListener('click', () => {
+      source.click();
+      const close = [...dialog.querySelectorAll('button')].find(b => /^(Sluiten|Close)$/.test(b.textContent.trim()));
+      if (close) close.click();
+    });
+    head.appendChild(button);
+  };
+  new MutationObserver(() => {
+    document.querySelectorAll('[role="dialog"][data-state="open"]').forEach(addButton);
+  }).observe(document.body, { childList: true, subtree: true });
+})();`;
+
+module.exports = { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT, PREVIEW_TAB_SCRIPT };

@@ -3,7 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
 const { DARK_MODE_BACKGROUND, DARK_MODE_CSS } = require('./dark-mode');
-const { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT } = require('./page-tweaks');
+const { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT, PREVIEW_TAB_SCRIPT } = require('./page-tweaks');
 const { SOFT_MODE_BACKGROUND, SOFT_MODE_CSS } = require('./soft-mode');
 const themes = require('./themes');
 const { START_URL, APP_HOSTNAME, isInternalUrl, isAuthUrl, isFileUrl, compareVersions, criticalUpdateFrom, pageKind } = require('./rules');
@@ -1040,6 +1040,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       view.webContents.insertCSS(PAGE_TWEAKS_CSS).catch(() => {});
       insertThemeCss(view);
       applySolidTints(view);
+      view.webContents.executeJavaScript(PREVIEW_TAB_SCRIPT).catch(() => {}); // draait per pagina één keer
     }
     applyDarkMode(view);
     applyPageTweaks(view);

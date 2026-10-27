@@ -6095,6 +6095,12 @@
           return parsed.hostname;
         }
 
+        // Bestand uit de opslag (PDF-preview e.d.):
+        // /storage/v1/object/sign/sales-documents/.../RO-502-VERTI.pdf -> "RO-502-VERTI.pdf"
+        if (segments[0] === 'storage' && segments[2] === 'object') {
+          return segments[segments.length - 1];
+        }
+
         // Specifieke regel voor pakbonnen: /pakbonnen/411043 -> "pakbon 411043"
         if (segments[0] === 'pakbonnen' && segments[1]) {
           return `pakbon ${segments[1]}`;
