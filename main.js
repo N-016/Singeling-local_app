@@ -3,7 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
 const { DARK_MODE_BACKGROUND, DARK_MODE_CSS } = require('./dark-mode');
-const { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT, PREVIEW_TAB_SCRIPT } = require('./page-tweaks');
+const { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT, PREVIEW_TAB_SCRIPT, LABEL_PRINT_SCRIPT } = require('./page-tweaks');
 const { SOFT_MODE_BACKGROUND, SOFT_MODE_CSS } = require('./soft-mode');
 const themes = require('./themes');
 const { START_URL, APP_HOSTNAME, isInternalUrl, isAuthUrl, isFileUrl, compareVersions, criticalUpdateFrom, pageKind } = require('./rules');
@@ -1019,6 +1019,55 @@ function applySolidTints(view) {
   if (themes.hasWallpaper(activeTheme())) view.webContents.executeJavaScript(SOLID_TINTS_SCRIPT).catch(() => {});
 }
 
+// Transportstickers stil op de DYMO (LABEL_PRINT_SCRIPT in page-tweaks.js
+// stuurt de PDF als base64). Een PDF zelf stil printen geeft in Electron een
+// leeg vel, dus tekent label-print.html hem eerst als plaatjes (pdf.js). Dat
+// gebeurt in een onzichtbaar venster dat nooit getoond wordt en meteen na het
+// printen weer weg is. Geen DYMO of mislukt: ok false, dan blijft het
+// voorbeeld met "Afdrukken" in de pagina staan.
+const LABEL_PDF_MAX_BASE64 = 20 * 1024 * 1024;
+const DYMO_LABEL_MICRONS = { width: 36000, height: 89000 }; // etiket 99012, staand zoals de driver het kent
+async function printLabelPdf(base64) {
+  // "JVBER" = "%PDF" in base64: alleen echte PDF's, en niet onbeperkt groot.
+  if (!base64.startsWith('JVBER') || base64.length > LABEL_PDF_MAX_BASE64) {
+    return { ok: false, text: 'De stickers zijn geen geldige PDF. Print via "Afdrukken".' };
+  }
+  const printers = await mainWindow.webContents.getPrintersAsync().catch(() => []);
+  const printer = printers.find(p => /dymo/i.test(`${p.name} ${p.displayName}`));
+  if (!printer) return { ok: false, text: 'DYMO-printer niet gevonden. Print via "Afdrukken".' };
+
+  const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true } });
+  try {
+    await win.loadFile(path.join(__dirname, 'label-print.html'));
+    // label-print.mjs laadt als module na de pagina zelf.
+    for (let i = 0; i < 50 && !(await win.webContents.executeJavaScript('window.labelPrintReady === true')); i++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    const size = await win.webContents.executeJavaScript(`renderLabels(${JSON.stringify(base64)})`);
+    const failure = await new Promise(resolve => {
+      win.webContents.print(
+        // Zonder etiketmaat en dpi stuurt de DYMO-driver een lege job (getest);
+        // 36 x 89 mm = het DYMO-etiket 99012. Een liggende sticker (85 x 36 mm)
+        // liggend printen, anders wordt hij op het smalle etiket verkleind.
+        {
+          silent: true, deviceName: printer.name, printBackground: true, margins: { marginType: 'none' },
+          pageSize: DYMO_LABEL_MICRONS, dpi: { horizontal: 300, vertical: 300 }, landscape: size.width > size.height
+        },
+        (success, reason) => resolve(success ? null : reason || 'onbekende fout')
+      );
+    });
+    return failure
+      ? { ok: false, text: `Printen op de DYMO mislukt (${failure}). Print via "Afdrukken".` }
+      : { ok: true, text: 'Geprint op de DYMO.' };
+  } catch (error) {
+    return { ok: false, text: `Printen op de DYMO mislukt (${error.message}). Print via "Afdrukken".` };
+  } finally {
+    // Niet meteen opruimen: na het "klaar" van print() kan Windows de job nog
+    // uit dit venster halen.
+    setTimeout(() => { if (!win.isDestroyed()) win.destroy(); }, 10000);
+  }
+}
+
 function applyPageTweaks(view) {
   if (view.webContents.isDestroyed() || !isInternalUrl(view.webContents.getURL())) return;
   view.webContents.executeJavaScript(
@@ -1041,6 +1090,7 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       insertThemeCss(view);
       applySolidTints(view);
       view.webContents.executeJavaScript(PREVIEW_TAB_SCRIPT).catch(() => {}); // draait per pagina één keer
+      view.webContents.executeJavaScript(LABEL_PRINT_SCRIPT).catch(() => {}); // draait per pagina één keer
     }
     applyDarkMode(view);
     applyPageTweaks(view);
@@ -1712,6 +1762,14 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
   // Vang signalen uit de tab op en stuur ze door naar de juiste tabactie
   view.webContents.on('console-message', (event) => {
     const message = event.message;
+
+    if (message.startsWith('ELECTRON_PRINT_LABEL:')) {
+      printLabelPdf(message.slice('ELECTRON_PRINT_LABEL:'.length)).then(({ ok, text }) => {
+        if (view.webContents.isDestroyed()) return;
+        view.webContents.executeJavaScript(`window.__sgLabelPrinted && window.__sgLabelPrinted(${ok}, ${JSON.stringify(text)});`).catch(() => {});
+      });
+      return;
+    }
 
     if (message.startsWith('ELECTRON_LINK_CLICK:')) {
       const url = message.replace('ELECTRON_LINK_CLICK:', '');
@@ -2659,8 +2717,13 @@ ipcMain.on('set-taskbar-badge', (event, dataUrl) => {
 function switchToOpenTab(url, fromTabId) {
   const path = pagePath(url);
   const group = fromTabId && tabs.has(fromTabId) ? groupOf(fromTabId) : activeGroupId;
+  // Een lijst (/sales-orders, één padsegment) met een query is een filter (dashboardknop
+  // "orders in productie"): dat telt als andere pagina. Bij een detailpagina is de query
+  // alleen een subtab (?tab=), daar blijft het pad leidend.
+  const filtered = path && new URL(url).search && path.split('/').length === 4;
+  const sameSearch = (view) => !filtered || new URL(view.webContents.getURL()).search === new URL(url).search;
   const match = path && [...tabs.entries()].find(([id, view]) =>
-    id !== fromTabId && !isDetachedTab(id) && groupOf(id) === group && pagePath(view.webContents.getURL()) === path);
+    id !== fromTabId && !isDetachedTab(id) && groupOf(id) === group && pagePath(view.webContents.getURL()) === path && sameSearch(view));
   if (!match) return null;
   switchTab(match[0]);
   return match[0];

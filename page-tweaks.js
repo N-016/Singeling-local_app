@@ -85,6 +85,28 @@ const PAGE_TWEAKS_CSS = `
     background: hsl(var(--accent));
   }
 
+  /* Melding bij het printen van stickers op de DYMO (LABEL_PRINT_SCRIPT). */
+  .sg-label-note {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    z-index: 2147483647;
+    max-width: min(520px, calc(100vw - 32px));
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: #1f2937;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .sg-label-note-error {
+    background: #b42318;
+  }
+
   /* Navigatie (zijbalk links). De webapp maakt die altijd bijna zwart
      (--sg-ink); hier volgt hij de donkere modus: heel donkergrijs in donker,
      lichtgrijs met donkere tekst in licht. Kleuren = de tabbalk (index.html).
@@ -242,4 +264,62 @@ const PREVIEW_TAB_SCRIPT = `(() => {
   }).observe(document.body, { childList: true, subtree: true });
 })();`;
 
-module.exports = { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT, PREVIEW_TAB_SCRIPT };
+// Transportstickers meteen op de DYMO, zonder printdialoog. "Deze sticker
+// printen" / "Alle stickers printen" laat de webapp een PDF maken en die in
+// een voorbeeld ("Stickers transport ...") tonen, met "Afdrukken" (= het
+// printdialoog). Staat het formaat op een labelprinter, dan stuurt dit script
+// die PDF naar main.js (ELECTRON_PRINT_LABEL), dat hem stil op de DYMO print.
+// Gelukt: voorbeeld dicht. Niet gelukt (geen DYMO, printfout): voorbeeld
+// blijft open met een melding, zodat je via "Afdrukken" alsnog kunt printen.
+// Bij "A4-vel" verandert er niets. Verandert de webapp het voorbeeld of de
+// formaatkeuze, dan gaat alles gewoon weer via het dialoog.
+const LABEL_PRINT_SCRIPT = `(() => {
+  if (window.__sgLabelPrint) return;
+  window.__sgLabelPrint = true;
+  const handled = new WeakSet();
+  let pending = null;
+  const note = (text, ok) => {
+    const el = document.createElement('div');
+    el.className = 'sg-label-note' + (ok ? '' : ' sg-label-note-error');
+    el.setAttribute('role', 'status');
+    el.textContent = text;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), ok ? 3000 : 7000);
+  };
+  // Antwoord van main.js na het printen.
+  window.__sgLabelPrinted = (ok, message) => {
+    const dialog = pending;
+    pending = null;
+    note(message, ok);
+    if (!ok || !dialog) return;
+    const close = [...dialog.querySelectorAll('button')].find(b => /^(Sluiten|Close)$/.test(b.textContent.trim()));
+    if (close) close.click();
+  };
+  const toBase64 = (buffer) => {
+    const bytes = new Uint8Array(buffer);
+    let text = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(text);
+  };
+  new MutationObserver(() => {
+    for (const dialog of document.querySelectorAll('[role="dialog"][data-state="open"]')) {
+      if (handled.has(dialog)) continue;
+      const title = (dialog.querySelector('h2') || {}).textContent || '';
+      const frame = dialog.querySelector('iframe[src^="blob:"]');
+      if (!/^Stickers\\b/.test(title) || !frame) continue;
+      handled.add(dialog);
+      // De formaatkeuze staat in het transportvenster eronder.
+      const format = [...document.querySelectorAll('button[role="combobox"]')]
+        .map(b => b.textContent.trim()).find(t => /^(Labelprinter|A4)/.test(t)) || '';
+      if (!/^Labelprinter/.test(format)) continue;
+      pending = dialog;
+      note('Stickers naar de DYMO sturen…', true);
+      fetch(frame.src)
+        .then(response => response.arrayBuffer())
+        .then(buffer => console.log('ELECTRON_PRINT_LABEL:' + toBase64(buffer)))
+        .catch(() => window.__sgLabelPrinted(false, 'De stickers konden niet gelezen worden. Print via "Afdrukken".'));
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+})();`;
+
+module.exports = { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT, PREVIEW_TAB_SCRIPT, LABEL_PRINT_SCRIPT };
