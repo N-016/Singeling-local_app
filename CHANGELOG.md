@@ -2,7 +2,7 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
-## [1.3.1-beta.1] - 2026-11-02
+## [1.3.1] - 2026-11-02
 
 ### Toegevoegd
 - **Tabbalk op een eigen rij** onder de knoppen (standaard). In Instellingen > Tabs kies je zelf Eigen rij, Eén balk of Zonder tabs, als kaartjes met een tekening.
