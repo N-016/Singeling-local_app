@@ -2,6 +2,11 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.3.2] - 2026-11-04
+
+### Toegevoegd
+- **Rit printen** in Transport > Dag planning: de knop "Print rit" staat naast "Ritindeling voorstellen". Je kiest een rit en print een beknopt overzicht met per transport klant, adres, actie, goederen, het document (pakbon of inkoop) en het transportnummer.
+
 ## [1.3.1] - 2026-11-02
 
 ### Toegevoegd
