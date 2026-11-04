@@ -322,4 +322,127 @@ const LABEL_PRINT_SCRIPT = `(() => {
   }).observe(document.body, { childList: true, subtree: true });
 })();`;
 
-module.exports = { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT, PREVIEW_TAB_SCRIPT, LABEL_PRINT_SCRIPT };
+// Knop "Print rit" in Transport > Dag planning, naast "Ritindeling voorstellen".
+// Opent een eigen keuzevenster met de ritten van die dag; de gekozen rit wordt
+// als beknopt overzicht (klant, adres, actie, goederen, referentie) geprint.
+// De gegevens komen uit de ritkolommen op het scherm zelf: verandert de webapp
+// die opbouw ("Rit N"-kop, titels "Klik om bestemming te bewerken" e.d.), dan
+// hier de selectors aanpassen.
+const PRINT_RIT_SCRIPT = `(() => {
+  if (window.__sgPrintRit) return;
+  window.__sgPrintRit = true;
+  const ANCHOR = 'button[title^="Stel voor welke transporten"]';
+  const el = (tag, text, cls) => {
+    const e = document.createElement(tag);
+    if (text != null) e.textContent = text;
+    if (cls) e.className = cls;
+    return e;
+  };
+  const style = el('style', [
+    '.sg-pr-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center}',
+    '.sg-pr-box{background:hsl(var(--card));color:hsl(var(--foreground));border:1px solid hsl(var(--border));border-radius:8px;padding:20px;width:360px;max-width:90vw;display:flex;flex-direction:column;gap:8px}',
+    '.sg-pr-box h2{font-size:16px;font-weight:600;margin:0 0 4px}',
+    '.sg-pr-box button{font:inherit;text-align:left;padding:8px 12px;border:1px solid hsl(var(--border));border-radius:6px;background:transparent;color:inherit;cursor:pointer}',
+    '.sg-pr-box button:hover{background:hsl(var(--accent))}',
+    '#sg-print{display:none}',
+    '@media print{html,body{background:#fff!important}body>*:not(#sg-print){display:none!important}',
+    '#sg-print{display:block!important;color:#000;font:12px/1.35 sans-serif}',
+    '#sg-print h1{font-size:18px;margin:0 0 2px}#sg-print p{margin:0 0 10px}',
+    '#sg-print table{width:100%;border-collapse:collapse}',
+    '#sg-print th,#sg-print td{border:1px solid #999;padding:4px 6px;text-align:left;vertical-align:top}',
+    '#sg-print th{background:#eee}#sg-print tr{break-inside:avoid}}'
+  ].join(''));
+  document.head.appendChild(style);
+
+  const leaves = (card) => [...card.querySelectorAll('*')].filter(e => !e.children.length && e.textContent.trim()).map(e => e.textContent.trim());
+  const readCard = (card) => {
+    const t = leaves(card);
+    const text = card.textContent;
+    const type = t.findIndex(x => /^[A-Z]{3,}$/.test(x));
+    const vehicle = (card.querySelector('[title="Klik om voertuig te bewerken"]') || {}).textContent;
+    return {
+      volg: (text.match(/Volg nummer:\\s*(\\d+)/) || [])[1],
+      klant: t[0],
+      adres: (card.querySelector('[title="Klik om bestemming te bewerken"]') || {}).textContent || '',
+      actie: t.find(x => /^(Ophalen|Wegbrengen)$/.test(x)) || '',
+      goederen: t.find(x => /^\\d+\\s+\\S/.test(x) && !/^Volg/.test(x)) || '',
+      doc: type >= 0 ? t[type][0] + t[type].slice(1).toLowerCase() + ' ' + (t[type + 1] || '') : '',
+      tnr: (text.match(/T-\\d+/) || [])[0] || '',
+      uiterlijk: (t.find(x => /^Uiterlijk/.test(x)) || '').replace(/^Uiterlijk\\s*/, ''),
+      voertuig: vehicle && vehicle.trim() !== '-' ? vehicle.trim() : ''
+    };
+  };
+  const readRitten = () => {
+    const out = [];
+    for (const head of document.querySelectorAll('div')) {
+      if (head.children.length || !/^Rit \\d+$/.test(head.textContent.trim())) continue;
+      let col = head;
+      while (col.parentElement && !(col.parentElement.getAttribute('style') || '').includes('grid-template-columns')) col = col.parentElement;
+      if (!col.parentElement) continue;
+      const rows = [...col.querySelectorAll('[aria-roledescription="draggable"]')].map(readCard);
+      if (rows.length) out.push({ naam: head.textContent.trim(), rows: rows.sort((a, b) => (a.volg || 999) - (b.volg || 999)) });
+    }
+    return out;
+  };
+
+  const print = (rit, datum) => {
+    const box = el('div');
+    box.id = 'sg-print';
+    box.appendChild(el('h1', rit.naam + ' - ' + datum));
+    const vehicles = [...new Set(rit.rows.map(r => r.voertuig).filter(Boolean))].join(', ');
+    box.appendChild(el('p', rit.rows.length + ' transporten' + (vehicles ? ' · ' + vehicles : '')));
+    const table = el('table');
+    const head = el('tr');
+    ['#', 'Klant', 'Adres', 'Actie', 'Goederen', 'Document', 'Transport', 'Uiterlijk'].forEach(h => head.appendChild(el('th', h)));
+    table.appendChild(head);
+    rit.rows.forEach((r, i) => {
+      const tr = el('tr');
+      [i + 1, r.klant, r.adres, r.actie, r.goederen, r.doc, r.tnr, r.uiterlijk].forEach(v => tr.appendChild(el('td', v)));
+      table.appendChild(tr);
+    });
+    box.appendChild(table);
+    document.body.appendChild(box);
+    window.addEventListener('afterprint', () => box.remove(), { once: true });
+    window.print();
+  };
+
+  const open = (datum) => {
+    const ritten = readRitten();
+    const overlay = el('div', null, 'sg-pr-overlay');
+    const box = el('div', null, 'sg-pr-box');
+    const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey, true); };
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    box.appendChild(el('h2', 'Welke rit printen?'));
+    if (!ritten.length) box.appendChild(el('div', 'Er staan geen transporten in een rit op deze dag.'));
+    for (const rit of ritten) {
+      const b = el('button', rit.naam + ' · ' + rit.rows.length + ' transporten');
+      b.addEventListener('click', () => { close(); print(rit, datum); });
+      box.appendChild(b);
+    }
+    const cancel = el('button', 'Annuleren');
+    cancel.addEventListener('click', close);
+    box.appendChild(cancel);
+    overlay.appendChild(box);
+    overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(overlay);
+  };
+
+  const ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
+  const ensureButton = () => {
+    const anchor = document.querySelector(ANCHOR);
+    if (!anchor || (anchor.nextElementSibling && anchor.nextElementSibling.hasAttribute('data-sg-print'))) return;
+    const button = el('button', null, anchor.className);
+    button.setAttribute('data-sg-print', '');
+    button.title = 'Een rit uit deze dag printen als beknopt overzicht';
+    button.innerHTML = ICON + 'Print rit';
+    // De datum staat in het blokje links van de knoppen ("woensdag 4 november 2026").
+    button.addEventListener('click', () => open([...anchor.parentElement.children].map(c => c.textContent.trim()).find(x => /\\d{4}$/.test(x)) || ''));
+    anchor.after(button);
+  };
+  ensureButton();
+  new MutationObserver(ensureButton).observe(document.body, { childList: true, subtree: true });
+})();`;
+
+
+module.exports = { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT, PREVIEW_TAB_SCRIPT, LABEL_PRINT_SCRIPT, PRINT_RIT_SCRIPT };
