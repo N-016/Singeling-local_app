@@ -854,7 +854,9 @@ const HEUVEL = {
   .theme-preview[data-theme="heuvel"] .tp-btn { height: 8px; background: linear-gradient(180deg, #4f8ff0, #245edb 45%, #1941a5); border: 1px solid #0a246a; border-radius: 3px; }`,
   chromeCss: `
   html.chrome-theme #tab-bar {
-    background: ${XP_BLUE} !important;
+    /* Alleen de bovenste rij (38px) blauw als titelbalk; de tabrij eronder
+       in het beige van een XP-werkbalk, anders wordt het één dikke blauwe rand. */
+    background: ${XP_BLUE} top / 100% 38px no-repeat, #ece9d8 !important;
     --text: #ffffff;
     --text-muted: #e3ecff;
     --tab-bg: transparent;
@@ -867,6 +869,42 @@ const HEUVEL = {
     --accent-hover: #fff2b3;
     --text-faint: rgba(255, 255, 255, 0.45);
     --border: rgba(255, 255, 255, 0.45);
+  }
+  html.chrome-theme:not(.tabbar-off, .tabs-inline) :is(#tab-scroll, #tab-scroll-buttons, #tab-overview-btn) {
+    --text: #1d1d1d;
+    --text-muted: #3b3b3b;
+    --text-faint: rgba(0, 0, 0, 0.35);
+    --hover: rgba(0, 0, 0, 0.08);
+    --hover-strong: rgba(0, 0, 0, 0.14);
+    --accent: #1941a5;
+  }
+  /* Op de beige rij: tabbladen zoals in een XP-venster (licht, grijze rand,
+     het gekozen wit met het oranje randje bovenaan). */
+  html.chrome-theme:not(.tabbar-off, .tabs-inline) .tab {
+    border-color: #919b9c !important;
+    border-radius: 3px 3px 0 0;
+    background: linear-gradient(180deg, #ffffff, #f4f3ee 55%, #e5e3d6) !important;
+    color: #1d1d1d !important;
+    box-shadow: none;
+  }
+  html.chrome-theme:not(.tabbar-off, .tabs-inline) .tab.active {
+    background: #ffffff !important;
+    box-shadow: inset 0 3px 0 #ffc83c;
+  }
+  /* Groepen op de blauwe rij blijven blauw: de gekozen als ingedrukte
+     XP-taakbalkknop. Beige met het gele randje is voor de tabrij eronder. */
+  html.chrome-theme .group-chip.active {
+    background: linear-gradient(180deg, #1a48b8, #1e52c4 50%, #2459cc);
+    border-color: rgba(0, 0, 0, 0.3);
+    color: #ffffff;
+    box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.45);
+  }
+  html.chrome-theme .group-chip.active svg { color: #ffffff; }
+  /* Bevestigen/hernoemen in de balk: donkere tekst op beige (de balk zet wit). */
+  html.chrome-theme :is(.group-chip-confirm, .group-chip-rename) {
+    --text: #1d1d1d;
+    --border: rgba(0, 0, 0, 0.3);
+    background: #ece9d8;
   }
   html.chrome-theme .tab {
     margin: 4px 1px;
@@ -883,6 +921,10 @@ const HEUVEL = {
     box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.45);
   }
   html.chrome-theme #new-tab-btn {
+    /* Zo hoog als de tabs (26px), niet de volle 30px. */
+    flex-basis: 26px;
+    width: 26px;
+    height: 24px;
     background: ${XP_GREEN} !important;
     color: #ffffff !important;
     border-radius: 0 12px 12px 0 !important;
@@ -1159,6 +1201,12 @@ const BEDIENPANEEL = {
   }
   html.chrome-theme .window-control::after { display: none; }
   html.chrome-theme #window-close:hover { background: #c62a1c !important; }
+  /* Bevestigen/hernoemen in de balk: donkere tekst op licht (de balk zet wit). */
+  html.chrome-theme :is(.group-chip-confirm, .group-chip-rename) {
+    --text: #1c1f4a;
+    --border: #8f94c8;
+    background: #f4f4fa;
+  }
 `
 };
 

@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- Onzichtbare printpagina voor transportstickers (printLabelPdf in main.js).
+     De pdf-viewer van Electron print stil alleen een lege pagina, dus tekent
+     pdf.js elke PDF-pagina hier als plaatje (300 dpi); dat print wel. -->
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; worker-src 'self' file: blob:; connect-src 'self' file: data:; img-src data: blob:; style-src 'unsafe-inline'; font-src 'self' file: data:">
+  <style>
+    @page { margin: 0; }
+    html, body { margin: 0; padding: 0; background: #ffffff; }
+    /* Eén sticker per vel, gecentreerd op het etiket. Het plaatje heeft de
+       echte stickermaat (label-print.mjs) en wordt niet zacht geschaald. */
+    .label { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; break-after: page; }
+    .label:last-child { break-after: auto; }
+    .label img { flex: 0 0 auto; image-rendering: pixelated; }
+  </style>
+</head>
+<body>
+  <script type="module" src="label-print.mjs"></script>
+</body>
+</html>

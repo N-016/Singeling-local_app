@@ -3,7 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
 const { DARK_MODE_BACKGROUND, DARK_MODE_CSS } = require('./dark-mode');
-const { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT } = require('./page-tweaks');
+const { PAGE_TWEAKS_CSS, SOLID_TINTS_SCRIPT, PREVIEW_TAB_SCRIPT, LABEL_PRINT_SCRIPT, PRINT_RIT_SCRIPT } = require('./page-tweaks');
 const { SOFT_MODE_BACKGROUND, SOFT_MODE_CSS } = require('./soft-mode');
 const themes = require('./themes');
 const { START_URL, APP_HOSTNAME, isInternalUrl, isAuthUrl, isFileUrl, compareVersions, criticalUpdateFrom, pageKind } = require('./rules');
@@ -31,7 +31,14 @@ app.on('second-instance', () => {
   mainWindow.focus();
 });
 
+// De standaardgroep (tabs zonder eigen groep) heet in beeld "Tabgroep 1", tot je
+// hem hernoemt (appSettings.defaultGroupName); eigen groepen tellen door vanaf
+// Tabgroep 2 (freeGroupName).
+const DEFAULT_GROUP_NAME = 'Tabgroep 1';
 const TABBAR_HEIGHT = 38;
+// Tweede rij met de tabs onder de knoppenbalk (niet bij "tabbalk uit" en niet
+// in losse vensters); samen = --bar-h in index.html.
+const TAB_ROW_HEIGHT = 35;
 const UPDATE_BANNER_HEIGHT = 40;
 const DEFAULT_ZOOM = 1;
 const MIN_ZOOM = 0.25;
@@ -81,10 +88,13 @@ let appSettings = {
   zoomResetDone: true, // zie ZOOM_RESET in loadSettings
   startTabs: [], // [{ url, locked }]
   tabGroups: [], // [{ id, name, urls: [] }]
+  defaultGroupName: DEFAULT_GROUP_NAME, // naam van de standaardgroep (tabs zonder eigen groep)
   lastSeenChangelogVersion: null,
   seenWhatsNewTours: [], // ids van "Nieuw in deze versie"-rondleidingen die al getoond zijn
   openAllLinksInNewTab: false,
   tabBarDisabled: false, // tabbalk uit: één scherm, balk toont alleen het instellingen-icoon
+  tabsOwnRow: true, // tabs op een eigen rij onder de knoppen (uit: alles op één balk)
+  groupsInBar: true, // bij een eigen rij: tabgroepen als mappen naast elkaar (uit: één mapknop met menu)
   showOnboarding: true,
   blockCtrlB: false,
   windowsNotifications: true, // Windows-melding bij een nieuwe melding bij het belletje
@@ -172,7 +182,12 @@ function loadSettings() {
     // Eenmalig: na deze update begint iedereen weer op 100%. Daarna wordt
     // ieders eigen zoomniveau weer gewoon onthouden (zoomResetDone).
     const zoomResetDone = parsed.zoomResetDone === true;
+    // "Groep 1" was kort de standaardnaam (bèta); die telt niet als eigen keuze.
+    const defaultGroupName = typeof parsed.defaultGroupName === 'string' && parsed.defaultGroupName.trim() && parsed.defaultGroupName.trim() !== 'Groep 1'
+      ? parsed.defaultGroupName.trim().slice(0, 40)
+      : DEFAULT_GROUP_NAME;
     appSettings = {
+      defaultGroupName,
       zoomFactor: zoomResetDone && typeof parsed.zoomFactor === 'number' ? parsed.zoomFactor : DEFAULT_ZOOM,
       zoomResetDone: true,
       // Alleen geldige app-adressen: een kapotte regel of bv. about:blank als
@@ -181,17 +196,19 @@ function loadSettings() {
         ? parsed.startTabs.filter(tab => tab && typeof tab.url === 'string' && isInternalUrl(tab.url))
         : [],
       tabGroups: Array.isArray(parsed.tabGroups)
-        ? parsed.tabGroups
+        ? withoutDefaultGroupName(parsed.tabGroups
           .filter(group => group && Array.isArray(group.urls))
           // Zonder 'Onthouden' is een groep tijdelijk: weg na een herstart. Groepen van
           // vóór deze instelling blijven (die had je bewust bewaard).
           .map(group => ({ id: group.id, name: group.name, remember: group.remember !== false, urls: group.urls.filter(url => typeof url === 'string' && isInternalUrl(url)) }))
-          .filter(group => group.remember)
+          .filter(group => group.remember), defaultGroupName)
         : [],
       lastSeenChangelogVersion: typeof parsed.lastSeenChangelogVersion === 'string' ? parsed.lastSeenChangelogVersion : null,
       seenWhatsNewTours: Array.isArray(parsed.seenWhatsNewTours) ? parsed.seenWhatsNewTours : [],
       openAllLinksInNewTab: typeof parsed.openAllLinksInNewTab === 'boolean' ? parsed.openAllLinksInNewTab : false,
       tabBarDisabled: typeof parsed.tabBarDisabled === 'boolean' ? parsed.tabBarDisabled : false,
+      tabsOwnRow: typeof parsed.tabsOwnRow === 'boolean' ? parsed.tabsOwnRow : true,
+      groupsInBar: typeof parsed.groupsInBar === 'boolean' ? parsed.groupsInBar : true,
       showOnboarding: typeof parsed.showOnboarding === 'boolean' ? parsed.showOnboarding : true,
       blockCtrlB: typeof parsed.blockCtrlB === 'boolean' ? parsed.blockCtrlB : false,
       windowsNotifications: typeof parsed.windowsNotifications === 'boolean' ? parsed.windowsNotifications : true,
@@ -743,7 +760,8 @@ function getViewBounds() {
   // tekent - dus een in-pagina elementje zoals de update-melding zou anders
   // meteen onzichtbaar onder de actieve tab verdwijnen. Door de view hier
   // naar beneden te schuiven blijft er ruimte voor die balk vrij.
-  const topOffset = TABBAR_HEIGHT + (updateBannerOpen ? UPDATE_BANNER_HEIGHT : 0);
+  const tabRow = appSettings.tabsOwnRow && !appSettings.tabBarDisabled ? TAB_ROW_HEIGHT : 0;
+  const topOffset = TABBAR_HEIGHT + tabRow + (updateBannerOpen ? UPDATE_BANNER_HEIGHT : 0);
   return { x: 0, y: topOffset, width: bounds.width, height: bounds.height - topOffset };
 }
 
@@ -1001,6 +1019,55 @@ function applySolidTints(view) {
   if (themes.hasWallpaper(activeTheme())) view.webContents.executeJavaScript(SOLID_TINTS_SCRIPT).catch(() => {});
 }
 
+// Transportstickers stil op de DYMO (LABEL_PRINT_SCRIPT in page-tweaks.js
+// stuurt de PDF als base64). Een PDF zelf stil printen geeft in Electron een
+// leeg vel, dus tekent label-print.html hem eerst als plaatjes (pdf.js). Dat
+// gebeurt in een onzichtbaar venster dat nooit getoond wordt en meteen na het
+// printen weer weg is. Geen DYMO of mislukt: ok false, dan blijft het
+// voorbeeld met "Afdrukken" in de pagina staan.
+const LABEL_PDF_MAX_BASE64 = 20 * 1024 * 1024;
+const DYMO_LABEL_MICRONS = { width: 36000, height: 89000 }; // etiket 99012, staand zoals de driver het kent
+async function printLabelPdf(base64) {
+  // "JVBER" = "%PDF" in base64: alleen echte PDF's, en niet onbeperkt groot.
+  if (!base64.startsWith('JVBER') || base64.length > LABEL_PDF_MAX_BASE64) {
+    return { ok: false, text: 'De stickers zijn geen geldige PDF. Print via "Afdrukken".' };
+  }
+  const printers = await mainWindow.webContents.getPrintersAsync().catch(() => []);
+  const printer = printers.find(p => /dymo/i.test(`${p.name} ${p.displayName}`));
+  if (!printer) return { ok: false, text: 'DYMO-printer niet gevonden. Print via "Afdrukken".' };
+
+  const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true } });
+  try {
+    await win.loadFile(path.join(__dirname, 'label-print.html'));
+    // label-print.mjs laadt als module na de pagina zelf.
+    for (let i = 0; i < 50 && !(await win.webContents.executeJavaScript('window.labelPrintReady === true')); i++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    const size = await win.webContents.executeJavaScript(`renderLabels(${JSON.stringify(base64)})`);
+    const failure = await new Promise(resolve => {
+      win.webContents.print(
+        // Zonder etiketmaat en dpi stuurt de DYMO-driver een lege job (getest);
+        // 36 x 89 mm = het DYMO-etiket 99012. Een liggende sticker (85 x 36 mm)
+        // liggend printen, anders wordt hij op het smalle etiket verkleind.
+        {
+          silent: true, deviceName: printer.name, printBackground: true, margins: { marginType: 'none' },
+          pageSize: DYMO_LABEL_MICRONS, dpi: { horizontal: 300, vertical: 300 }, landscape: size.width > size.height
+        },
+        (success, reason) => resolve(success ? null : reason || 'onbekende fout')
+      );
+    });
+    return failure
+      ? { ok: false, text: `Printen op de DYMO mislukt (${failure}). Print via "Afdrukken".` }
+      : { ok: true, text: 'Geprint op de DYMO.' };
+  } catch (error) {
+    return { ok: false, text: `Printen op de DYMO mislukt (${error.message}). Print via "Afdrukken".` };
+  } finally {
+    // Niet meteen opruimen: na het "klaar" van print() kan Windows de job nog
+    // uit dit venster halen.
+    setTimeout(() => { if (!win.isDestroyed()) win.destroy(); }, 10000);
+  }
+}
+
 function applyPageTweaks(view) {
   if (view.webContents.isDestroyed() || !isInternalUrl(view.webContents.getURL())) return;
   view.webContents.executeJavaScript(
@@ -1022,6 +1089,9 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
       view.webContents.insertCSS(PAGE_TWEAKS_CSS).catch(() => {});
       insertThemeCss(view);
       applySolidTints(view);
+      view.webContents.executeJavaScript(PREVIEW_TAB_SCRIPT).catch(() => {}); // draait per pagina één keer
+      view.webContents.executeJavaScript(LABEL_PRINT_SCRIPT).catch(() => {}); // draait per pagina één keer
+      view.webContents.executeJavaScript(PRINT_RIT_SCRIPT).catch(() => {}); // draait per pagina één keer
     }
     applyDarkMode(view);
     applyPageTweaks(view);
@@ -1694,6 +1764,14 @@ function attachNavigationHandlers(view, tabId, { skipFirstNavigation = true } = 
   view.webContents.on('console-message', (event) => {
     const message = event.message;
 
+    if (message.startsWith('ELECTRON_PRINT_LABEL:')) {
+      printLabelPdf(message.slice('ELECTRON_PRINT_LABEL:'.length)).then(({ ok, text }) => {
+        if (view.webContents.isDestroyed()) return;
+        view.webContents.executeJavaScript(`window.__sgLabelPrinted && window.__sgLabelPrinted(${ok}, ${JSON.stringify(text)});`).catch(() => {});
+      });
+      return;
+    }
+
     if (message.startsWith('ELECTRON_LINK_CLICK:')) {
       const url = message.replace('ELECTRON_LINK_CLICK:', '');
       if (isAuthUrl(url)) view.webContents.loadURL(url);
@@ -2288,6 +2366,7 @@ function sendGroupState() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   mainWindow.webContents.send('tab-group-state', {
     activeGroupId,
+    defaultGroupName: appSettings.defaultGroupName,
     groups: appSettings.tabGroups.map(group => ({ id: group.id, name: group.name })),
     tabGroupOf: Object.fromEntries(tabGroupOf)
   });
@@ -2322,8 +2401,26 @@ function switchGroup(groupId) {
   urls.forEach((url, index) => createTab(url, index === 0));
 }
 
+// Eerste vrije "Tabgroep N" vanaf 2 (Tabgroep 1 is de standaardgroep).
+function freeGroupName(groups) {
+  const used = new Set(groups.map(group => group.name));
+  let n = 2;
+  while (used.has(`Tabgroep ${n}`)) n++;
+  return `Tabgroep ${n}`;
+}
+
+// Een bewaarde groep met dezelfde naam als de standaardgroep (bv. "Groep 1"
+// van vóór de standaardgroep zo heette) krijgt het eerstvolgende vrije
+// nummer, anders staat hij er dubbel.
+function withoutDefaultGroupName(groups, defaultName) {
+  for (const group of groups) {
+    if (group.name === defaultName) group.name = freeGroupName(groups);
+  }
+  return groups;
+}
+
 function createGroup() {
-  const group = { id: `group-${Date.now()}`, name: `Groep ${appSettings.tabGroups.length + 1}`, remember: false, urls: [] };
+  const group = { id: `group-${Date.now()}`, name: freeGroupName(appSettings.tabGroups), remember: false, urls: [] };
   appSettings.tabGroups.push(group);
   saveSettings();
   mainWindow.webContents.send('tab-groups-changed', appSettings.tabGroups);
@@ -2387,7 +2484,7 @@ ipcMain.on('show-group-menu', (event, { x, y }) => {
     click: () => switchGroup(groupId)
   });
   Menu.buildFromTemplate([
-    item(null, 'Algemeen'),
+    item(null, appSettings.defaultGroupName),
     ...appSettings.tabGroups.map(group => item(group.id, group.name)),
     { type: 'separator' },
     {
@@ -2398,7 +2495,9 @@ ipcMain.on('show-group-menu', (event, { x, y }) => {
         mainWindow.webContents.send('open-tab-overview', { focusGroupId: group.id });
       }
     },
-    { label: 'Groepen beheren…', click: () => mainWindow.webContents.send('open-tab-overview', {}) }
+    { label: 'Groepen beheren…', click: () => mainWindow.webContents.send('open-tab-overview', {}) },
+    // Verwijzing naar de schakelaar "Groepen naast elkaar in de balk".
+    { label: 'Tabgroepen naast elkaar in de balk…', click: () => mainWindow.webContents.send('open-settings-section', 'start') }
   ]).popup({ window: mainWindow, x, y });
 });
 
@@ -2619,8 +2718,13 @@ ipcMain.on('set-taskbar-badge', (event, dataUrl) => {
 function switchToOpenTab(url, fromTabId) {
   const path = pagePath(url);
   const group = fromTabId && tabs.has(fromTabId) ? groupOf(fromTabId) : activeGroupId;
+  // Een lijst (/sales-orders, één padsegment) met een query is een filter (dashboardknop
+  // "orders in productie"): dat telt als andere pagina. Bij een detailpagina is de query
+  // alleen een subtab (?tab=), daar blijft het pad leidend.
+  const filtered = path && new URL(url).search && path.split('/').length === 4;
+  const sameSearch = (view) => !filtered || new URL(view.webContents.getURL()).search === new URL(url).search;
   const match = path && [...tabs.entries()].find(([id, view]) =>
-    id !== fromTabId && !isDetachedTab(id) && groupOf(id) === group && pagePath(view.webContents.getURL()) === path);
+    id !== fromTabId && !isDetachedTab(id) && groupOf(id) === group && pagePath(view.webContents.getURL()) === path && sameSearch(view));
   if (!match) return null;
   switchTab(match[0]);
   return match[0];
@@ -2866,7 +2970,7 @@ ipcMain.on('show-tab-context-menu', (event, { tabId, x, y }) => {
   // Alleen app-pagina's bewaren (geen about:blank van een PDF-voorbeeld e.d.).
   const canSave = isInternalUrl(currentUrl);
 
-  const groupSubmenu = [{ id: null, name: 'Algemeen' }, ...appSettings.tabGroups].map(group => ({
+  const groupSubmenu = [{ id: null, name: appSettings.defaultGroupName }, ...appSettings.tabGroups].map(group => ({
     label: group.name,
     type: 'radio',
     checked: groupOf(tabId) === group.id,
@@ -2967,8 +3071,11 @@ ipcMain.handle('get-settings', (event) => {
     zoomFactor: appSettings.zoomFactor,
     startTabs: appSettings.startTabs,
     tabGroups: appSettings.tabGroups,
+    defaultGroupName: appSettings.defaultGroupName,
     openAllLinksInNewTab: appSettings.openAllLinksInNewTab,
     tabBarDisabled: appSettings.tabBarDisabled,
+    tabsOwnRow: appSettings.tabsOwnRow,
+    groupsInBar: appSettings.groupsInBar,
     showOnboarding: appSettings.showOnboarding,
     // Eerste start na een update (niet na een nieuwe installatie): dan is de
     // korte "Nieuw in deze versie"-rondleiding verplicht (welkomstscherm in
@@ -3496,10 +3603,24 @@ ipcMain.on('set-tab-bar-disabled', (event, value) => {
       if (tabId !== activeTabId && !isDetachedTab(tabId)) closeTab(tabId);
     }
   }
+  applyActiveTabBounds(); // de tabrij verdwijnt of komt terug
   for (const [tabId, view] of tabs) {
     if (isDetachedTab(tabId)) continue;
     view.webContents.executeJavaScript(`window.__electronDetached = ${appSettings.tabBarDisabled};`).catch(() => {});
   }
+});
+
+ipcMain.on('set-tabs-own-row', (event, value) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.tabsOwnRow = !!value;
+  saveSettings();
+  applyActiveTabBounds();
+});
+
+ipcMain.on('set-groups-in-bar', (event, value) => {
+  if (event.sender !== mainWindow.webContents) return;
+  appSettings.groupsInBar = !!value;
+  saveSettings();
 });
 
 ipcMain.on('set-open-all-links-in-new-tab', (event, value) => {
@@ -3518,9 +3639,16 @@ ipcMain.handle('check-for-updates-now', (event) => {
 });
 ipcMain.on('rename-tab-group', (event, { id, name }) => {
   if (event.sender !== mainWindow.webContents) return;
+  const trimmed = String(name || '').trim().slice(0, 40);
+  // id null = de standaardgroep (Tabgroep 1): alleen de naam wordt bewaard.
+  if (id === null) {
+    if (trimmed) appSettings.defaultGroupName = trimmed;
+    saveSettings();
+    sendGroupState();
+    return;
+  }
   const group = appSettings.tabGroups.find(g => g.id === id);
   if (!group) return;
-  const trimmed = (name || '').trim();
   if (trimmed) group.name = trimmed;
   saveSettings();
   mainWindow.webContents.send('tab-groups-changed', appSettings.tabGroups);
@@ -3528,6 +3656,34 @@ ipcMain.on('rename-tab-group', (event, { id, name }) => {
 });
 ipcMain.on('remove-tab-group', (event, id) => {
   if (event.sender === mainWindow.webContents) removeGroup(id);
+});
+// Rechtsklik op een groepstabje in de balk. De standaardgroep (groupId null)
+// kan wel hernoemd, maar niet verwijderd worden. Verwijderen vraagt eerst
+// bevestiging in de balk zelf (index.html), want de open tabs gaan mee dicht.
+ipcMain.on('show-group-chip-menu', (event, { groupId, x, y }) => {
+  if (event.sender !== mainWindow.webContents) return;
+  const group = groupId ? findGroup(groupId) : null;
+  Menu.buildFromTemplate([
+    // Focus naar de balk zelf (niet de pagina), anders komen toetsen niet in het invoerveld.
+    { label: 'Hernoemen', click: () => { mainWindow.webContents.focus(); mainWindow.webContents.send('rename-group-chip', groupId); } },
+    {
+      label: 'Verwijderen…',
+      enabled: !!group,
+      click: () => {
+        mainWindow.webContents.focus();
+        mainWindow.webContents.send('confirm-remove-group-chip', { groupId, tabCount: groupTabIds(groupId).length });
+      }
+    },
+    { type: 'separator' },
+    { label: 'Instellingen…', click: () => mainWindow.webContents.send('open-settings-section', 'start') }
+  ]).popup({ window: mainWindow, x, y });
+});
+// Na de bevestiging: eerst de tabs van de groep sluiten (removeTabFromBar
+// gaat dan zelf terug naar de standaardgroep), daarna de groep zelf.
+ipcMain.on('remove-tab-group-with-tabs', (event, groupId) => {
+  if (event.sender !== mainWindow.webContents || !findGroup(groupId)) return;
+  for (const tabId of groupTabIds(groupId)) closeTab(tabId);
+  removeGroup(groupId);
 });
 ipcMain.on('remove-tab-group-url', (event, { groupId, urlIndex }) => {
   if (event.sender !== mainWindow.webContents) return;
@@ -3578,7 +3734,7 @@ ipcMain.on('set-debug-port', (event, value) => {
 // echte schermen bij de start ziet (welkomstscherm, instelassistent, "Nieuw in
 // deze versie"). Alleen de velden daarvoor gaan terug; tabs, thema en de
 // rest van de instellingen blijven.
-ipcMain.on('debug-simulate-start', (event, { mode, fromVersion, seenTours } = {}) => {
+ipcMain.on('debug-simulate-start', (event, { mode, fromVersion, seenTours, setupVersion = 0 } = {}) => {
   if (event.sender !== mainWindow.webContents || !DEBUG_AVAILABLE) return;
   if (mode === 'install') {
     Object.assign(appSettings, {
@@ -3586,10 +3742,10 @@ ipcMain.on('debug-simulate-start', (event, { mode, fromVersion, seenTours } = {}
       seenWhatsNewTours: [], showOnboarding: true
     });
   } else if (mode === 'update' && typeof fromVersion === 'string' && Array.isArray(seenTours)) {
-    // Zoals iemand die op fromVersion zat: keuzescherm toen al gezien, de
-    // instelassistent (nieuwer) nog niet.
+    // Zoals iemand die op fromVersion zat: keuzescherm toen al gezien, en de
+    // instelassistent tot setupVersion (index.html geeft mee wat die versie had).
     Object.assign(appSettings, {
-      lastSeenChangelogVersion: fromVersion, setupVersion: 0, preferencesChosen: true,
+      lastSeenChangelogVersion: fromVersion, setupVersion: Number.isInteger(setupVersion) ? setupVersion : 0, preferencesChosen: true,
       seenWhatsNewTours: seenTours.map(String)
     });
   } else {

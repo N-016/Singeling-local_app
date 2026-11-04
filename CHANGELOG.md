@@ -2,6 +2,34 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.3.2] - 2026-11-04
+
+### Toegevoegd
+- **Rit printen** in Transport > Dag planning: de knop "Print rit" staat naast "Ritindeling voorstellen". Je kiest een rit en print een beknopt overzicht met per transport klant, adres, actie, goederen, het document (pakbon of inkoop) en het transportnummer.
+
+## [1.3.1] - 2026-11-02
+
+### Toegevoegd
+- **Tabbalk op een eigen rij** onder de knoppen (standaard). In Instellingen > Tabs kies je zelf Eigen rij, Eén balk of Zonder tabs, als kaartjes met een tekening.
+- **Tabgroepen als maptabs** in de bovenste rij (alleen bij Eigen rij, met een schakelaar). De standaardgroep heet "Tabgroep 1" en is te hernoemen, met + maak je een nieuwe groep. Rechtsklik: hernoemen, verwijderen (met bevestiging in de balk; de tabs gaan mee dicht) en instellingen.
+- **Korte tabnamen** voor documenten met een nummer (SO, PO, WO, SI, PI, QT, RFQ).
+- **Openen in nieuw tabblad** in de viewer van Bekijken (PDF, afbeeldingen, mails): zo'n tab kun je losslepen, bijvoorbeeld naar een tweede scherm. Niet bij STEP-bestanden.
+- **Transportstickers meteen op de DYMO**: staat het formaat op een labelprinter, dan gaat de sticker zonder printvenster naar de DYMO (etiket 99012). Lukt dat niet, dan blijft het voorbeeld met "Afdrukken" staan, met een melding.
+- **Meldscherm**: plak je eigen schermafbeelding met Ctrl+V.
+- **Overzicht per pc** voor beheer (Debug, tabblad Pc's): processor, werkgeheugen, opslag en CPU per pc.
+
+### Gewijzigd
+- Instellingen: licht/donker, oogcomfort en de melding "Niet geklokt" zijn kaartjes met een voorbeeld, knoppenrijen zijn schuifknoppen. Instellingen sluit niet meer bij een klik op een kaartje.
+- Heuvel heeft een blauwe titelrij met beige tabrij en XP-tabbladen; tekst bij bevestigen en hernoemen is leesbaar in Heuvel en Bedienpaneel.
+- Scrollpijltjes in de tabbalk verschijnen alleen als de tabs niet meer passen.
+- Na de update toont "Nieuw in deze versie" de tabrij, daarna kies je thema en tabbalk.
+- Tabs met een bestand uit de opslag heten naar het bestand in plaats van "Storage v1".
+- Het kruisje op tabs is in alle thema's beter zichtbaar.
+- Het beheer-overzicht ververst bij het openen van Debug, bij een nieuwe melding en met een knop. CPU-gebruik wordt als percentage van de hele processor getoond.
+
+### Opgelost
+- Knoppen op het dashboard met een filter (bijvoorbeeld "Mijn orders in productie") sprongen naar de al open lijst zonder dat filter. Nu opent elk filter een eigen tab, en staat dat filter al open dan ga je daarheen.
+
 ## [1.3.0] - 2026-10-21
 
 ### Toegevoegd
