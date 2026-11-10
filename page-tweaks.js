@@ -350,7 +350,8 @@ const PRINT_RIT_SCRIPT = `(() => {
     '#sg-print h1{font-size:18px;margin:0 0 2px}#sg-print p{margin:0 0 10px}',
     '#sg-print table{width:100%;border-collapse:collapse}',
     '#sg-print th,#sg-print td{border:1px solid #999;padding:4px 6px;text-align:left;vertical-align:top}',
-    '#sg-print th{background:#eee}#sg-print tr{break-inside:avoid}}'
+    '#sg-print th{background:#eee}#sg-print tr{break-inside:avoid}',
+    '#sg-print th:nth-child(3){width:35%}}'
   ].join(''));
   document.head.appendChild(style);
 
@@ -360,7 +361,11 @@ const PRINT_RIT_SCRIPT = `(() => {
     const text = card.textContent;
     const type = t.findIndex(x => /^[A-Z]{3,}$/.test(x));
     const vehicle = (card.querySelector('[title="Klik om voertuig te bewerken"]') || {}).textContent;
+    // Verantwoordelijke (bv. "Jan (inkoper)", uit de order/inkoop); anders wie het transport aanmaakte.
+    const owner = card.querySelector('[title^="Verantwoordelijke: "]') || card.querySelector('[title^="Aangemaakt door "]');
     return {
+      // Initialen: "Jan de Vries (inkoper)" wordt "JdV".
+      wie: owner ? owner.title.replace(/^(Verantwoordelijke: |Aangemaakt door )/, '').replace(/\\s*\\(.*\\)$/, '').trim().split(/\\s+/).map(w => w[0]).join('') : '',
       volg: (text.match(/Volg nummer:\\s*(\\d+)/) || [])[1],
       klant: t[0],
       adres: (card.querySelector('[title="Klik om bestemming te bewerken"]') || {}).textContent || '',
@@ -393,11 +398,11 @@ const PRINT_RIT_SCRIPT = `(() => {
     box.appendChild(el('p', rit.rows.length + ' transporten' + (vehicles ? ' · ' + vehicles : '')));
     const table = el('table');
     const head = el('tr');
-    ['#', 'Klant', 'Adres', 'Actie', 'Goederen', 'Document', 'Transport', 'Uiterlijk'].forEach(h => head.appendChild(el('th', h)));
+    ['#', 'Klant', 'Adres', 'Actie', 'Goederen', 'Document', 'Transport', 'Uiterlijk', 'Wie'].forEach(h => head.appendChild(el('th', h)));
     table.appendChild(head);
     rit.rows.forEach((r, i) => {
       const tr = el('tr');
-      [i + 1, r.klant, r.adres, r.actie, r.goederen, r.doc, r.tnr, r.uiterlijk].forEach(v => tr.appendChild(el('td', v)));
+      [i + 1, r.klant, r.adres, r.actie, r.goederen, r.doc, r.tnr, r.uiterlijk, r.wie].forEach(v => tr.appendChild(el('td', v)));
       table.appendChild(tr);
     });
     box.appendChild(table);
