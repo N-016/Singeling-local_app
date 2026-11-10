@@ -2,6 +2,11 @@
 
 Alle belangrijke wijzigingen aan Singeling App worden hier bijgehouden. De nieuwste versie staat bovenaan.
 
+## [1.3.3] - 2026-11-10
+
+### Gewijzigd
+- **Rit printen**: er is een kolom "Wie" bijgekomen met de initialen van de verantwoordelijke (inkoper, werkvoorbereider of aanmaker) van het transport, of anders van wie het transport heeft aangemaakt. De adreskolom is breder.
+
 ## [1.3.2] - 2026-11-04
 
 ### Toegevoegd
